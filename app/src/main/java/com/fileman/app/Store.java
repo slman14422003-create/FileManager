@@ -45,4 +45,14 @@ public final class Store {
     public static void setFavorites(Context c, Set<String> s) {
         sp(c).edit().putStringSet("fav", new LinkedHashSet<>(s)).apply();
     }
+
+    // ------------------------------------------------------------------ one-time flags
+
+    public static boolean flag(Context c, String key) {
+        return sp(c).getBoolean("flag_" + key, false);
+    }
+
+    public static void setFlag(Context c, String key, boolean v) {
+        sp(c).edit().putBoolean("flag_" + key, v).apply();
+    }
 }

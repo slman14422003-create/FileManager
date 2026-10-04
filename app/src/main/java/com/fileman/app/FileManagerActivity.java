@@ -84,7 +84,7 @@ public class FileManagerActivity extends AppCompatActivity {
 
     private static final int SORT_NAME = 0, SORT_DATE = 1, SORT_SIZE = 2, SORT_TYPE = 3;
     private static final int M_DIR = 0, M_SEARCH = 1, M_FAV = 2, M_LARGEST = 3, M_CAT = 4;
-    private static final int T_DIR = Cats.T_DIR, T_IMG = Cats.T_IMG, T_APK = Cats.T_APK,
+    private static final int T_DIR = Cats.T_DIR, T_IMG = Cats.T_IMG, T_APK = Cats.T_APK, T_VID = Cats.T_VID,
             T_TXT = Cats.T_TXT;
     private static final int MAX_SEARCH = 300;
     private static final int MAX_LARGEST = 60;
@@ -913,7 +913,7 @@ public class FileManagerActivity extends AppCompatActivity {
             thumb.setBackground(g);
             thumb.setClipToOutline(true);
             thumb.setTag(path);
-            Bitmap cached = (type == T_IMG || type == T_APK) ? thumbs.get(path + "|" + e.mod) : null;
+            Bitmap cached = (type == T_IMG || type == T_APK || type == T_VID) ? thumbs.get(path + "|" + e.mod) : null;
             if (cached != null) {
                 thumb.setImageBitmap(cached);
                 thumb.setVisibility(View.VISIBLE);
@@ -921,7 +921,7 @@ public class FileManagerActivity extends AppCompatActivity {
             } else {
                 thumb.setVisibility(View.GONE);
                 icon.setVisibility(View.VISIBLE);
-                if (type == T_IMG || type == T_APK) loadThumb(e, type, thumb, icon);
+                if (type == T_IMG || type == T_APK || type == T_VID) loadThumb(e, type, thumb, icon);
             }
 
             ((TextView) v.findViewById(R.id.title)).setText(e.name);
@@ -964,6 +964,24 @@ public class FileManagerActivity extends AppCompatActivity {
                     BitmapFactory.Options o2 = new BitmapFactory.Options();
                     o2.inSampleSize = Math.max(1, s);
                     b = BitmapFactory.decodeFile(path, o2);
+                } else if (type == T_VID) {
+                    android.media.MediaMetadataRetriever mmr = new android.media.MediaMetadataRetriever();
+                    try {
+                        mmr.setDataSource(path);
+                        Bitmap frame = mmr.getFrameAtTime(1000000L, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                        if (frame != null) {
+                            int max = Math.max(frame.getWidth(), frame.getHeight());
+                            b = max > 192
+                                    ? Bitmap.createScaledBitmap(frame, Math.max(1, frame.getWidth() * 192 / max),
+                                    Math.max(1, frame.getHeight() * 192 / max), true)
+                                    : frame;
+                        }
+                    } finally {
+                        try {
+                            mmr.release();
+                        } catch (Exception ignored) {
+                        }
+                    }
                 } else {
                     PackageManager pm = getPackageManager();
                     PackageInfo pi = pm.getPackageArchiveInfo(path, 0);

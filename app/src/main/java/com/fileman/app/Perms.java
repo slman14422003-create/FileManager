@@ -36,7 +36,11 @@ public final class Perms {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
-    /** Opens the right system screen (or dialog) to grant file access. */
+    /**
+     * Opens the right system screen (or dialog) to grant file access. On Android 10 and older the
+     * runtime dialog is used; once the user has chosen "don't ask again" the system shows nothing, so
+     * the app settings page is opened instead.
+     */
     public static void requestAllFiles(Activity a) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
@@ -53,10 +57,35 @@ public final class Perms {
             }
             openAppSettings(a);
         } else {
+            boolean askedBefore = Store.flag(a, "storage_asked");
+            boolean canAsk = ActivityCompat.shouldShowRequestPermissionRationale(a,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    || ActivityCompat.shouldShowRequestPermissionRationale(a,
+                    Manifest.permission.READ_EXTERNAL_STORAGE);
+            if (askedBefore && !canAsk) {
+                openAppSettings(a);   // permanently denied: only the settings page can grant it now
+                return;
+            }
+            Store.setFlag(a, "storage_asked", true);
             ActivityCompat.requestPermissions(a, new String[]{
                     Manifest.permission.READ_EXTERNAL_STORAGE,
                     Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQ_STORAGE);
         }
+    }
+
+    /**
+     * Explains why the app needs file access and offers to grant it. Shown once, the first time the
+     * home screen opens without the permission; the home screen keeps a permanent banner afterwards.
+     */
+    public static void promptFirstRun(final Activity a) {
+        if (hasAllFiles(a) || Store.flag(a, "perm_intro")) return;
+        Store.setFlag(a, "perm_intro", true);
+        new Dlg(a)
+                .setTitle(R.string.perm_intro_title)
+                .setMessage(R.string.perm_intro_body)
+                .setPositiveButton(R.string.perm_allow, (d, w) -> requestAllFiles(a))
+                .setNegativeButton(R.string.perm_later, null)
+                .show();
     }
 
     // ------------------------------------------------------------------ install unknown apps

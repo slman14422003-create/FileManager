@@ -165,6 +165,26 @@ public final class Cats {
         }
     }
 
+
+    // ------------------------------------------------------------------ which viewer opens a file
+
+    public static final int V_NONE = 0, V_APK = 1, V_TEXT = 2, V_IMAGE = 3, V_MEDIA = 4, V_PDF = 5,
+            V_DOC = 6, V_LEGACY = 7;
+
+    /** Built-in viewer for a (lower-case) extension. */
+    public static int viewKind(String ext) {
+        int t = typeOfExt(ext);
+        if (t == T_APK) return V_APK;
+        if (t == T_IMG) return V_IMAGE;
+        if (t == T_VID || t == T_AUD) return V_MEDIA;
+        if (t == T_PDF) return V_PDF;
+        if (in(ext, "docx", "docm", "dotx", "xlsx", "xlsm", "xltx", "pptx", "pptm", "ppsx", "odt", "ods", "odp",
+                "csv", "tsv", "rtf", "html", "htm", "xhtml", "svg")) return V_DOC;
+        if (in(ext, "doc", "dot", "xls", "ppt", "pps")) return V_LEGACY;
+        if (t == T_TXT) return V_TEXT;
+        return V_NONE;
+    }
+
     // ------------------------------------------------------------------ helpers
 
     public static boolean isLink(File f) {

@@ -71,6 +71,7 @@ public class HomeActivity extends AppCompatActivity {
             hadAccess = access;
         }
         render();
+        if (!access) Perms.promptFirstRun(this);
         if (access && (stats == null || System.currentTimeMillis() - statsAt > SCAN_MAX_AGE_MS)) startScan();
     }
 
