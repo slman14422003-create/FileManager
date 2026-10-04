@@ -114,6 +114,8 @@ public class HomeActivity extends AppCompatActivity {
 
     // ------------------------------------------------------------------ rendering
 
+    private boolean entered = false;
+
     private void render() {
         final View scroller = (View) content.getParent();
         final int keepY = scroller.getScrollY();
@@ -173,6 +175,10 @@ public class HomeActivity extends AppCompatActivity {
             content.addView(recent);
         }
         if (keepY > 0) scroller.post(() -> scroller.scrollTo(0, keepY));
+        if (!entered) {   // soft staggered entrance the first time the screen is drawn
+            entered = true;
+            for (int i = 0; i < Math.min(content.getChildCount(), 8); i++) Ui.enter(content.getChildAt(i), i);
+        }
     }
 
     /** Big search field at the top; tapping it opens the search screen with the keyboard up. */
@@ -270,7 +276,7 @@ public class HomeActivity extends AppCompatActivity {
     private View storageCard(final File root, String label, int iconRes) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackgroundResource(R.drawable.bg_card_ripple);
+        card.setBackgroundResource(R.drawable.bg_card_hero);
         card.setPadding(Ui.dp(this, 20), Ui.dp(this, 18), Ui.dp(this, 20), Ui.dp(this, 14));
         Ui.block(this, card);
         Ui.press(this, card);
