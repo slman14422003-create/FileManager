@@ -22,6 +22,10 @@ public final class Opener {
     /** Opens a regular file with the right viewer. */
     public static void open(Activity a, File f) {
         String ext = Cats.extOf(f.getName());
+        if (ext.equals("zip") || ext.equals("jar") || ext.equals("cbz")) {
+            start(a, ZipBrowseActivity.class, f);
+            return;
+        }
         switch (Cats.viewKind(ext)) {
             case Cats.V_APK:
                 Perms.installApk(a, f);

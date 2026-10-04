@@ -18,6 +18,8 @@ final class Safe {
             String p = f.getCanonicalPath();
             String own = c.getCacheDir().getCanonicalPath() + File.separator + "apk" + File.separator;
             if (p.startsWith(own)) return true;
+            String view = c.getCacheDir().getCanonicalPath() + File.separator + "zipview" + File.separator;
+            if (p.startsWith(view)) return true;   // files previewed from inside an archive
             File data = c.getDataDir();
             if (data != null && inside(p, data.getCanonicalPath())) return false;
             File dp = c.createDeviceProtectedStorageContext().getDataDir();

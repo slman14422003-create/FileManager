@@ -60,6 +60,10 @@ public class HomeActivity extends AppCompatActivity {
         });
         findViewById(R.id.btnSettings).setOnClickListener(v ->
                 startActivity(new Intent(this, SettingsActivity.class)));
+        // search and settings moved to the bottom bar (easier to reach with a thumb)
+        findViewById(R.id.btnSearch).setVisibility(View.GONE);
+        findViewById(R.id.btnSettings).setVisibility(View.GONE);
+        NavBar.attach(this, NavBar.HOME);
     }
 
     @Override
@@ -117,6 +121,7 @@ public class HomeActivity extends AppCompatActivity {
         boolean access = Perms.hasAllFiles(this);
 
         if (!access) content.addView(permissionCard());
+        content.addView(searchPill());
 
         // storage
         File internal = Environment.getExternalStorageDirectory();
@@ -127,6 +132,9 @@ public class HomeActivity extends AppCompatActivity {
                     R.drawable.ic_drive));
             n++;
         }
+
+        // places as chips: one tap to the folders used most
+        content.addView(placeChips());
 
         // quick access tiles
         content.addView(Ui.sectionTitle(this, getString(R.string.home_quick)));
@@ -155,26 +163,6 @@ public class HomeActivity extends AppCompatActivity {
             content.addView(pinned);
         }
 
-        // places
-        content.addView(Ui.sectionTitle(this, getString(R.string.home_places)));
-        LinearLayout places = new LinearLayout(this);
-        places.setOrientation(LinearLayout.VERTICAL);
-        addPlace(places, R.drawable.ic_download, R.string.fm_downloads,
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
-        addPlace(places, R.drawable.ic_camera, R.string.fm_dcim,
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM));
-        addPlace(places, R.drawable.ic_image, R.string.fm_pictures,
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
-        addPlace(places, R.drawable.ic_file_text, R.string.fm_documents,
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS));
-        addPlace(places, R.drawable.ic_music, R.string.fm_music,
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC));
-        addPlace(places, R.drawable.ic_video, R.string.fm_movies,
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES));
-        addPlace(places, R.drawable.ic_folder, R.string.fm_app_folder, appDir());
-        Ui.group(this, places);
-        content.addView(places);
-
         // newest files
         if (stats != null && !stats.recent.isEmpty()) {
             content.addView(Ui.sectionTitle(this, getString(R.string.home_newest)));
@@ -185,6 +173,66 @@ public class HomeActivity extends AppCompatActivity {
             content.addView(recent);
         }
         if (keepY > 0) scroller.post(() -> scroller.scrollTo(0, keepY));
+    }
+
+    /** Big search field at the top; tapping it opens the search screen with the keyboard up. */
+    private View searchPill() {
+        TextView t = new TextView(this);
+        t.setText(R.string.fm_search_hint);
+        t.setTextSize(15);
+        t.setTextColor(Ui.color(this, R.color.text_hint));
+        t.setSingleLine(true);
+        t.setGravity(Gravity.CENTER_VERTICAL);
+        t.setBackgroundResource(R.drawable.bg_input);
+        t.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_search, 0, 0, 0);
+        t.setCompoundDrawablePadding(Ui.dp(this, 12));
+        t.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.text_hint)));
+        t.setPadding(Ui.dp(this, 18), Ui.dp(this, 15), Ui.dp(this, 18), Ui.dp(this, 15));
+        Ui.block(this, t);
+        ((LinearLayout.LayoutParams) t.getLayoutParams()).topMargin = Ui.dp(this, 4);
+        Ui.press(this, t);
+        t.setOnClickListener(v -> {
+            Intent i = new Intent(this, FileManagerActivity.class);
+            i.putExtra("search", true);
+            startActivity(i);
+        });
+        return t;
+    }
+
+    private View placeChips() {
+        android.widget.HorizontalScrollView hs = new android.widget.HorizontalScrollView(this);
+        hs.setHorizontalScrollBarEnabled(false);
+        hs.setClipToPadding(false);
+        hs.setPadding(Ui.dp(this, 16), Ui.dp(this, 12), Ui.dp(this, 16), Ui.dp(this, 2));
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        addChip(row, R.drawable.ic_download, R.string.fm_downloads,
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
+        addChip(row, R.drawable.ic_camera, R.string.fm_dcim,
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM));
+        addChip(row, R.drawable.ic_image, R.string.fm_pictures,
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
+        addChip(row, R.drawable.ic_file_text, R.string.fm_documents,
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS));
+        addChip(row, R.drawable.ic_music, R.string.fm_music,
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC));
+        addChip(row, R.drawable.ic_video, R.string.fm_movies,
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES));
+        addChip(row, R.drawable.ic_folder, R.string.fm_app_folder, appDir());
+        hs.addView(row);
+        return hs;
+    }
+
+    private void addChip(LinearLayout row, int icon, int title, final File dir) {
+        if (dir == null || !dir.exists()) return;
+        TextView t = Ui.chip(this, getString(title), false);
+        t.setTextSize(14);
+        t.setPadding(Ui.dp(this, 14), Ui.dp(this, 10), Ui.dp(this, 18), Ui.dp(this, 10));
+        t.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
+        t.setCompoundDrawablePadding(Ui.dp(this, 8));
+        t.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.accent_text)));
+        t.setOnClickListener(v -> openFolder(dir));
+        row.addView(t);
     }
 
     private View permissionCard() {
@@ -359,14 +407,6 @@ public class HomeActivity extends AppCompatActivity {
                 .tint(Ui.color(this, color));
         if (count > 0) r.badge(String.valueOf(count), Ui.color(this, R.color.warn));
         return Ui.rowView(this, content, r, v -> openCategory(cat));
-    }
-
-    private void addPlace(LinearLayout parent, int icon, int title, final File dir) {
-        if (dir == null || !dir.exists()) return;
-        String[] kids = dir.list();
-        String sub = kids == null ? null : getString(R.string.fm_items_n, kids.length);
-        parent.addView(Ui.rowView(this, content, new Row(icon, false, getString(title), sub, false, true),
-                v -> openFolder(dir)));
     }
 
     /** A row for a file or folder (pinned favorites and the newest files). */

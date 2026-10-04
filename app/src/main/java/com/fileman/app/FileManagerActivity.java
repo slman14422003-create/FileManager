@@ -29,6 +29,7 @@ import android.webkit.MimeTypeMap;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -306,6 +307,11 @@ public class FileManagerActivity extends AppCompatActivity {
         buildPlaces();
         updatePasteBar();
         refresh();
+        navBar = NavBar.attach(this, getIntent().getBooleanExtra("search", false) ? NavBar.SEARCH : NavBar.FILES);
+        buildFab();
+        searchView.setOnFocusChangeListener((v, focus) -> {
+            if (navBar != null) navBar.setVisibility(focus ? View.GONE : View.VISIBLE);
+        });
         if (getIntent().getBooleanExtra("search", false)) {
             searchView.requestFocus();
             ui.postDelayed(() -> {
@@ -708,6 +714,7 @@ public class FileManagerActivity extends AppCompatActivity {
             updateStorage();
         }
         boolean sel = !selected.isEmpty();
+        if (fab != null) fab.setVisibility(mode == M_DIR && !sel ? View.VISIBLE : View.GONE);
         selBar.setVisibility(sel ? View.VISIBLE : View.GONE);
         searchView.setVisibility(sel ? View.GONE : View.VISIBLE);
         if (sel) selCount.setText(getString(R.string.fm_selected_n, selected.size()));
@@ -1075,8 +1082,10 @@ public class FileManagerActivity extends AppCompatActivity {
     // ------------------------------------------------------------------ opening
 
     private void openFile(Entry e) {
-        if (e.ext.equals("zip") || e.ext.equals("jar")) {
-            zipMenu(e.f);
+        if (e.ext.equals("zip") || e.ext.equals("jar") || e.ext.equals("cbz")) {
+            Intent zi = new Intent(this, ZipBrowseActivity.class);
+            zi.putExtra("path", e.f.getAbsolutePath());
+            startActivity(zi);
             return;
         }
         Opener.open(this, e.f);
@@ -1152,6 +1161,28 @@ public class FileManagerActivity extends AppCompatActivity {
                             .putBoolean("hidden", showHidden).apply();
                     refresh();
                 }).show();
+    }
+
+    private View navBar;
+    private android.widget.ImageButton fab;
+
+    /** Floating "+" (new folder / file / import) in thumb reach. */
+    private void buildFab() {
+        if (!(listView.getParent() instanceof FrameLayout)) return;
+        fab = new android.widget.ImageButton(this);
+        fab.setImageResource(R.drawable.ic_add);
+        fab.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.on_accent)));
+        fab.setBackgroundResource(R.drawable.bg_fab);
+        fab.setScaleType(android.widget.ImageView.ScaleType.CENTER);
+        fab.setContentDescription(getString(R.string.fm_new));
+        fab.setElevation(Ui.dp(this, 6));
+        Ui.press(this, fab);
+        fab.setOnClickListener(v -> newMenu());
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(Ui.dp(this, 58), Ui.dp(this, 58),
+                android.view.Gravity.BOTTOM | android.view.Gravity.END);
+        lp.setMargins(Ui.dp(this, 18), Ui.dp(this, 18), Ui.dp(this, 18), Ui.dp(this, 18));
+        ((FrameLayout) listView.getParent()).addView(fab, lp);
+        fab.setVisibility(mode == M_DIR && selected.isEmpty() ? View.VISIBLE : View.GONE);
     }
 
     private void newMenu() {

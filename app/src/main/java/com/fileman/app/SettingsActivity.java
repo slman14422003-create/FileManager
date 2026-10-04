@@ -65,6 +65,14 @@ public class SettingsActivity extends AppCompatActivity {
                 false, false), null));
     }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (nav == null) nav = NavBar.attach(this, NavBar.SETTINGS);
+    }
+
+    private View nav;
+
     private void pickLanguage() {
         final String[] codes = {"system", "ar", "en"};
         String cur = Store.language(this);
