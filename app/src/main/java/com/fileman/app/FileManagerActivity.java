@@ -176,7 +176,9 @@ public class FileManagerActivity extends AppCompatActivity {
         refresh();
     };
 
-    private final LruCache<String, Bitmap> thumbs = new LruCache<String, Bitmap>(6 * 1024 * 1024) {
+    // about 1/16 of the app heap (at least 6 MB): bigger lists keep their thumbnails when scrolling back
+    private final LruCache<String, Bitmap> thumbs = new LruCache<String, Bitmap>(
+            (int) Math.max(6L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 16)) {
         @Override
         protected int sizeOf(String key, Bitmap b) {
             return b.getByteCount();
@@ -304,9 +306,8 @@ public class FileManagerActivity extends AppCompatActivity {
                 cur = defaultRoot();
             }
         }
-        buildPlaces();
         updatePasteBar();
-        refresh();
+        refresh();   // also builds the places row
         navBar = NavBar.attach(this, getIntent().getBooleanExtra("search", false) ? NavBar.SEARCH : NavBar.FILES);
         buildFab();
         searchView.setOnFocusChangeListener((v, focus) -> {
@@ -421,6 +422,18 @@ public class FileManagerActivity extends AppCompatActivity {
     }
 
     private void onBack() {
+        if (searchView.hasFocus()) {
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager)
+                    getSystemService(Context.INPUT_METHOD_SERVICE);
+            androidx.core.view.WindowInsetsCompat wi = androidx.core.view.ViewCompat.getRootWindowInsets(searchView);
+            boolean keyboardUp = wi != null && wi.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime());
+            if (keyboardUp) {
+                if (imm != null) imm.hideSoftInputFromWindow(searchView.getWindowToken(), 0);
+                searchView.clearFocus();   // restores the bottom bar
+                return;
+            }
+            searchView.clearFocus();
+        }
         if (!selected.isEmpty()) {
             clearSelection();
             return;
@@ -445,7 +458,11 @@ public class FileManagerActivity extends AppCompatActivity {
 
     // ------------------------------------------------------------------ loading
 
+    private String crumbKey, storageKey;
+    private long storageAt = 0;
+
     private void refresh() {
+        storageAt = 0;   // file operations end in a refresh: re-read free space
         switch (mode) {
             case M_SEARCH:
                 runSearch();
@@ -523,7 +540,7 @@ public class FileManagerActivity extends AppCompatActivity {
         loading(true);
         io.execute(() -> {
             List<Entry> out = new ArrayList<>();
-            walkSearch(dir, q, out, my, 0);
+            walkSearch(dir, q, out, my, 0, new int[]{250000});
             Collections.sort(out, comparator());
             final List<Entry> res = out;
             post(() -> {
@@ -535,16 +552,17 @@ public class FileManagerActivity extends AppCompatActivity {
         });
     }
 
-    private void walkSearch(File dir, String q, List<Entry> out, long my, int depth) {
-        if (my != gen || out.size() >= MAX_SEARCH || depth > 14) return;
+    private void walkSearch(File dir, String q, List<Entry> out, long my, int depth, int[] budget) {
+        if (my != gen || out.size() >= MAX_SEARCH || depth > 14 || budget[0] <= 0) return;
         File[] arr = dir.listFiles();
         if (arr == null) return;
         for (File f : arr) {
-            if (my != gen || out.size() >= MAX_SEARCH) return;
+            if (my != gen || out.size() >= MAX_SEARCH || budget[0] <= 0) return;
             String n = f.getName();
             if (!showHidden && n.startsWith(".")) continue;
+            budget[0]--;
             if (n.toLowerCase(Locale.ROOT).contains(q)) out.add(new Entry(f));
-            if (f.isDirectory() && !isLink(f)) walkSearch(f, q, out, my, depth + 1);
+            if (f.isDirectory() && !isLink(f)) walkSearch(f, q, out, my, depth + 1, budget);
         }
     }
 
@@ -615,14 +633,13 @@ public class FileManagerActivity extends AppCompatActivity {
         loading(true);
         io.execute(() -> {
             int cap = Cats.RECENT.equals(cat) ? 100 : MAX_CAT;
-            PriorityQueue<File> heap = new PriorityQueue<>(cap + 1,
-                    (a, b) -> Long.compare(a.lastModified(), b.lastModified()));
+            PriorityQueue<Cats.Hit> heap = new PriorityQueue<>(cap + 1, Cats.HIT_OLDEST);
             int[] budget = {250000};
             walkCat(dir, cat, heap, cap, budget, my, 0);
-            List<File> files = new ArrayList<>(heap);
-            Collections.sort(files, Cats.NEWEST);
+            List<Cats.Hit> files = new ArrayList<>(heap);
+            Collections.sort(files, Cats.HIT_NEWEST);
             final List<Entry> res = new ArrayList<>();
-            for (File f : files) res.add(new Entry(f));
+            for (Cats.Hit h : files) res.add(new Entry(h.f));
             post(() -> {
                 if (my != gen) return;
                 listDenied = false;
@@ -632,7 +649,7 @@ public class FileManagerActivity extends AppCompatActivity {
         });
     }
 
-    private void walkCat(File dir, String cat, PriorityQueue<File> heap, int cap, int[] budget, long my, int depth) {
+    private void walkCat(File dir, String cat, PriorityQueue<Cats.Hit> heap, int cap, int[] budget, long my, int depth) {
         if (my != gen || budget[0] <= 0 || depth > 20) return;
         File[] arr = dir.listFiles();
         if (arr == null) return;
@@ -645,8 +662,9 @@ public class FileManagerActivity extends AppCompatActivity {
             if (f.isDirectory()) {
                 if (!isLink(f)) walkCat(f, cat, heap, cap, budget, my, depth + 1);
             } else if (Cats.RECENT.equals(cat) || Cats.matches(cat, extOf(n))) {
-                if (heap.size() < cap || f.lastModified() > heap.peek().lastModified()) {
-                    heap.add(f);
+                long mod = f.lastModified();
+                if (heap.size() < cap || mod > heap.peek().mod) {
+                    heap.add(new Cats.Hit(f));
                     if (heap.size() > cap) heap.poll();
                 }
             }
@@ -660,8 +678,7 @@ public class FileManagerActivity extends AppCompatActivity {
         Set<String> alive = new LinkedHashSet<>();
         for (Entry e : shown) alive.add(e.f.getAbsolutePath());
         selected.retainAll(alive);
-        adapter.notifyDataSetChanged();
-        updateChrome();
+        updateChrome();   // notifies the adapter once
         boolean empty = shown.isEmpty();
         emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
         if (empty) {
@@ -710,8 +727,17 @@ public class FileManagerActivity extends AppCompatActivity {
         crumbScroll.setVisibility(dirMode ? View.VISIBLE : View.GONE);
         storageCard.setVisibility(dirMode ? View.VISIBLE : View.GONE);
         if (dirMode) {
-            buildCrumbs();
-            updateStorage();
+            String key = cur.getAbsolutePath();
+            if (!key.equals(crumbKey)) {
+                crumbKey = key;
+                buildCrumbs();
+            }
+            long now = System.currentTimeMillis();
+            if (!key.equals(storageKey) || now - storageAt > 15_000) {
+                storageKey = key;
+                storageAt = now;
+                updateStorage();
+            }
         }
         boolean sel = !selected.isEmpty();
         if (fab != null) fab.setVisibility(mode == M_DIR && !sel ? View.VISIBLE : View.GONE);
@@ -878,8 +904,17 @@ public class FileManagerActivity extends AppCompatActivity {
         return Cats.mimeOf(f);
     }
 
+    private Set<String> favCache;
+
+    /** A fresh copy the caller may modify; the cached read-only view is rebuilt afterwards. */
     private Set<String> favs() {
+        favCache = null;
         return Store.favorites(this);
+    }
+
+    private Set<String> favSet() {
+        if (favCache == null) favCache = Store.favorites(this);
+        return favCache;
     }
 
     // ------------------------------------------------------------------ list adapter
@@ -917,7 +952,7 @@ public class FileManagerActivity extends AppCompatActivity {
             g.setCornerRadius(Ui.dp(FileManagerActivity.this, 12));
             g.setColor((color & 0x00FFFFFF) | 0x26000000);
             icon.setBackground(g);
-            thumb.setBackground(g);
+            thumb.setBackground(g.getConstantState().newDrawable().mutate());
             thumb.setClipToOutline(true);
             thumb.setTag(path);
             Bitmap cached = (type == T_IMG || type == T_APK || type == T_VID) ? thumbs.get(path + "|" + e.mod) : null;
@@ -946,7 +981,7 @@ public class FileManagerActivity extends AppCompatActivity {
             }
             ((TextView) v.findViewById(R.id.sub)).setText(sub.toString());
 
-            v.findViewById(R.id.fav).setVisibility(favs().contains(path) ? View.VISIBLE : View.GONE);
+            v.findViewById(R.id.fav).setVisibility(favSet().contains(path) ? View.VISIBLE : View.GONE);
             v.findViewById(R.id.check).setVisibility(sel ? View.VISIBLE : View.GONE);
             v.findViewById(R.id.chevron).setVisibility(!sel && e.dir ? View.VISIBLE : View.GONE);
             Ui.shapeRow(FileManagerActivity.this, v, pos == 0, pos == shown.size() - 1,
@@ -959,6 +994,7 @@ public class FileManagerActivity extends AppCompatActivity {
         final String path = e.f.getAbsolutePath();
         final String key = path + "|" + e.mod;
         thumbIo.execute(() -> {
+            if (!path.equals(thumb.getTag())) return;   // scrolled away before we got to it
             Bitmap b = null;
             try {
                 if (type == T_IMG) {

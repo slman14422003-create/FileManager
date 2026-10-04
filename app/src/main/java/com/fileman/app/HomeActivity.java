@@ -149,13 +149,15 @@ public class HomeActivity extends AppCompatActivity {
         tools.setOrientation(LinearLayout.VERTICAL);
         tools.addView(catRow(R.drawable.ic_clock, Cats.RECENT, getString(R.string.home_recent_sub), 0, R.color.accent_text));
         tools.addView(catRow(R.drawable.ic_chart, Cats.LARGE, getString(R.string.home_large_sub), 0, R.color.warn));
-        int favCount = existingFavorites().size();
-        tools.addView(catRow(R.drawable.ic_star, Cats.FAV, getString(R.string.home_fav_sub), favCount, R.color.warn));
+        final List<File> favs = existingFavorites();   // read once per render
+        tools.addView(catRow(R.drawable.ic_star, Cats.FAV, getString(R.string.home_fav_sub), favs.size(), R.color.warn));
+        tools.addView(toolRow(R.drawable.ic_package, R.string.pk_title, R.string.pk_subtitle,
+                InstallerActivity.class, getString(R.string.pk_beta)));
+        tools.addView(toolRow(R.drawable.ic_chart, R.string.tl_title, R.string.tl_subtitle, ToolsActivity.class, null));
         Ui.group(this, tools);
         content.addView(tools);
 
         // pinned favorites
-        List<File> favs = existingFavorites();
         if (!favs.isEmpty()) {
             content.addView(Ui.sectionTitle(this, getString(R.string.home_pinned)));
             LinearLayout pinned = new LinearLayout(this);
@@ -406,6 +408,13 @@ public class HomeActivity extends AppCompatActivity {
         Ui.press(this, v.findViewById(R.id.card));
         v.findViewById(R.id.card).setOnClickListener(x -> openCategory(cat));
         return v;
+    }
+
+    private View toolRow(int icon, int title, int sub, final Class<?> target, String badge) {
+        Row r = new Row(icon, false, getString(title), getString(sub), false, true)
+                .tint(Ui.color(this, R.color.info));
+        if (badge != null) r.badge(badge, Ui.color(this, R.color.warn));
+        return Ui.rowView(this, content, r, v -> startActivity(new Intent(this, target)));
     }
 
     private View catRow(int icon, final String cat, String sub, int count, int color) {

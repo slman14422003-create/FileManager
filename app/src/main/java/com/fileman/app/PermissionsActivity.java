@@ -56,6 +56,10 @@ public class PermissionsActivity extends AppCompatActivity {
             else Perms.requestInstall(this);
         }));
 
+        content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_shield, false,
+                getString(R.string.pk_perm_installer), getString(R.string.pk_perm_installer_sub), false, false)
+                .badge(getString(R.string.perm_granted), Ui.color(this, R.color.ok)), null));
+
         content.addView(Ui.sectionTitle(this, getString(R.string.perm_section_other)));
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_settings, false,
                 getString(R.string.perm_app_settings), getString(R.string.perm_app_settings_sub), false, true),

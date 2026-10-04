@@ -57,7 +57,7 @@ public final class Cats {
         if (in(x, "mp4", "mkv", "webm", "3gp", "avi", "mov", "m4v")) return T_VID;
         if (in(x, "mp3", "wav", "ogg", "m4a", "aac", "flac", "opus", "amr")) return T_AUD;
         if (in(x, "zip", "rar", "7z", "tar", "gz", "tgz", "xz", "bz2", "jar")) return T_ARC;
-        if (x.equals("apk")) return T_APK;
+        if (x.equals("apk") || x.equals("apks") || x.equals("xapk") || x.equals("apkm")) return T_APK;
         if (x.equals("pdf")) return T_PDF;
         if (isOfficeExt(x)) return T_DOC;
         if (isTextExt(x)) return T_TXT;
@@ -214,6 +214,20 @@ public final class Cats {
     /** Most recently changed files first. */
     public static final Comparator<File> NEWEST = (a, b) -> Long.compare(b.lastModified(), a.lastModified());
 
+    /** A file with its modification time read once (comparators would otherwise hit the disk per compare). */
+    public static final class Hit {
+        public final File f;
+        public final long mod;
+
+        public Hit(File f) {
+            this.f = f;
+            this.mod = f.lastModified();
+        }
+    }
+
+    public static final Comparator<Hit> HIT_OLDEST = (a, b) -> Long.compare(a.mod, b.mod);
+    public static final Comparator<Hit> HIT_NEWEST = (a, b) -> Long.compare(b.mod, a.mod);
+
     /** Result of {@link #scan}: counts and sizes per category plus the newest files. */
     public static final class Stats {
         public final int[] count = new int[10];
@@ -228,16 +242,17 @@ public final class Cats {
     /** Walks a volume once and fills the counters shown on the home tiles. Call off the UI thread. */
     public static Stats scan(File root, boolean showHidden, int keepRecent, java.util.concurrent.atomic.AtomicBoolean stop) {
         Stats st = new Stats();
-        PriorityQueue<File> heap = new PriorityQueue<>(keepRecent + 1, (a, b) -> Long.compare(a.lastModified(), b.lastModified()));
+        PriorityQueue<Hit> heap = new PriorityQueue<>(keepRecent + 1, HIT_OLDEST);
         int[] budget = {SCAN_BUDGET};
         walk(root, showHidden, st, heap, keepRecent, budget, stop, 0);
         st.complete = budget[0] > 0 && !stop.get();
-        st.recent.addAll(heap);
-        Collections.sort(st.recent, NEWEST);
+        List<Hit> sorted = new ArrayList<>(heap);
+        Collections.sort(sorted, HIT_NEWEST);
+        for (Hit h : sorted) st.recent.add(h.f);
         return st;
     }
 
-    private static void walk(File dir, boolean hidden, Stats st, PriorityQueue<File> heap, int keep,
+    private static void walk(File dir, boolean hidden, Stats st, PriorityQueue<Hit> heap, int keep,
                              int[] budget, java.util.concurrent.atomic.AtomicBoolean stop, int depth) {
         if (stop.get() || budget[0] <= 0 || depth > 20) return;
         File[] arr = dir.listFiles();
@@ -260,8 +275,8 @@ public final class Cats {
             st.size[t] += len;
             if (t != T_OTHER || len > 0) {
                 long mod = f.lastModified();
-                if (heap.size() < keep || mod > heap.peek().lastModified()) {
-                    heap.add(f);
+                if (heap.size() < keep || mod > heap.peek().mod) {
+                    heap.add(new Hit(f));
                     if (heap.size() > keep) heap.poll();
                 }
             }

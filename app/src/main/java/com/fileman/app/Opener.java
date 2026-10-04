@@ -28,7 +28,7 @@ public final class Opener {
         }
         switch (Cats.viewKind(ext)) {
             case Cats.V_APK:
-                Perms.installApk(a, f);
+                start(a, InstallerActivity.class, f);   // inspect, then install through a session
                 break;
             case Cats.V_TEXT:
                 start(a, FileEditActivity.class, f);

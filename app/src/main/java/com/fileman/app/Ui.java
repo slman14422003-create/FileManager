@@ -31,7 +31,7 @@ public final class Ui {
 
     /** Gives a view a soft "press in, spring back" scale animation. */
     public static void press(Context c, View v) {
-        if (v == null) return;
+        if (v == null || v.getStateListAnimator() != null) return;   // inflate once per (recycled) view
         v.setStateListAnimator(android.animation.AnimatorInflater.loadStateListAnimator(c, R.animator.press_scale));
     }
 
@@ -247,6 +247,10 @@ public final class Ui {
     public static void shapeRow(Context c, View v, boolean first, boolean last, int fillRes) {
         View card = v.findViewById(R.id.card);
         if (card == null) return;
+        // recycled rows usually keep the same shape: skip rebuilding three drawables on every bind
+        final Integer shapeKey = fillRes * 4 + (first ? 1 : 0) + (last ? 2 : 0);
+        if (shapeKey.equals(card.getTag(R.id.tag_shape))) return;
+        card.setTag(R.id.tag_shape, shapeKey);
         float big = dp(c, 24);
         float small = dp(c, 6);
         float top = first ? big : small;
