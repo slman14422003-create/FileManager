@@ -54,6 +54,11 @@ public class SettingsActivity extends AppCompatActivity {
                 getString(R.string.perm_title), getString(R.string.perm_subtitle), false, true),
                 v -> startActivity(new Intent(this, PermissionsActivity.class))));
 
+        content.addView(Ui.sectionTitle(this, getString(R.string.set_updates)));
+        content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_download, false,
+                getString(R.string.upd_check), getString(R.string.set_version, BuildConfig.VERSION_NAME),
+                false, true), v -> startActivity(new Intent(this, UpdateActivity.class))));
+
         content.addView(Ui.sectionTitle(this, getString(R.string.set_about)));
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_info, false,
                 getString(R.string.app_name), getString(R.string.set_version, BuildConfig.VERSION_NAME),

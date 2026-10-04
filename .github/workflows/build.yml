@@ -40,6 +40,7 @@ jobs:
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
       publish: ${{ steps.meta.outputs.publish }}
+      code: ${{ steps.meta.outputs.code }}
     steps:
       - uses: actions/checkout@v4
 
@@ -71,6 +72,7 @@ jobs:
           {
             echo "tag=$TAG"
             echo "publish=$PUBLISH"
+            echo "code=$((10 + GITHUB_RUN_NUMBER))"
           } >> "$GITHUB_OUTPUT"
           echo "APP_VERSION_NAME=${TAG#v}" >> "$GITHUB_ENV"
           echo "VERSION_CODE_OVERRIDE=$((10 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
@@ -116,6 +118,8 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build APK
+        env:
+          UPDATE_REPO: ${{ github.repository }}
         run: |
           if [ "$BUILD_TYPE" = "release" ]; then
             gradle assembleRelease --stacktrace
@@ -169,9 +173,19 @@ jobs:
           path: dist
 
       - name: Create or update release
+        env:
+          VERSION_CODE: ${{ needs.build.outputs.code }}
         run: |
+          APK="$(ls dist/*.apk | head -n1)"
+          SHA="$(sha256sum "$APK" | cut -d' ' -f1)"
+          # The in-app updater reads these two lines to verify the download
+          FOOTER="$(printf '\n\n---\nversionCode: %s\nSHA-256: %s\n' "$VERSION_CODE" "$SHA")"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            BODY="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body | grep -v -E '^(versionCode|SHA-256):' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')"
             gh release upload "$TAG" dist/*.apk --clobber --repo "$GITHUB_REPOSITORY"
+            printf '%s%s' "$BODY" "$FOOTER" > notes.md
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
           else
-            gh release create "$TAG" dist/*.apk --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TAG" --generate-notes
+            printf '%s' "$FOOTER" > notes.md
+            gh release create "$TAG" "$APK" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TAG" --generate-notes --notes-file notes.md
           fi

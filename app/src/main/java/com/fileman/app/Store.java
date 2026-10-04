@@ -55,4 +55,48 @@ public final class Store {
     public static void setFlag(Context c, String key, boolean v) {
         sp(c).edit().putBoolean("flag_" + key, v).apply();
     }
+
+    // ------------------------------------------------------------------ updates
+
+    /** "owner/repo" the app updates itself from (the build's own repository unless changed by the user). */
+    public static String updateRepo(Context c) {
+        String v = sp(c).getString("upd_repo", "");
+        return v.isEmpty() ? BuildConfig.UPDATE_REPO : v;
+    }
+
+    public static void setUpdateRepo(Context c, String v) {
+        sp(c).edit().putString("upd_repo", v == null ? "" : v).apply();
+    }
+
+    public static boolean autoUpdate(Context c) {
+        return sp(c).getBoolean("upd_auto", true);
+    }
+
+    public static void setAutoUpdate(Context c, boolean on) {
+        sp(c).edit().putBoolean("upd_auto", on).apply();
+    }
+
+    public static boolean updatePre(Context c) {
+        return sp(c).getBoolean("upd_pre", false);
+    }
+
+    public static void setUpdatePre(Context c, boolean on) {
+        sp(c).edit().putBoolean("upd_pre", on).apply();
+    }
+
+    public static long lastUpdateCheck(Context c) {
+        return sp(c).getLong("upd_last", 0);
+    }
+
+    public static void setLastUpdateCheck(Context c, long t) {
+        sp(c).edit().putLong("upd_last", t).apply();
+    }
+
+    public static String skippedVersion(Context c) {
+        return sp(c).getString("upd_skip", "");
+    }
+
+    public static void setSkippedVersion(Context c, String tag) {
+        sp(c).edit().putString("upd_skip", tag == null ? "" : tag).apply();
+    }
 }

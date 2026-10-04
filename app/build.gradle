@@ -28,6 +28,8 @@ android {
         // CI run number keeps versionCode increasing so a new build always installs over the old one
         versionCode = (System.getenv('VERSION_CODE_OVERRIDE') ?: (10 + (System.getenv('GITHUB_RUN_NUMBER') ?: '0').toInteger()).toString()).toInteger()
         versionName = System.getenv('APP_VERSION_NAME') ?: "1.0"
+        // GitHub repo (owner/repo) the in-app updater reads releases from; CI sets it automatically
+        buildConfigField 'String', 'UPDATE_REPO', "\"${System.getenv('UPDATE_REPO') ?: ''}\""
     }
 
     buildFeatures {

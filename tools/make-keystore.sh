@@ -8,7 +8,7 @@ OUT="${2:-release.jks}"
 read -r -s -p "كلمة مرور المفتاح (12 حرفًا فأكثر): " PASS; echo
 [ "${#PASS}" -ge 12 ] || { echo "كلمة المرور قصيرة." >&2; exit 1; }
 keytool -genkeypair -keystore "$OUT" -storetype PKCS12 -alias "$ALIAS" \
-  -keyalg RSA -keysize 4096 -validity 36500 -storepass "$PASS" -keypass "$PASS" -dname "CN=File Manager"
+  -keyalg RSA -keysize 4096 -validity 10950 -storepass "$PASS" -keypass "$PASS" -dname "CN=File Manager"
 echo
 echo "SHA-256 للشهادة:"
 keytool -list -v -keystore "$OUT" -alias "$ALIAS" -storepass "$PASS" | grep -m1 'SHA256:' | sed 's/.*SHA256:[[:space:]]*//'

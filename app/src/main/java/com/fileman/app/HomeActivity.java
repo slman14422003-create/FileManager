@@ -72,6 +72,7 @@ public class HomeActivity extends AppCompatActivity {
         }
         render();
         if (!access) Perms.promptFirstRun(this);
+        else Updater.autoCheck(this, io, ui);
         if (access && (stats == null || System.currentTimeMillis() - statsAt > SCAN_MAX_AGE_MS)) startScan();
     }
 
