@@ -77,6 +77,20 @@ jobs:
           echo "APP_VERSION_NAME=${TAG#v}" >> "$GITHUB_ENV"
           echo "VERSION_CODE_OVERRIDE=$((10 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
 
+      - name: Security guard (network and file exposure)
+        run: |
+          SRC=app/src/main/java
+          # 1) network classes may only appear in Net.java (Updater.java only uses its connection type)
+          if grep -rEn "java\.net\.|HttpURLConnection|HttpsURLConnection|okhttp|android\.net\.http|javax\.net|loadUrl\(|DownloadManager" $SRC \
+               | grep -v -E "/(Net|Updater)\.java:"; then
+            echo "::error title=Network guard::network code outside Net.java"; exit 1
+          fi
+          # 2) nothing else may be exported and no cleartext traffic
+          M=app/src/main/AndroidManifest.xml
+          [ "$(grep -c 'android:exported="true"' $M)" = "1" ] || { echo "::error::only the launcher may be exported"; exit 1; }
+          grep -q 'android:usesCleartextTraffic="false"' $M || { echo "::error::cleartext must stay disabled"; exit 1; }
+          grep -q 'android:allowBackup="false"' $M || { echo "::error::backup must stay disabled"; exit 1; }
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

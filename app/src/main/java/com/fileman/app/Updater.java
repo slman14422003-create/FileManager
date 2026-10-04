@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
@@ -33,6 +32,8 @@ import java.util.regex.Pattern;
  * verifies it (size, SHA-256 from the release notes, same signing certificate) before installing.
  */
 public final class Updater {
+    private static final long MAX_APK_BYTES = 400L * 1024 * 1024;
+    private static final Pattern SLUG = Pattern.compile("([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))/([A-Za-z0-9._-]{1,100})");
     private Updater() {
     }
 
@@ -122,14 +123,7 @@ public final class Updater {
     // ------------------------------------------------------------------ HTTP
 
     private static HttpURLConnection open(String url, String accept) throws IOException {
-        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
-        c.setConnectTimeout(15000);
-        c.setReadTimeout(30000);
-        c.setInstanceFollowRedirects(true);
-        c.setRequestProperty("Accept", accept);
-        c.setRequestProperty("User-Agent", "FileManager-Updater");
-        c.setRequestProperty("X-GitHub-Api-Version", "2022-11-28");
-        return c;
+        return Net.get(url, accept);
     }
 
     private static String getText(String url) throws IOException {
@@ -208,6 +202,7 @@ public final class Updater {
             in.publishedAt = parseTime(r.isNull("published_at") ? r.optString("created_at") : r.optString("published_at"));
             in.prerelease = r.optBoolean("prerelease");
             in.assetUrl = apk.optString("browser_download_url");
+            if (!Net.allowed(in.assetUrl)) continue;   // only GitHub-hosted downloads are ever fetched
             in.assetName = apk.optString("name");
             in.assetSize = apk.optLong("size");
             String code = find(in.body, "versionCode\\s*[:=]\\s*(\\d+)");
@@ -278,6 +273,8 @@ public final class Updater {
             if (code != 200) throw new ApiException(code, "HTTP " + code);
             long total = conn.getContentLengthLong();
             if (total <= 0) total = in.assetSize;
+            final long cap = in.assetSize > 0 ? in.assetSize : MAX_APK_BYTES;
+            if (cap > MAX_APK_BYTES || total > MAX_APK_BYTES) throw new VerifyException(R.string.upd_size_bad);
             try (InputStream is = conn.getInputStream(); OutputStream os = new FileOutputStream(apk)) {
                 byte[] buf = new byte[64 * 1024];
                 long done = 0;
@@ -289,8 +286,13 @@ public final class Updater {
                         apk.delete();
                         throw new IOException("cancelled");
                     }
-                    os.write(buf, 0, n);
                     done += n;
+                    if (done > cap) {
+                        os.close();
+                        apk.delete();
+                        throw new VerifyException(R.string.upd_size_bad);
+                    }
+                    os.write(buf, 0, n);
                     long now = System.currentTimeMillis();
                     if (progress != null && now - lastReport > 150) {
                         lastReport = now;
@@ -344,6 +346,7 @@ public final class Updater {
             PackageInfo theirs = pm.getPackageArchiveInfo(apk.getAbsolutePath(), flags);
             PackageInfo mine = pm.getPackageInfo(c.getPackageName(), flags);
             if (theirs == null || mine == null) return false;
+            if (!c.getPackageName().equals(theirs.packageName)) return false;
             Signature[] a = signersOf(theirs);
             Signature[] b = signersOf(mine);
             if (a == null || b == null || a.length != 1 || b.length != 1) return false;
@@ -358,9 +361,12 @@ public final class Updater {
     /** Splits "owner/repo"; null when the slug is not valid. */
     public static String[] split(String slug) {
         if (slug == null) return null;
-        int slash = slug.indexOf('/');
-        if (slash <= 0 || slash >= slug.length() - 1 || slug.indexOf('/', slash + 1) >= 0) return null;
-        return new String[]{slug.substring(0, slash), slug.substring(slash + 1)};
+        slug = slug.trim();
+        Matcher m = SLUG.matcher(slug);
+        if (!m.matches()) return null;
+        String repo = m.group(2);
+        if (repo.equals(".") || repo.equals("..")) return null;
+        return new String[]{m.group(1), repo};
     }
 
     /** Silent check (at most every few hours) that offers the update in a dialog when one exists. */

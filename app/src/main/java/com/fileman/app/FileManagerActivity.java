@@ -1560,11 +1560,14 @@ public class FileManagerActivity extends AppCompatActivity {
             if (!dest.exists() && !dest.mkdirs()) throw new IOException(getString(R.string.fm_err_mkdir, dest.getName()));
             String root = dest.getCanonicalPath() + File.separator;
             int count = 0;
+            long written = 0;
+            final long room = Math.max(0L, dest.getUsableSpace() - 64L * 1024 * 1024);
             try (ZipInputStream zin = new ZipInputStream(new BufferedInputStream(new FileInputStream(zip)))) {
                 ZipEntry e;
                 byte[] buf = new byte[64 * 1024];
                 while ((e = zin.getNextEntry()) != null) {
                     if (cancelled) throw new Cancel();
+                    if (count > 100000) throw new IOException(getString(R.string.fm_err_zip_unsafe));
                     File out = new File(dest, e.getName());
                     if (!out.getCanonicalPath().startsWith(root)) {
                         throw new IOException(getString(R.string.fm_err_zip_unsafe));
@@ -1580,6 +1583,8 @@ public class FileManagerActivity extends AppCompatActivity {
                         int r;
                         while ((r = zin.read(buf)) != -1) {
                             if (cancelled) throw new Cancel();
+                            written += r;
+                            if (written > room) throw new IOException(getString(R.string.fm_err_zip_unsafe));
                             os.write(buf, 0, r);
                         }
                     }
@@ -1624,7 +1629,7 @@ public class FileManagerActivity extends AppCompatActivity {
         try {
             ArrayList<Uri> uris = new ArrayList<>();
             for (File f : files) {
-                if (f.isFile()) uris.add(FileProvider.getUriForFile(this, getPackageName() + ".files", f));
+                if (f.isFile() && Safe.mayExpose(this, f)) uris.add(FileProvider.getUriForFile(this, getPackageName() + ".files", f));
             }
             if (uris.isEmpty()) return;
             Intent i;

@@ -131,6 +131,10 @@ public final class Perms {
                     .show();
             return;
         }
+        if (!Safe.mayExpose(a, apk)) {
+            android.widget.Toast.makeText(a, R.string.fm_private_blocked, android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
         try {
             Uri uri = FileProvider.getUriForFile(a, a.getPackageName() + ".files", apk);
             Intent i = new Intent(Intent.ACTION_VIEW);

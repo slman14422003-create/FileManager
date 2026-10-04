@@ -66,6 +66,10 @@ public final class Opener {
 
     /** Hands a file to another app (with an app chooser when asked). */
     public static void external(Activity a, File f, boolean chooser) {
+        if (!Safe.mayExpose(a, f)) {
+            Toast.makeText(a, R.string.fm_private_blocked, Toast.LENGTH_SHORT).show();
+            return;
+        }
         try {
             Uri u = FileProvider.getUriForFile(a, a.getPackageName() + ".files", f);
             Intent i = new Intent(Intent.ACTION_VIEW);
@@ -79,6 +83,10 @@ public final class Opener {
     }
 
     public static void share(Activity a, File f) {
+        if (!Safe.mayExpose(a, f)) {
+            Toast.makeText(a, R.string.fm_private_blocked, Toast.LENGTH_SHORT).show();
+            return;
+        }
         try {
             Uri u = FileProvider.getUriForFile(a, a.getPackageName() + ".files", f);
             Intent i = new Intent(Intent.ACTION_SEND);

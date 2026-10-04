@@ -10,7 +10,7 @@
    - من GitHub: **Actions ← Generate signing key ← Run workflow** (المستودع يجب أن يكون **Private**)، ثم نزّل الـ Artifact `signing-key`.
    - أو على جهازك: `./tools/make-keystore.sh`
 2. أضف أسرار المستودع (Settings ← Secrets and variables ← Actions):
-   - `KEYSTORE_BASE64` — ناتج `base64 -w0 release.jks`
+   - `KEYSTORE_BASE64` — محتوى الملف `KEYSTORE_BASE64.txt` (يُنشأ تلقائيًا مع المفتاح)
    - `KEYSTORE_PASSWORD`
    - `KEY_ALIAS` (الافتراضي `fileman`)
    - `KEY_PASSWORD` (اختياري إن كانت مثل كلمة مرور الملف)

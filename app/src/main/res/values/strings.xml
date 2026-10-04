@@ -217,4 +217,5 @@
     <string name="downloading">جارٍ التنزيل…</string>
     <string name="install_later">لاحقًا</string>
     <string name="set_updates">التحديثات</string>
+    <string name="fm_private_blocked">تعذّر: هذا الملف داخل مساحة بيانات التطبيق الخاصة ولا يمكن مشاركته أو فتحه خارجيًا</string>
 </resources>

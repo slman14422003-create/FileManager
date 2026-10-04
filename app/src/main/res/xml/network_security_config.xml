@@ -1,9 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- HTTPS only; used for the update check (api.github.com) and the APK download. -->
+    <!--
+      HTTPS only, system certificate authorities only (no user-installed CAs, so a proxy certificate
+      cannot intercept traffic). The app contacts nothing but GitHub, and only for the update check;
+      Net.java enforces the host list in code.
+    -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">api.github.com</domain>
+        <domain includeSubdomains="false">github.com</domain>
+        <domain includeSubdomains="true">githubusercontent.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
 </network-security-config>

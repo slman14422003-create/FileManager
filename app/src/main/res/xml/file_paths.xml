@@ -3,5 +3,4 @@
     <!-- Any file the in-app file manager shows (needs all-files access to be readable). -->
     <root-path name="root" path="." />
     <cache-path name="cache" path="." />
-    <files-path name="files" path="." />
 </paths>
