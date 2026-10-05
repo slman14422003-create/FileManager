@@ -71,6 +71,7 @@ public class ZipBrowseActivity extends AppCompatActivity {
     private String cur = "";
     private int fileCount;
     private long totalSize, totalPacked;
+    private String query = "";
     private volatile boolean destroyed;
 
     private View loading;
@@ -106,12 +107,18 @@ public class ZipBrowseActivity extends AppCompatActivity {
         more.setContentDescription(getString(R.string.more));
         more.setVisibility(View.VISIBLE);
         more.setOnClickListener(v -> moreMenu());
+        ImageButton find = findViewById(R.id.btnA2);
+        find.setImageResource(R.drawable.ic_search);
+        find.setContentDescription(getString(R.string.zip_search_hint));
+        find.setVisibility(View.VISIBLE);
+        find.setOnClickListener(v -> askSearch());
 
         adapter = new ListAdapter();
         list.setAdapter(adapter);
         list.setOnItemClickListener((p, v, pos, id) -> onClick(shown.get(pos)));
         list.setOnItemLongClickListener((p, v, pos, id) -> {
-            toggle(shown.get(pos));
+            if (!selected.isEmpty()) toggle(shown.get(pos));
+            else itemMenu(shown.get(pos));
             return true;
         });
         extractBtn.setOnClickListener(v -> chooseDestination());
@@ -122,6 +129,9 @@ public class ZipBrowseActivity extends AppCompatActivity {
                 if (!selected.isEmpty()) {
                     selected.clear();
                     refreshChrome();
+                } else if (!query.isEmpty()) {
+                    query = "";
+                    show();
                 } else if (!cur.isEmpty()) {
                     int cut = cur.lastIndexOf('/', cur.length() - 2);
                     cur = cut < 0 ? "" : cur.substring(0, cut + 1);
@@ -236,8 +246,19 @@ public class ZipBrowseActivity extends AppCompatActivity {
 
     private void show() {
         shown.clear();
-        List<Node> l = tree.get(cur);
-        if (l != null) shown.addAll(l);
+        if (!query.isEmpty()) {
+            for (List<Node> l : tree.values()) {
+                for (Node n : l) {
+                    if (n.name.toLowerCase(Locale.ROOT).contains(query)) shown.add(n);
+                    if (shown.size() >= 500) break;
+                }
+                if (shown.size() >= 500) break;
+            }
+            Collections.sort(shown, (a, c) -> a.name.compareToIgnoreCase(c.name));
+        } else {
+            List<Node> l = tree.get(cur);
+            if (l != null) shown.addAll(l);
+        }
         selected.clear();
         adapter.notifyDataSetChanged();
         list.setSelection(0);
@@ -246,7 +267,8 @@ public class ZipBrowseActivity extends AppCompatActivity {
 
     private void refreshChrome() {
         String where = cur.isEmpty() ? "/" : "/" + cur;
-        subtitle.setText(where + " · " + Fmt.size(zip.length()));
+        subtitle.setText(query.isEmpty() ? where + " · " + Fmt.size(zip.length())
+                : getString(R.string.zip_search_n, shown.size(), query));
         empty.setVisibility(shown.isEmpty() ? View.VISIBLE : View.GONE);
         empty.setText(tree.isEmpty() ? R.string.zip_empty : R.string.zip_folder_empty);
         boolean any = !tree.isEmpty();
@@ -268,6 +290,7 @@ public class ZipBrowseActivity extends AppCompatActivity {
         }
         if (n.dir) {
             cur = n.path;
+            query = "";
             show();
         } else {
             preview(n);
@@ -298,6 +321,10 @@ public class ZipBrowseActivity extends AppCompatActivity {
             int type = n.dir ? Cats.T_DIR : Cats.typeOfExt(Cats.extOf(n.name));
             String sub = n.dir ? getString(R.string.fm_items_n, n.kids)
                     : Fmt.size(n.size) + (n.time > 0 ? " · " + Fmt.date(n.time) : "");
+            if (!query.isEmpty()) {
+                int cut = n.path.lastIndexOf('/', n.path.length() - 2);
+                sub = (cut < 0 ? "/" : "/" + n.path.substring(0, cut + 1)) + " · " + sub;
+            }
             boolean sel = selected.contains(n.path);
             Row r = new Row(sel ? R.drawable.ic_check_circle : Cats.iconFor(type), false, n.name, sub, false, n.dir && !sel)
                     .tint(Ui.color(ZipBrowseActivity.this, sel ? R.color.accent_text : Cats.colorFor(type)));
@@ -327,6 +354,103 @@ public class ZipBrowseActivity extends AppCompatActivity {
                 Opener.external(this, zip, true);
             }
         }).show();
+    }
+
+    // ------------------------------------------------------------------ item actions
+
+    private void askSearch() {
+        final android.widget.EditText q = Ui.edit(this, getString(R.string.zip_search_hint), query);
+        new Dlg(this).setTitle(R.string.zip_search_hint).setView(q)
+                .setPositiveButton(android.R.string.search_go, (d, w) -> {
+                    query = q.getText().toString().trim().toLowerCase(Locale.ROOT);
+                    show();
+                })
+                .setNegativeButton(R.string.cancel, (d, w) -> {
+                    if (!query.isEmpty()) {
+                        query = "";
+                        show();
+                    }
+                })
+                .show();
+    }
+
+    private void itemMenu(final Node n) {
+        final File parent = zip.getParentFile();
+        String[] items = n.dir
+                ? new String[]{getString(R.string.zip_item_open), getString(R.string.zip_item_copy),
+                        getString(R.string.zip_item_select)}
+                : new String[]{getString(R.string.zip_item_preview), getString(R.string.zip_item_copy),
+                        getString(R.string.zip_item_share), getString(R.string.zip_item_details),
+                        getString(R.string.zip_item_select)};
+        new Dlg(this).setTitle(n.name).setItems(items, (d, which) -> {
+            String pick = items[which];
+            if (pick.equals(getString(R.string.zip_item_open))) {
+                cur = n.path;
+                query = "";
+                show();
+            } else if (pick.equals(getString(R.string.zip_item_preview))) {
+                preview(n);
+            } else if (pick.equals(getString(R.string.zip_item_copy))) {
+                if (parent == null) return;
+                final Set<String> one = new HashSet<>();
+                one.add(n.path);
+                destinationMenu(R.string.zip_copy_to, parent, dest -> extract(dest, one, !n.dir));
+            } else if (pick.equals(getString(R.string.zip_item_share))) {
+                shareEntry(n);
+            } else if (pick.equals(getString(R.string.zip_item_details))) {
+                details(n);
+            } else {
+                toggle(n);
+            }
+        }).show();
+    }
+
+    private void shareEntry(final Node n) {
+        if (n.size > MAX_PREVIEW) {
+            Toast.makeText(this, R.string.zip_too_big, Toast.LENGTH_LONG).show();
+            return;
+        }
+        loading.setVisibility(View.VISIBLE);
+        io.execute(() -> {
+            File out = null;
+            try (ZipFile z = openZip()) {
+                ZipEntry e = z.getEntry(rawName(z, n.path));
+                if (e == null) throw new IOException("missing");
+                File dir = new File(getCacheDir(), "zipview/" + System.nanoTime());
+                if (!dir.mkdirs()) throw new IOException("mkdir");
+                out = new File(dir, safeName(n.name));
+                copyEntry(z, e, out, MAX_PREVIEW);
+            } catch (Exception e) {
+                out = null;
+            }
+            final File f = out;
+            ui.post(() -> {
+                if (destroyed) return;
+                loading.setVisibility(View.INVISIBLE);
+                if (f == null) Toast.makeText(this, R.string.zip_failed, Toast.LENGTH_LONG).show();
+                else Opener.share(this, f);
+            });
+        });
+    }
+
+    private void details(Node n) {
+        String crc = "—";
+        String method = "—";
+        long packed = n.packed;
+        try (ZipFile z = openZip()) {
+            ZipEntry e = z.getEntry(rawName(z, n.path));
+            if (e != null) {
+                if (e.getCrc() >= 0) crc = String.format(Locale.US, "%08X", e.getCrc());
+                method = e.getMethod() == ZipEntry.STORED ? getString(R.string.zip_stored) : "Deflate";
+                packed = Math.max(0, e.getCompressedSize());
+            }
+        } catch (Exception ignored) {
+        }
+        int ratio = n.size > 0 ? (int) Math.round(100.0 - packed * 100.0 / n.size) : 0;
+        new Dlg(this).setTitle(n.name)
+                .setMessage(getString(R.string.zip_detail_body, "/" + n.path, Fmt.size(n.size), Fmt.size(packed),
+                        Math.max(0, ratio), n.time > 0 ? Fmt.date(n.time) : "—", method, crc))
+                .setPositiveButton(android.R.string.ok, null).show();
     }
 
     // ------------------------------------------------------------------ preview
@@ -405,16 +529,71 @@ public class ZipBrowseActivity extends AppCompatActivity {
     private void chooseDestination() {
         final File parent = zip.getParentFile();
         if (parent == null) return;
-        String[] items = {getString(R.string.zip_dest_here), getString(R.string.zip_dest_folder)};
-        new Dlg(this).setTitle(R.string.zip_dest_title).setItems(items, (d, which) -> {
-            File dest = which == 0 ? parent : unique(parent, stripExt(zip.getName()));
-            extract(dest);
+        final Set<String> sel = new HashSet<>(selected);
+        destinationMenu(R.string.zip_dest_title, parent, dest -> extract(dest, sel, false));
+    }
+
+    interface Dest {
+        void to(File dir);
+    }
+
+    /** Where to put the files: next to the archive, a new folder named after it, Downloads, or any folder. */
+    private void destinationMenu(int titleRes, final File parent, final Dest d) {
+        final File dl = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);
+        String[] items = {getString(R.string.zip_dest_here), getString(R.string.zip_dest_folder),
+                getString(R.string.zip_dest_download), getString(R.string.zip_dest_pick)};
+        new Dlg(this).setTitle(titleRes).setItems(items, (dlg, which) -> {
+            if (which == 0) d.to(parent);
+            else if (which == 1) d.to(unique(parent, stripExt(zip.getName())));
+            else if (which == 2) d.to(dl);
+            else pickFolder(parent, d);
         }).show();
+    }
+
+    private AlertDialog pickDialog;
+
+    /** A small folder browser: go into folders, go up, then choose the current one. */
+    private void pickFolder(final File start, final Dest d) {
+        if (pickDialog != null) {
+            try {
+                pickDialog.dismiss();
+            } catch (Exception ignored) {
+            }
+        }
+        final File[] kids = start.listFiles(f -> f.isDirectory() && !f.getName().startsWith("."));
+        final List<File> dirs = new ArrayList<>();
+        if (kids != null) Collections.addAll(dirs, kids);
+        Collections.sort(dirs, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+        final File up = start.getParentFile();
+        final boolean canUp = up != null && up.canRead();
+        List<String> names = new ArrayList<>();
+        if (canUp) names.add(getString(R.string.zip_pick_up));
+        for (File f : dirs) names.add(f.getName());
+        pickDialog = new Dlg(this).setTitle(start.getAbsolutePath())
+                .setItems(names.toArray(new String[0]), (dlg, which) -> {
+                    int idx = canUp ? which - 1 : which;
+                    pickFolder(idx < 0 ? up : dirs.get(idx), d);
+                })
+                .setPositiveButton(R.string.zip_pick_here, (dlg, w) -> d.to(start))
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+        pickDialog.show();
     }
 
     private static String stripExt(String n) {
         int i = n.lastIndexOf('.');
         return i > 0 ? n.substring(0, i) : n;
+    }
+
+    private static File uniqueFile(File dir, String name) {
+        File f = new File(dir, name);
+        if (!f.exists()) return f;
+        int dot = name.lastIndexOf('.');
+        String base = dot > 0 ? name.substring(0, dot) : name;
+        String ext = dot > 0 ? name.substring(dot) : "";
+        int i = 2;
+        while (f.exists()) f = new File(dir, base + " (" + (i++) + ")" + ext);
+        return f;
     }
 
     private static File unique(File parent, String base) {
@@ -432,8 +611,7 @@ public class ZipBrowseActivity extends AppCompatActivity {
         return false;
     }
 
-    private void extract(final File dest) {
-        final Set<String> sel = new HashSet<>(selected);
+    private void extract(final File dest, final Set<String> sel, final boolean flat) {
         cancel[0] = false;
         showBusy();
         io.execute(() -> {
@@ -453,7 +631,11 @@ public class ZipBrowseActivity extends AppCompatActivity {
                     while (name.startsWith("/")) name = name.substring(1);
                     if (name.isEmpty() || !wanted(name, sel)) continue;
                     if (count > MAX_ENTRIES) throw new IOException(getString(R.string.fm_err_zip_unsafe));
-                    File out = new File(dest, name);
+                    if (flat) {   // a single file copied out: just its own name, never overwrite
+                        if (e.isDirectory() || name.endsWith("/")) continue;
+                        name = safeName(name.substring(name.lastIndexOf('/') + 1));
+                    }
+                    File out = flat ? uniqueFile(dest, name) : new File(dest, name);
                     if (!out.getCanonicalPath().startsWith(root)) throw new IOException(getString(R.string.fm_err_zip_unsafe));
                     if (e.isDirectory() || name.endsWith("/")) {
                         out.mkdirs();
@@ -527,6 +709,12 @@ public class ZipBrowseActivity extends AppCompatActivity {
         ui.removeCallbacksAndMessages(null);
         io.shutdownNow();
         hideBusy();
+        if (pickDialog != null) {
+            try {
+                pickDialog.dismiss();
+            } catch (Exception ignored) {
+            }
+        }
         if (isFinishing() && !inPreviewCache()) deleteTree(new File(getCacheDir(), "zipview"));
     }
 

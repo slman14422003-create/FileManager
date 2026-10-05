@@ -87,21 +87,33 @@ final class DocHtml {
 
     // ------------------------------------------------------------------ shared helpers
 
-    private static final String CSS = "body{margin:0;padding:16px;background:#fff;color:#1b1b1b;"
-            + "font-family:sans-serif;font-size:16px;line-height:1.55;word-wrap:break-word}"
-            + "p{margin:0 0 .6em;white-space:pre-wrap}h1,h2,h3,h4,h5,h6{margin:.8em 0 .4em;line-height:1.3}"
-            + "table{border-collapse:collapse;margin:10px 0}td,th{border:1px solid #c8c8c8;padding:4px 8px;vertical-align:top}"
-            + "img{max-width:100%;height:auto}.sheet{overflow:auto;max-width:100%}"
-            + ".sheet table{font-size:13px;white-space:nowrap}.rh{background:#f1f3f4;color:#666;text-align:center;font-weight:normal}"
-            + ".nav a{display:inline-block;margin:0 6px 8px 0;padding:4px 12px;border-radius:14px;background:#e8f0fe;"
-            + "color:#1a56db;text-decoration:none;font-size:14px}"
-            + ".slide{border:1px solid #d0d0d0;border-radius:12px;padding:16px;margin:16px 0;background:#fafafa}"
-            + ".sn{color:#888;font-size:12px;margin-bottom:8px}.note{color:#888;font-size:13px;margin:8px 0}";
+    // Dark canvas like the rest of the app, with the document on a rounded "paper" card. Colors written
+    // inside the document (Word runs, cell fills) assume a white page, so the page itself stays white.
+    private static final String CSS = "html{background:#000}"
+            + "body{margin:0;padding:12px 10px 28px;background:#000;font-family:sans-serif;font-size:16px;"
+            + "line-height:1.55;word-wrap:break-word;-webkit-text-size-adjust:100%}"
+            + ".paper{max-width:900px;margin:0 auto;background:#fff;color:#1b1b1b;border-radius:16px;"
+            + "padding:20px 18px;box-shadow:0 0 0 1px #2a2a2a;overflow:hidden}"
+            + "p{margin:0 0 .6em;white-space:pre-wrap}h1,h2,h3,h4,h5,h6{margin:.8em 0 .4em;line-height:1.3;color:#111}"
+            + "h3{font-family:serif;font-size:19px;margin:1.1em 0 .5em}"
+            + "table{border-collapse:collapse;margin:10px 0}td,th{border:1px solid #d6d9de;padding:5px 9px;vertical-align:top}"
+            + "img{max-width:100%;height:auto;border-radius:6px}"
+            + ".sheet{overflow:auto;max-width:100%;border-radius:10px;border:1px solid #d6d9de;margin:8px 0}"
+            + ".sheet table{font-size:13px;white-space:nowrap;margin:0;width:100%}"
+            + ".sheet td,.sheet th{border-color:#e6e8ec}"
+            + ".sheet tr:nth-child(even) td{background-color:#f8f9fb}"
+            + ".rh{background:#eef1f6;color:#5b6472;text-align:center;font-weight:600;font-size:12px}"
+            + ".nav{margin:0 0 10px;padding-bottom:2px;overflow-x:auto;white-space:nowrap}"
+            + ".nav a{display:inline-block;margin:0 6px 6px 0;padding:6px 14px;border-radius:16px;background:#e8eeff;"
+            + "color:#2447c9;text-decoration:none;font-size:14px;font-weight:600}"
+            + ".slide{border:1px solid #e1e4ea;border-radius:14px;padding:16px;margin:14px 0;background:#fafbfc}"
+            + ".sn{color:#7a8290;font-size:12px;margin-bottom:8px;font-weight:600;letter-spacing:.3px}"
+            + ".note{color:#7a8290;font-size:13px;margin:8px 0}";
 
     private static String page(String body) {
         return "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
                 + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-                + "<style>" + CSS + "</style></head><body>" + body + "</body></html>";
+                + "<style>" + CSS + "</style></head><body><div class=\"paper\">" + body + "</div></body></html>";
     }
 
     static String esc(String s) {
@@ -1246,7 +1258,8 @@ final class DocHtml {
         String uri = "data:image/svg+xml;base64," + Base64.encodeToString(d, Base64.NO_WRAP);
         return "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
                 + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head>"
-                + "<body style=\"margin:0;background:#fff;display:flex;align-items:center;justify-content:center;"
-                + "min-height:100vh\"><img src=\"" + uri + "\" style=\"max-width:100%;max-height:100vh\"></body></html>";
+                + "<body style=\"margin:0;background:#000;display:flex;align-items:center;justify-content:center;"
+                + "min-height:100vh\"><img src=\"" + uri + "\" style=\"max-width:94%;max-height:94vh;background:#fff;"
+                + "border-radius:14px\"></body></html>";
     }
 }

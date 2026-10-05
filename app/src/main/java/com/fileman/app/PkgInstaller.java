@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
-import android.content.pm.PermissionInfo;
 import android.content.pm.Signature;
 import android.content.pm.SigningInfo;
 import android.graphics.drawable.Drawable;
@@ -48,16 +47,6 @@ final class PkgInstaller {
         return ext.equals("apk") || ext.equals("apks") || ext.equals("xapk") || ext.equals("apkm");
     }
 
-    static final class Perm {
-        final String name;
-        final boolean sensitive;
-
-        Perm(String name, boolean sensitive) {
-            this.name = name;
-            this.sensitive = sensitive;
-        }
-    }
-
     /** What the package file contains, plus how it relates to the copy installed now (if any). */
     static final class Info {
         File source;
@@ -73,8 +62,6 @@ final class PkgInstaller {
         int minSdk, targetSdk;
         Drawable icon;
         Set<String> certs = new LinkedHashSet<>();
-        final List<Perm> perms = new ArrayList<>();
-        int sensitiveCount;
 
         boolean installed;
         String installedName = "";
@@ -90,11 +77,47 @@ final class PkgInstaller {
 
     // ------------------------------------------------------------------ inspecting
 
+    /** A single APK has AndroidManifest.xml at the top of the archive; bundles hold other APKs instead. */
+    static boolean looksLikeApk(File f) {
+        try (ZipFile z = new ZipFile(f)) {
+            return z.getEntry("AndroidManifest.xml") != null;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    /** Copies a package handed over by another app (content:// or file://) into the cache. */
+    static File fromUri(Context c, android.net.Uri u) throws IOException {
+        if ("file".equals(u.getScheme()) && u.getPath() != null) {
+            File f = new File(u.getPath());
+            if (f.isFile() && f.canRead()) return f;
+        }
+        File dir = new File(c.getCacheDir(), "inst");
+        //noinspection ResultOfMethodCallIgnored
+        dir.mkdirs();
+        File out = new File(dir, "incoming.pkg");
+        InputStream in = c.getContentResolver().openInputStream(u);
+        if (in == null) throw new IOException("no stream");
+        copy(in, new FileOutputStream(out), null);
+        return out;
+    }
+
+    /** Best-effort display name of a shared package (for the title when the file name is generic). */
+    static String nameOf(Context c, android.net.Uri u) {
+        try (android.database.Cursor cur = c.getContentResolver().query(u,
+                new String[]{android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (cur != null && cur.moveToFirst()) return cur.getString(0);
+        } catch (Exception ignored) {
+        }
+        String last = u.getLastPathSegment();
+        return last == null ? "" : last;
+    }
+
     static Info inspect(Context c, File f) throws IOException {
         Info in = new Info();
         in.source = f;
         in.size = f.length();
-        in.bundle = !Cats.extOf(f.getName()).equals("apk");
+        in.bundle = !looksLikeApk(f);
         File apk = f;
         if (in.bundle) {
             scanBundle(f, in);
@@ -110,7 +133,7 @@ final class PkgInstaller {
             }
         }
         PackageManager pm = c.getPackageManager();
-        PackageInfo pi = pm.getPackageArchiveInfo(apk.getAbsolutePath(), sigFlags() | PackageManager.GET_PERMISSIONS);
+        PackageInfo pi = pm.getPackageArchiveInfo(apk.getAbsolutePath(), sigFlags());
         if (pi == null || pi.applicationInfo == null) throw new IOException("not an apk");
         pi.applicationInfo.sourceDir = apk.getAbsolutePath();
         pi.applicationInfo.publicSourceDir = apk.getAbsolutePath();
@@ -128,24 +151,6 @@ final class PkgInstaller {
             in.label = in.pkg;
         }
         in.certs = certs(pi);
-
-        if (pi.requestedPermissions != null) {
-            List<Perm> sensitive = new ArrayList<>();
-            List<Perm> normal = new ArrayList<>();
-            for (String p : pi.requestedPermissions) {
-                boolean danger = false;
-                try {
-                    PermissionInfo info = pm.getPermissionInfo(p, 0);
-                    danger = (info.protectionLevel & PermissionInfo.PROTECTION_MASK_BASE)
-                            == PermissionInfo.PROTECTION_DANGEROUS;
-                } catch (PackageManager.NameNotFoundException ignored) {
-                }
-                (danger ? sensitive : normal).add(new Perm(shortPerm(p), danger));
-            }
-            in.sensitiveCount = sensitive.size();
-            in.perms.addAll(sensitive);
-            in.perms.addAll(normal);
-        }
 
         try {
             PackageInfo old = pm.getPackageInfo(in.pkg, sigFlags());
@@ -166,11 +171,6 @@ final class PkgInstaller {
     @SuppressWarnings("deprecation")
     static long codeOf(PackageInfo pi) {
         return Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode;
-    }
-
-    private static String shortPerm(String p) {
-        int i = p.lastIndexOf('.');
-        return i >= 0 && i < p.length() - 1 ? p.substring(i + 1) : p;
     }
 
     @SuppressWarnings("deprecation")

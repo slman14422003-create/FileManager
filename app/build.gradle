@@ -5,7 +5,8 @@ plugins {
 }
 
 // Release signing: CI passes SIGNING_* environment variables; locally keystore.properties is used.
-// Without a key the release build is signed with the debug key so the APK is still installable.
+// Without a key the release build is signed with the debug key so the APK is still installable locally.
+// CI never publishes such a build (the debug key differs on every runner, so updates would be rejected).
 def keystoreProps = new Properties()
 def keystoreFile = rootProject.file('keystore.properties')
 if (keystoreFile.exists()) {

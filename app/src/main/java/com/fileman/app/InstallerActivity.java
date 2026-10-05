@@ -54,7 +54,7 @@ import java.util.zip.ZipOutputStream;
  * or without one to find packages on the device and manage installed apps (open, info, extract, uninstall).
  */
 public class InstallerActivity extends AppCompatActivity {
-    private static final int S_HOME = 0, S_FOUND = 1, S_APPS = 2, S_FILE = 3;
+    private static final int S_HOME = 0, S_FOUND = 1, S_APPS = 2;
     private static final int MAX_FOUND = 200, MAX_APPS = 400, MAX_SHOWN_APPS = 300;
 
     private static final class App {
@@ -69,10 +69,8 @@ public class InstallerActivity extends AppCompatActivity {
     private LinearLayout content;
     private View loading;
     private TextView titleView, subtitleView, statusLine;
-    private Button installBtn;
 
     private int screen = S_HOME;
-    private boolean startedWithFile = false;
     private boolean dirty = false;           // an uninstall may have changed things: refresh on return
     private volatile boolean destroyed = false;
 
@@ -82,7 +80,6 @@ public class InstallerActivity extends AppCompatActivity {
     private String appQuery = "";
     private boolean showSystem = false;
 
-    private PkgInstaller.Info cur;
     private volatile PkgInstaller.Info installing;   // package being installed right now
 
     private final ArrayDeque<File> queue = new ArrayDeque<>();
@@ -114,13 +111,7 @@ public class InstallerActivity extends AppCompatActivity {
         ContextCompat.registerReceiver(this, rx, new IntentFilter(PkgInstaller.action(this)),
                 ContextCompat.RECEIVER_NOT_EXPORTED);
 
-        String path = getIntent().getStringExtra("path");
-        if (path != null) {
-            startedWithFile = true;
-            showFile(new File(path));
-        } else {
-            showHome();
-        }
+        showHome();
     }
 
     @Override
@@ -131,7 +122,6 @@ public class InstallerActivity extends AppCompatActivity {
         } else if (dirty) {
             dirty = false;
             if (screen == S_APPS) loadApps();
-            else if (screen == S_FILE && cur != null) showFile(cur.source);
         }
     }
 
@@ -148,10 +138,8 @@ public class InstallerActivity extends AppCompatActivity {
     }
 
     private void onBack() {
-        if (screen == S_HOME || (screen == S_FILE && startedWithFile)) {
+        if (screen == S_HOME) {
             finish();
-        } else if (screen == S_FILE) {
-            showFoundList();
         } else {
             showHome();
         }
@@ -164,9 +152,6 @@ public class InstallerActivity extends AppCompatActivity {
                 break;
             case S_APPS:
                 loadApps();
-                break;
-            case S_FILE:
-                if (cur != null) showFile(cur.source);
                 break;
             default:
                 showHome();
@@ -189,7 +174,6 @@ public class InstallerActivity extends AppCompatActivity {
     private void clear() {
         content.removeAllViews();
         statusLine = null;
-        installBtn = null;
     }
 
     private void toast(int res) {
@@ -198,10 +182,6 @@ public class InstallerActivity extends AppCompatActivity {
 
     private View row(int icon, String title, String sub, View.OnClickListener click) {
         return Ui.rowView(this, content, new Row(icon, false, title, sub, false, click != null), click);
-    }
-
-    private static String ver(String name, long code) {
-        return (name == null || name.isEmpty() ? "" : name + " ") + "(" + code + ")";
     }
 
     private boolean ensureCanInstall() {
@@ -333,119 +313,8 @@ public class InstallerActivity extends AppCompatActivity {
 
     // ------------------------------------------------------------------ one package
 
-    private void showFile(final File f) {
-        screen = S_FILE;
-        header(f.getName());
-        clear();
-        busy(true);
-        content.addView(Ui.body(this, getString(R.string.pk_inspecting), 14, R.color.text_secondary));
-        io.execute(() -> {
-            PkgInstaller.Info in = null;
-            try {
-                in = PkgInstaller.inspect(this, f);
-            } catch (Throwable ignored) {
-            }
-            final PkgInstaller.Info fin = in;
-            ui.post(() -> {
-                if (destroyed || screen != S_FILE) return;
-                busy(false);
-                if (fin == null) {
-                    clear();
-                    content.addView(Ui.noteCard(this, getString(R.string.pk_invalid), R.color.bad));
-                } else {
-                    cur = fin;
-                    renderFile(fin);
-                }
-            });
-        });
-    }
-
-    private void renderFile(final PkgInstaller.Info in) {
-        clear();
-        View head = Ui.rowView(this, content, new Row(R.drawable.ic_package, true, in.label,
-                in.pkg + (in.versionName.isEmpty() ? "" : " · " + in.versionName), false, false), null);
-        realIcon(head, in.icon);
-        content.addView(head);
-
-        String text;
-        int color;
-        if (!in.installed) {
-            text = getString(R.string.pk_st_new);
-            color = R.color.info;
-        } else if (!in.sameCert) {
-            text = getString(R.string.pk_st_cert);
-            color = R.color.bad;
-        } else if (in.versionCode > in.installedCode) {
-            text = getString(R.string.pk_st_upgrade, ver(in.installedName, in.installedCode), ver(in.versionName, in.versionCode));
-            color = R.color.ok;
-        } else if (in.versionCode == in.installedCode) {
-            text = getString(R.string.pk_st_same, ver(in.installedName, in.installedCode));
-            color = R.color.warn;
-        } else {
-            text = getString(R.string.pk_st_older, ver(in.versionName, in.versionCode), ver(in.installedName, in.installedCode));
-            color = R.color.bad;
-        }
-        content.addView(Ui.noteCard(this, text, color));
-        if (in.bundle && in.hasObb) {
-            content.addView(Ui.noteCard(this, getString(R.string.pk_obb_note), R.color.warn));
-        }
-
-        content.addView(Ui.sectionTitle(this, getString(R.string.pk_details)));
-        LinearLayout d = new LinearLayout(this);
-        d.setOrientation(LinearLayout.VERTICAL);
-        d.addView(detail(d, R.drawable.ic_info, getString(R.string.pk_d_version), ver(in.versionName, in.versionCode)));
-        d.addView(detail(d, R.drawable.ic_drive, getString(R.string.pk_d_size), Fmt.size(in.size)));
-        d.addView(detail(d, R.drawable.ic_settings, getString(R.string.pk_d_sdk),
-                getString(R.string.pk_d_sdk_sub, in.minSdk, in.targetSdk)));
-        if (in.bundle) {
-            d.addView(detail(d, R.drawable.ic_archive, getString(R.string.pk_d_splits),
-                    getString(R.string.pk_d_splits_sub, in.entries.size())));
-        }
-        d.addView(detail(d, R.drawable.ic_lock, getString(R.string.pk_d_cert), in.certShort()));
-        Ui.group(this, d);
-        content.addView(d);
-
-        content.addView(Ui.sectionTitle(this, in.perms.isEmpty() ? getString(R.string.pk_perms_none)
-                : getString(R.string.pk_perms, in.perms.size())));
-        if (!in.perms.isEmpty()) {
-            LinearLayout pl = new LinearLayout(this);
-            pl.setOrientation(LinearLayout.VERTICAL);
-            int shown = Math.min(in.perms.size(), 40);
-            for (int i = 0; i < shown; i++) {
-                PkgInstaller.Perm p = in.perms.get(i);
-                Row r = new Row(R.drawable.ic_shield, false, p.name, null, false, false)
-                        .tint(Ui.color(this, p.sensitive ? R.color.warn : R.color.text_secondary));
-                if (p.sensitive) r.badge(getString(R.string.pk_perm_sensitive), Ui.color(this, R.color.warn));
-                pl.addView(Ui.rowView(this, pl, r, null));
-            }
-            Ui.group(this, pl);
-            content.addView(pl);
-        }
-
-        statusLine = Ui.body(this, "", 14, R.color.text_secondary);
-        statusLine.setVisibility(View.GONE);
-        content.addView(statusLine);
-
-        installBtn = Ui.block(this, Ui.button(this, R.string.pk_install, true));
-        installBtn.setOnClickListener(v -> {
-            if (!ensureCanInstall()) return;
-            installBtn.setEnabled(false);
-            runInstall(in.source, in);
-        });
-        content.addView(installBtn);
-
-        if (in.installed) {
-            Button open = Ui.block(this, Ui.button(this, R.string.pk_open_app, false));
-            open.setOnClickListener(v -> openApp(in.pkg));
-            content.addView(open);
-            Button un = Ui.block(this, Ui.button(this, R.string.pk_uninstall, false));
-            un.setOnClickListener(v -> uninstall(in.pkg));
-            content.addView(un);
-        }
-    }
-
-    private View detail(LinearLayout parent, int icon, String title, String sub) {
-        return Ui.rowView(this, parent, new Row(icon, false, title, sub, false, false), null);
+    private void showFile(File f) {
+        startActivity(new Intent(this, InstallActivity.class).setData(Uri.fromFile(f)));
     }
 
     // ------------------------------------------------------------------ installing
@@ -514,7 +383,6 @@ public class InstallerActivity extends AppCompatActivity {
     private void onInstallResult(boolean ok, String msg) {
         if (destroyed) return;
         busy(false);
-        if (installBtn != null) installBtn.setEnabled(true);
         PkgInstaller.Info in = installing;
         String label = in != null && !in.label.isEmpty() ? in.label : getString(R.string.pk_title);
         if (batchActive) {
@@ -525,7 +393,6 @@ public class InstallerActivity extends AppCompatActivity {
         }
         Dlg.result(this, ok, getString(ok ? R.string.pk_ok_title : R.string.pk_fail_title),
                 ok ? getString(R.string.pk_ok_msg, label) : msg);
-        if (ok && screen == S_FILE && cur != null) showFile(cur.source);   // refresh installed state
     }
 
     // ------------------------------------------------------------------ batch

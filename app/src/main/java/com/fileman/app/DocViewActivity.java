@@ -36,6 +36,9 @@ public class DocViewActivity extends AppCompatActivity {
     private File file;
     private View loading;
     private WebView web;
+    private TextView subtitle;
+    private ImageButton findBtn;
+    private boolean finding = false;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -51,7 +54,8 @@ public class DocViewActivity extends AppCompatActivity {
         }
         final String ext = Cats.extOf(file.getName());
         ((TextView) findViewById(R.id.title)).setText(file.getName());
-        ((TextView) findViewById(R.id.subtitle)).setText(Fmt.size(file.length()));
+        subtitle = findViewById(R.id.subtitle);
+        subtitle.setText(ext.toUpperCase(java.util.Locale.ROOT) + " · " + Fmt.size(file.length()));
         loading = findViewById(R.id.loading);
         if (loading instanceof ProgressBar) Ui.tint(this, (ProgressBar) loading);
         findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
@@ -61,8 +65,40 @@ public class DocViewActivity extends AppCompatActivity {
         more.setContentDescription(getString(R.string.more));
         more.setVisibility(View.VISIBLE);
         more.setOnClickListener(v -> Opener.moreMenu(this, file));
+        findBtn = findViewById(R.id.btnA2);
+        findBtn.setImageResource(R.drawable.ic_search);
+        findBtn.setContentDescription(getString(R.string.v_find));
+        findBtn.setVisibility(View.VISIBLE);
+        findBtn.setOnClickListener(v -> {
+            if (finding) web.findNext(true);
+            else askFind();
+        });
+        findBtn.setOnLongClickListener(v -> {
+            askFind();
+            return true;
+        });
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (finding) {
+                    stopFind();
+                } else {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                }
+            }
+        });
 
         web = new WebView(this);
+        web.setFindListener((active, count, done) -> {
+            if (!done) return;
+            if (count == 0) {
+                Toast.makeText(this, R.string.v_find_none, Toast.LENGTH_SHORT).show();
+                stopFind();
+            } else {
+                subtitle.setText(getString(R.string.v_find_count, active + 1, count));
+            }
+        });
         web.setBackgroundColor(Ui.color(this, R.color.bg));
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(false);
@@ -121,6 +157,27 @@ public class DocViewActivity extends AppCompatActivity {
                 web.loadDataWithBaseURL(BASE, h, "text/html", "utf-8", null);
             });
         });
+    }
+
+    private void askFind() {
+        final android.widget.EditText q = Ui.edit(this, getString(R.string.v_find), "");
+        new Dlg(this).setTitle(R.string.v_find).setView(q)
+                .setPositiveButton(R.string.v_find_go, (d, w) -> {
+                    String t = q.getText().toString().trim();
+                    if (t.isEmpty()) return;
+                    finding = true;
+                    findBtn.setImageResource(R.drawable.ic_arrow_down);
+                    web.findAllAsync(t);
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void stopFind() {
+        finding = false;
+        web.clearMatches();
+        findBtn.setImageResource(R.drawable.ic_search);
+        subtitle.setText(Cats.extOf(file.getName()).toUpperCase(java.util.Locale.ROOT) + " · " + Fmt.size(file.length()));
     }
 
     @Override

@@ -41,6 +41,7 @@ jobs:
       tag: ${{ steps.meta.outputs.tag }}
       publish: ${{ steps.meta.outputs.publish }}
       code: ${{ steps.meta.outputs.code }}
+      permanent: ${{ steps.sign.outputs.permanent }}
     steps:
       - uses: actions/checkout@v4
 
@@ -85,9 +86,13 @@ jobs:
                | grep -v -E "/(Net|Updater)\.java:"; then
             echo "::error title=Network guard::network code outside Net.java"; exit 1
           fi
-          # 2) nothing else may be exported and no cleartext traffic
+          # 2) only the launcher and the package install screen (it replaces the system installer) may be exported
           M=app/src/main/AndroidManifest.xml
-          [ "$(grep -c 'android:exported="true"' $M)" = "1" ] || { echo "::error::only the launcher may be exported"; exit 1; }
+          EXP="$(grep -B1 'android:exported="true"' $M | grep -o 'android:name="[^"]*"' | sort | tr '\n' ' ')"
+          [ "$EXP" = 'android:name=".HomeActivity" android:name=".InstallActivity" ' ] || { echo "::error::only HomeActivity and InstallActivity may be exported (found: $EXP)"; exit 1; }
+          # the install screen must only read the data URI it is opened with (no path/text extras from other apps)
+          if grep -n 'getIntent()\.get\(String\|Parcelable\|Serializable\)' $SRC/com/fileman/app/InstallActivity.java; then
+            echo "::error::InstallActivity must not read string/parcelable extras (it is exported)"; exit 1; fi
           grep -q 'android:usesCleartextTraffic="false"' $M || { echo "::error::cleartext must stay disabled"; exit 1; }
           grep -q 'android:allowBackup="false"' $M || { echo "::error::backup must stay disabled"; exit 1; }
 
@@ -105,9 +110,11 @@ jobs:
         with:
           gradle-version: '8.14.3'
 
-      # Permanent signing key (recommended). Without the secrets the APK is signed with a debug key:
-      # it installs fine, but a later build can only be installed after uninstalling this one.
+      # Permanent signing key. Without the secrets the APK gets a throw-away debug key that is different on
+      # every CI run, so Android refuses to update one build with the next ("signature does not match").
+      # Such a build is still produced as an artifact, but it is never published as a Release (see the last step).
       - name: Prepare release signing
+        id: sign
         if: env.BUILD_TYPE == 'release'
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -118,6 +125,7 @@ jobs:
           if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
             echo "::warning title=بدون مفتاح توقيع دائم::سيُوقَّع الـ APK بمفتاح تجريبي. راجع SIGNING.md لإضافة مفتاح دائم."
             echo "SIGNING_MODE=مفتاح تجريبي (debug)" >> "$GITHUB_ENV"
+            echo "permanent=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
@@ -130,6 +138,7 @@ jobs:
             echo "SIGNING_KEY_PASSWORD=${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
             echo "SIGNING_MODE=مفتاح المستودع الدائم"
           } >> "$GITHUB_ENV"
+          echo "permanent=true" >> "$GITHUB_OUTPUT"
 
       - name: Build APK
         env:
@@ -169,11 +178,18 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      # Never publish a Release that users cannot install over the previous one.
+      - name: Refuse to publish with a temporary key
+        if: ${{ steps.meta.outputs.publish == 'true' && steps.sign.outputs.permanent != 'true' }}
+        run: |
+          echo "::error title=لن يُنشر الإصدار::لم تُضبط أسرار مفتاح التوقيع الدائم (KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_ALIAS). أي Release بمفتاح تجريبي لن يتحدّث فوق النسخة المثبّتة (خطأ: التوقيع لا يطابق). الحل في SIGNING.md. الـ APK متاح في Artifacts للتجربة فقط."
+          exit 1
+
   # Publishes the APK as a GitHub Release
   release:
     name: Publish GitHub Release
     needs: build
-    if: ${{ !cancelled() && needs.build.result == 'success' && needs.build.outputs.publish == 'true' }}
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.build.outputs.publish == 'true' && needs.build.outputs.permanent == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

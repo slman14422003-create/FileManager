@@ -2,7 +2,12 @@ package com.fileman.app;
 
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.Outline;
+import android.graphics.drawable.GradientDrawable;
 import android.graphics.pdf.PdfRenderer;
+import android.view.Gravity;
+import android.view.ViewOutlineProvider;
+import android.text.InputType;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -52,6 +57,10 @@ public class PdfViewActivity extends AppCompatActivity {
     private ListView list;
     private PageAdapter adapter;
     private LruCache<String, Bitmap> cache;
+    private TextView pill;
+    private final Runnable hidePill = () -> {
+        if (pill != null) pill.animate().alpha(0f).setDuration(250).start();
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,7 +75,7 @@ public class PdfViewActivity extends AppCompatActivity {
         }
         ((TextView) findViewById(R.id.title)).setText(file.getName());
         subtitle = findViewById(R.id.subtitle);
-        subtitle.setText(Fmt.size(file.length()));
+        subtitle.setText("PDF · " + Fmt.size(file.length()));
         loading = findViewById(R.id.loading);
         if (loading instanceof ProgressBar) Ui.tint(this, (ProgressBar) loading);
         findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
@@ -143,7 +152,8 @@ public class PdfViewActivity extends AppCompatActivity {
             list.setVerticalScrollBarEnabled(false);
             list.setSelector(android.R.color.transparent);
             list.setClipToPadding(false);
-            list.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 24));
+            list.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 72));
+            list.setFastScrollEnabled(true);
             adapter = new PageAdapter();
             list.setAdapter(adapter);
             list.setOnScrollListener(new AbsListView.OnScrollListener() {
@@ -159,7 +169,28 @@ public class PdfViewActivity extends AppCompatActivity {
             hsv.addView(list, new FrameLayout.LayoutParams(listWidth(), ViewGroup.LayoutParams.MATCH_PARENT));
             holder.addView(hsv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
+
+            // floating page counter: shows while scrolling, tap to jump to a page
+            pill = new TextView(this);
+            pill.setTextColor(Ui.color(this, R.color.text_primary));
+            pill.setTextSize(14);
+            pill.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+            pill.setPadding(Ui.dp(this, 16), Ui.dp(this, 9), Ui.dp(this, 16), Ui.dp(this, 9));
+            GradientDrawable pg = new GradientDrawable();
+            pg.setCornerRadius(Ui.dp(this, 22));
+            pg.setColor(Ui.color(this, R.color.surface));
+            pg.setStroke(Ui.dp(this, 1), Ui.color(this, R.color.stroke));
+            pill.setBackground(pg);
+            pill.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+            pill.setAlpha(0f);
+            pill.setOnClickListener(v -> askPage());
+            Ui.press(this, pill);
+            FrameLayout.LayoutParams pl = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+            pl.bottomMargin = Ui.dp(this, 22);
+            holder.addView(pill, pl);
             updateSubtitle(0);
+            showPill(0);
         });
     }
 
@@ -168,8 +199,33 @@ public class PdfViewActivity extends AppCompatActivity {
     }
 
     private void updateSubtitle(int firstVisible) {
-        subtitle.setText(getString(R.string.v_page_of, Math.min(firstVisible + 1, pageCount), pageCount)
-                + " · " + Fmt.size(file.length()));
+        subtitle.setText("PDF · " + Fmt.size(file.length()));
+        showPill(firstVisible);
+    }
+
+    private void showPill(int firstVisible) {
+        if (pill == null) return;
+        pill.setText(getString(R.string.v_page_of, Math.min(firstVisible + 1, pageCount), pageCount));
+        pill.animate().cancel();
+        pill.setAlpha(1f);
+        ui.removeCallbacks(hidePill);
+        ui.postDelayed(hidePill, 1600);
+    }
+
+    private void askPage() {
+        if (list == null) return;
+        final android.widget.EditText e = Ui.edit(this, getString(R.string.v_go_page, pageCount), "");
+        e.setInputType(InputType.TYPE_CLASS_NUMBER);
+        new Dlg(this).setTitle(R.string.v_go_page_title).setView(e)
+                .setPositiveButton(android.R.string.ok, (d, w) -> {
+                    try {
+                        int n = Integer.parseInt(e.getText().toString().trim());
+                        list.setSelection(Math.max(0, Math.min(pageCount, n) - 1));
+                    } catch (NumberFormatException ignored) {
+                    }
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
     }
 
     private void cycleZoom() {
@@ -214,6 +270,14 @@ public class PdfViewActivity extends AppCompatActivity {
                 iv = new ImageView(PdfViewActivity.this);
                 iv.setScaleType(ImageView.ScaleType.FIT_XY);
                 iv.setBackgroundColor(Color.WHITE);
+                final float rad = Ui.dp(PdfViewActivity.this, 10);
+                iv.setClipToOutline(true);
+                iv.setOutlineProvider(new ViewOutlineProvider() {
+                    @Override
+                    public void getOutline(View v, Outline o) {
+                        o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), rad);
+                    }
+                });
                 row.addView(iv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 100));
                 row.setLayoutParams(new AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT));

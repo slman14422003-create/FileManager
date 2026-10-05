@@ -28,7 +28,7 @@ public final class Opener {
         }
         switch (Cats.viewKind(ext)) {
             case Cats.V_APK:
-                start(a, InstallerActivity.class, f);   // inspect, then install through a session
+                a.startActivity(new Intent(a, InstallActivity.class).setData(Uri.fromFile(f)));
                 break;
             case Cats.V_TEXT:
                 start(a, FileEditActivity.class, f);
