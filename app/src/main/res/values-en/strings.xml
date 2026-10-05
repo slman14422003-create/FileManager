@@ -366,4 +366,42 @@
     <string name="zip_pick_up">⬆ Parent folder</string>
     <string name="zip_stored">Stored</string>
     <string name="zip_detail_body">Path: %1$s\nSize: %2$s\nCompressed: %3$s (saves %4$d%%)\nDate: %5$s\nMethod: %6$s\nCRC32: %7$s</string>
+
+    <!-- media player / readers -->
+    <string name="mp_prev">Previous</string>
+    <string name="mp_next">Next</string>
+    <string name="mp_shuffle">Shuffle</string>
+    <string name="mp_repeat_off">Repeat: off</string>
+    <string name="mp_repeat_all">Repeat: all</string>
+    <string name="mp_repeat_one">Repeat: current file</string>
+    <string name="mp_playlist">Playlist</string>
+    <string name="mp_sleep">Sleep timer</string>
+    <string name="mp_sleep_off">Turn timer off</string>
+    <string name="mp_sleep_min">%d min</string>
+    <string name="mp_sleep_set">Playback will stop in %d min</string>
+    <string name="mp_sleep_done">Stopped by the sleep timer</string>
+    <string name="mp_aspect_fit">Fit</string>
+    <string name="mp_aspect_fill">Fill</string>
+    <string name="mp_aspect_stretch">Stretch</string>
+    <string name="mp_rotate">Rotate screen</string>
+    <string name="mp_lock">Lock controls</string>
+    <string name="mp_unlock">Long-press to unlock</string>
+    <string name="mp_resume">Resumed from %s</string>
+    <string name="mp_unknown_artist">Unknown artist</string>
+    <string name="mp_speed">Speed</string>
+    <string name="mp_track_of">%1$d / %2$d</string>
+    <string name="rd_night">Night mode</string>
+    <string name="rd_fit_width">Fit width</string>
+    <string name="rd_rotate">Rotate</string>
+    <string name="rd_save_copy">Save a copy</string>
+    <string name="rd_text_size">Text size</string>
+    <string name="rd_page_jump">Go to page</string>
+    <string name="rd_slideshow">Slideshow</string>
+    <string name="rd_info">Image info</string>
+    <string name="rd_resolution">Dimensions</string>
+    <string name="rd_date">Date</string>
+    <string name="rd_camera">Camera</string>
+    <string name="rd_size">Size</string>
+    <string name="rd_path">Path</string>
+    <string name="rd_resumed_page">Continued from page %d</string>
 </resources>

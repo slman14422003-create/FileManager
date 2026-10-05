@@ -119,23 +119,36 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
-            echo "::warning title=بدون مفتاح توقيع دائم::سيُوقَّع الـ APK بمفتاح تجريبي. راجع SIGNING.md لإضافة مفتاح دائم."
+          # accept STORE_PASSWORD too (that is the name used inside signing-info.txt) and fall back to KEY_PASSWORD
+          STORE_PASS="${KEYSTORE_PASSWORD:-${STORE_PASSWORD:-$KEY_PASSWORD}}"
+          ALIAS="${KEY_ALIAS:-fileman}"
+          MISSING=""
+          [ -z "$KEYSTORE_BASE64" ] && MISSING="$MISSING KEYSTORE_BASE64"
+          [ -z "$STORE_PASS" ] && MISSING="$MISSING KEYSTORE_PASSWORD"
+          if [ -n "$MISSING" ]; then
+            echo "::warning title=بدون مفتاح توقيع دائم::الأسرار الناقصة أو الفارغة:$MISSING . أضفها في Settings > Secrets and variables > Actions > تبويب Repository secrets (وليس Environment ولا Dependabot). راجع SIGNING.md."
             echo "SIGNING_MODE=مفتاح تجريبي (debug)" >> "$GITHUB_ENV"
             echo "permanent=false" >> "$GITHUB_OUTPUT"
+            echo "missing=$MISSING" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-          echo "::add-mask::$KEYSTORE_PASSWORD"
+          echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "::add-mask::$STORE_PASS"
           [ -n "$KEY_PASSWORD" ] && echo "::add-mask::$KEY_PASSWORD"
+          # fail early with a clear message if the password / alias do not open the keystore
+          if ! keytool -list -keystore "$RUNNER_TEMP/release.jks" -storepass "$STORE_PASS" -alias "$ALIAS" >/dev/null 2>&1; then
+            echo "::error title=مفتاح التوقيع غير صالح::تعذّر فتح المفتاح. تأكد أن KEYSTORE_BASE64 هو كل محتوى KEYSTORE_BASE64.txt بدون اقتباسات، وأن كلمة المرور والـ alias ($ALIAS) صحيحان."
+            exit 1
+          fi
           {
             echo "SIGNING_STORE_FILE=$RUNNER_TEMP/release.jks"
-            echo "SIGNING_STORE_PASSWORD=$KEYSTORE_PASSWORD"
-            echo "SIGNING_KEY_ALIAS=$KEY_ALIAS"
-            echo "SIGNING_KEY_PASSWORD=${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+            echo "SIGNING_STORE_PASSWORD=$STORE_PASS"
+            echo "SIGNING_KEY_ALIAS=$ALIAS"
+            echo "SIGNING_KEY_PASSWORD=${KEY_PASSWORD:-$STORE_PASS}"
             echo "SIGNING_MODE=مفتاح المستودع الدائم"
           } >> "$GITHUB_ENV"
           echo "permanent=true" >> "$GITHUB_OUTPUT"
@@ -182,7 +195,7 @@ jobs:
       - name: Refuse to publish with a temporary key
         if: ${{ steps.meta.outputs.publish == 'true' && steps.sign.outputs.permanent != 'true' }}
         run: |
-          echo "::error title=لن يُنشر الإصدار::لم تُضبط أسرار مفتاح التوقيع الدائم (KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_ALIAS). أي Release بمفتاح تجريبي لن يتحدّث فوق النسخة المثبّتة (خطأ: التوقيع لا يطابق). الحل في SIGNING.md. الـ APK متاح في Artifacts للتجربة فقط."
+          echo "::error title=لن يُنشر الإصدار::أسرار مفتاح التوقيع الدائم ناقصة أو فارغة: ${{ steps.sign.outputs.missing }} (الأسماء المطلوبة: KEYSTORE_BASE64 و KEYSTORE_PASSWORD و KEY_ALIAS). أي Release بمفتاح تجريبي لن يتحدّث فوق النسخة المثبّتة (خطأ: التوقيع لا يطابق). الحل في SIGNING.md. الـ APK متاح في Artifacts للتجربة فقط."
           exit 1
 
   # Publishes the APK as a GitHub Release

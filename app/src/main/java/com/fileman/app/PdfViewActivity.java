@@ -2,6 +2,8 @@ package com.fileman.app;
 
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Outline;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.pdf.PdfRenderer;
@@ -51,6 +53,8 @@ public class PdfViewActivity extends AppCompatActivity {
     private float defaultRatio = 1.414f;
     private int zoomIdx = 0;
     private int viewW = 0;
+    private boolean night = false;
+    private int firstVisible = 0;
 
     private View loading;
     private TextView subtitle;
@@ -90,7 +94,10 @@ public class PdfViewActivity extends AppCompatActivity {
         more.setImageResource(R.drawable.ic_more);
         more.setContentDescription(getString(R.string.more));
         more.setVisibility(View.VISIBLE);
-        more.setOnClickListener(v -> Opener.moreMenu(this, file));
+        more.setOnClickListener(v -> Opener.moreMenu(this, file,
+                new String[]{getString(R.string.rd_night) + (night ? "  ✓" : ""), getString(R.string.rd_page_jump)},
+                new Runnable[]{this::toggleNight, this::askPage}));
+        night = Store.intPref(this, "pdf_night", 0) == 1;
 
         long budget = Math.max(16L * 1024 * 1024, Math.min(64L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 6));
         cache = new LruCache<String, Bitmap>((int) budget) {
@@ -189,8 +196,13 @@ public class PdfViewActivity extends AppCompatActivity {
                     ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
             pl.bottomMargin = Ui.dp(this, 22);
             holder.addView(pill, pl);
-            updateSubtitle(0);
-            showPill(0);
+            int saved = (int) Store.resume(this, file.getAbsolutePath());
+            if (saved > 0 && saved < pageCount) {
+                list.setSelection(saved);
+                Toast.makeText(this, getString(R.string.rd_resumed_page, saved + 1), Toast.LENGTH_SHORT).show();
+            }
+            updateSubtitle(saved);
+            showPill(saved);
         });
     }
 
@@ -198,10 +210,24 @@ public class PdfViewActivity extends AppCompatActivity {
         return Math.round(viewW * ZOOMS[zoomIdx]);
     }
 
-    private void updateSubtitle(int firstVisible) {
-        subtitle.setText("PDF · " + Fmt.size(file.length()));
-        showPill(firstVisible);
+    private void updateSubtitle(int first) {
+        firstVisible = first;
+        subtitle.setText("PDF · " + pageCount + " · " + Fmt.size(file.length()));
+        showPill(first);
     }
+
+    private void toggleNight() {
+        night = !night;
+        Store.setIntPref(this, "pdf_night", night ? 1 : 0);
+        if (adapter != null) adapter.notifyDataSetChanged();
+    }
+
+    /** Inverts the page colours (white paper becomes dark) for comfortable night reading. */
+    private static final ColorMatrixColorFilter INVERT = new ColorMatrixColorFilter(new ColorMatrix(new float[]{
+            -0.9f, 0, 0, 0, 255 * 0.93f,
+            0, -0.9f, 0, 0, 255 * 0.93f,
+            0, 0, -0.9f, 0, 255 * 0.93f,
+            0, 0, 0, 1, 0}));
 
     private void showPill(int firstVisible) {
         if (pill == null) return;
@@ -287,6 +313,7 @@ public class PdfViewActivity extends AppCompatActivity {
             FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) iv.getLayoutParams();
             lp.height = Math.round(pageW * ratio);
             iv.setLayoutParams(lp);
+            iv.setColorFilter(night ? INVERT : null);
             bind(position, pageW, iv);
             return row;
         }
@@ -339,6 +366,12 @@ public class PdfViewActivity extends AppCompatActivity {
                 if (key.equals(iv.getTag())) iv.setImageBitmap(fb);
             });
         });
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (pageCount > 0) Store.setResume(this, file.getAbsolutePath(), firstVisible);
     }
 
     @Override

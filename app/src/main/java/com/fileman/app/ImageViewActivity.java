@@ -37,6 +37,16 @@ public class ImageViewActivity extends AppCompatActivity {
     private ZoomImageView zoom;
     private View loading;
     private TextView titleView, subtitleView;
+    private Bitmap current;
+    private boolean slideshow = false;
+    private final Runnable slideTick = new Runnable() {
+        @Override
+        public void run() {
+            if (!slideshow) return;
+            go(index + 1 < images.size() ? index + 1 : 0);
+            ui.postDelayed(this, 3500);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,7 +69,10 @@ public class ImageViewActivity extends AppCompatActivity {
         more.setImageResource(R.drawable.ic_more);
         more.setContentDescription(getString(R.string.more));
         more.setVisibility(View.VISIBLE);
-        more.setOnClickListener(v -> Opener.moreMenu(this, images.isEmpty() ? start : images.get(index)));
+        more.setOnClickListener(v -> Opener.moreMenu(this, images.isEmpty() ? start : images.get(index),
+                new String[]{getString(R.string.rd_rotate), getString(R.string.rd_info),
+                        getString(R.string.rd_slideshow) + (slideshow ? "  ✓" : "")},
+                new Runnable[]{this::rotate, this::showInfo, this::toggleSlideshow}));
 
         zoom = new ZoomImageView(this);
         zoom.setSwipeListener(dir -> go(index + dir));
@@ -91,6 +104,54 @@ public class ImageViewActivity extends AppCompatActivity {
         show();
     }
 
+    private void rotate() {
+        if (current == null) return;
+        Matrix mx = new Matrix();
+        mx.postRotate(90);
+        try {
+            current = Bitmap.createBitmap(current, 0, 0, current.getWidth(), current.getHeight(), mx, true);
+            zoom.show(current);
+        } catch (Throwable t) {
+            Toast.makeText(this, R.string.v_too_large, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void toggleSlideshow() {
+        slideshow = !slideshow;
+        ui.removeCallbacks(slideTick);
+        if (slideshow) {
+            getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            ui.postDelayed(slideTick, 3500);
+        } else {
+            getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+    }
+
+    private void showInfo() {
+        File f = images.get(index);
+        BitmapFactory.Options o = new BitmapFactory.Options();
+        o.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(f.getAbsolutePath(), o);
+        StringBuilder sb = new StringBuilder();
+        sb.append(getString(R.string.rd_resolution)).append(": ").append(o.outWidth).append(" × ").append(o.outHeight).append('\n');
+        sb.append(getString(R.string.rd_size)).append(": ").append(Fmt.size(f.length())).append('\n');
+        sb.append(getString(R.string.rd_date)).append(": ")
+                .append(java.text.DateFormat.getDateTimeInstance().format(new java.util.Date(f.lastModified()))).append('\n');
+        try {
+            ExifInterface ex = new ExifInterface(f.getAbsolutePath());
+            String make = ex.getAttribute(ExifInterface.TAG_MAKE);
+            String model = ex.getAttribute(ExifInterface.TAG_MODEL);
+            if (make != null || model != null) {
+                sb.append(getString(R.string.rd_camera)).append(": ")
+                        .append(make == null ? "" : make).append(' ').append(model == null ? "" : model).append('\n');
+            }
+        } catch (Exception ignored) {
+        }
+        sb.append(getString(R.string.rd_path)).append(": ").append(f.getParent());
+        new Dlg(this).setTitle(f.getName()).setMessage(sb.toString())
+                .setPositiveButton(android.R.string.ok, null).show();
+    }
+
     private void go(int i) {
         if (i < 0 || i >= images.size() || i == index) return;
         index = i;
@@ -118,6 +179,7 @@ public class ImageViewActivity extends AppCompatActivity {
                     Toast.makeText(this, R.string.fm_cannot_open, Toast.LENGTH_SHORT).show();
                     return;
                 }
+                current = b;
                 zoom.show(b);
             });
         });

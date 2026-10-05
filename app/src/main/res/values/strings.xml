@@ -366,4 +366,42 @@
     <string name="zip_pick_up">⬆ المجلد الأعلى</string>
     <string name="zip_stored">بدون ضغط</string>
     <string name="zip_detail_body">المسار: %1$s\nالحجم: %2$s\nبعد الضغط: %3$s (توفير %4$d%%)\nالتاريخ: %5$s\nالطريقة: %6$s\nCRC32: %7$s</string>
+
+    <!-- media player / readers -->
+    <string name="mp_prev">السابق</string>
+    <string name="mp_next">التالي</string>
+    <string name="mp_shuffle">عشوائي</string>
+    <string name="mp_repeat_off">التكرار: إيقاف</string>
+    <string name="mp_repeat_all">التكرار: الكل</string>
+    <string name="mp_repeat_one">التكرار: الملف الحالي</string>
+    <string name="mp_playlist">قائمة التشغيل</string>
+    <string name="mp_sleep">مؤقت النوم</string>
+    <string name="mp_sleep_off">إيقاف المؤقت</string>
+    <string name="mp_sleep_min">%d دقيقة</string>
+    <string name="mp_sleep_set">سيتوقف التشغيل بعد %d دقيقة</string>
+    <string name="mp_sleep_done">توقّف التشغيل بواسطة مؤقت النوم</string>
+    <string name="mp_aspect_fit">ملاءمة</string>
+    <string name="mp_aspect_fill">ملء الشاشة</string>
+    <string name="mp_aspect_stretch">تمديد</string>
+    <string name="mp_rotate">تدوير الشاشة</string>
+    <string name="mp_lock">قفل الأزرار</string>
+    <string name="mp_unlock">اضغط مطولًا لفتح القفل</string>
+    <string name="mp_resume">استئناف من %s</string>
+    <string name="mp_unknown_artist">فنان غير معروف</string>
+    <string name="mp_speed">السرعة</string>
+    <string name="mp_track_of">%1$d / %2$d</string>
+    <string name="rd_night">الوضع الليلي</string>
+    <string name="rd_fit_width">ملاءمة العرض</string>
+    <string name="rd_rotate">تدوير</string>
+    <string name="rd_save_copy">حفظ نسخة</string>
+    <string name="rd_text_size">حجم الخط</string>
+    <string name="rd_page_jump">انتقال إلى صفحة</string>
+    <string name="rd_slideshow">عرض شرائح</string>
+    <string name="rd_info">معلومات الصورة</string>
+    <string name="rd_resolution">الأبعاد</string>
+    <string name="rd_date">التاريخ</string>
+    <string name="rd_camera">الكاميرا</string>
+    <string name="rd_size">الحجم</string>
+    <string name="rd_path">المسار</string>
+    <string name="rd_resumed_page">تابعنا من الصفحة %d</string>
 </resources>

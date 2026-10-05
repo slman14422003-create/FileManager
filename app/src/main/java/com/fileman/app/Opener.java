@@ -112,4 +112,17 @@ public final class Opener {
             else share(a, f);
         }).show();
     }
+
+    /** The "more" menu with viewer-specific entries listed first. */
+    public static void moreMenu(final Activity a, final File f, final String[] extra, final Runnable[] actions) {
+        final String[] items = new String[extra.length + 2];
+        System.arraycopy(extra, 0, items, 0, extra.length);
+        items[extra.length] = a.getString(R.string.fm_open_with);
+        items[extra.length + 1] = a.getString(R.string.share);
+        new Dlg(a).setTitle(f.getName()).setItems(items, (d, which) -> {
+            if (which < extra.length) actions[which].run();
+            else if (which == extra.length) external(a, f, true);
+            else share(a, f);
+        }).show();
+    }
 }

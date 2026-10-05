@@ -99,4 +99,26 @@ public final class Store {
     public static void setSkippedVersion(Context c, String tag) {
         sp(c).edit().putString("upd_skip", tag == null ? "" : tag).apply();
     }
+
+    // ------------------------------------------------------------------ viewers: resume position, reading options
+
+    /** Last playback position / page of a file (0 when unknown). */
+    public static long resume(Context c, String path) {
+        return sp(c).getLong("res_" + path.hashCode(), 0);
+    }
+
+    public static void setResume(Context c, String path, long v) {
+        SharedPreferences.Editor e = sp(c).edit();
+        if (v <= 0) e.remove("res_" + path.hashCode());
+        else e.putLong("res_" + path.hashCode(), v);
+        e.apply();
+    }
+
+    public static int intPref(Context c, String key, int def) {
+        return sp(c).getInt("p_" + key, def);
+    }
+
+    public static void setIntPref(Context c, String key, int v) {
+        sp(c).edit().putInt("p_" + key, v).apply();
+    }
 }

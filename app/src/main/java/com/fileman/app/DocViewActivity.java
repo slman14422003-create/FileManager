@@ -39,6 +39,10 @@ public class DocViewActivity extends AppCompatActivity {
     private TextView subtitle;
     private ImageButton findBtn;
     private boolean finding = false;
+    private boolean night = false;
+    private int zoom = 100;
+    private String baseHtml;
+    private int restoreY = 0;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -64,7 +68,12 @@ public class DocViewActivity extends AppCompatActivity {
         more.setImageResource(R.drawable.ic_more);
         more.setContentDescription(getString(R.string.more));
         more.setVisibility(View.VISIBLE);
-        more.setOnClickListener(v -> Opener.moreMenu(this, file));
+        night = Store.intPref(this, "doc_night", 0) == 1;
+        zoom = Store.intPref(this, "doc_zoom", 100);
+        more.setOnClickListener(v -> Opener.moreMenu(this, file,
+                new String[]{getString(R.string.rd_night) + (night ? "  ✓" : ""),
+                        getString(R.string.rd_text_size) + " +", getString(R.string.rd_text_size) + " −"},
+                new Runnable[]{this::toggleNight, () -> changeZoom(20), () -> changeZoom(-20)}));
         findBtn = findViewById(R.id.btnA2);
         findBtn.setImageResource(R.drawable.ic_search);
         findBtn.setContentDescription(getString(R.string.v_find));
@@ -111,7 +120,7 @@ public class DocViewActivity extends AppCompatActivity {
         s.setSupportZoom(true);
         s.setUseWideViewPort(true);
         s.setLoadWithOverviewMode(true);
-        s.setTextZoom(100);
+        s.setTextZoom(zoom);
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
@@ -123,6 +132,11 @@ public class DocViewActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView v, String url) {
                 loading.setVisibility(View.INVISIBLE);
+                if (restoreY > 0) {
+                    final int y = restoreY;
+                    restoreY = 0;
+                    v.postDelayed(() -> v.scrollTo(0, y), 120);
+                }
             }
 
             @Override
@@ -154,9 +168,42 @@ public class DocViewActivity extends AppCompatActivity {
                     finish();
                     return;
                 }
-                web.loadDataWithBaseURL(BASE, h, "text/html", "utf-8", null);
+                baseHtml = h;
+                restoreY = (int) Store.resume(this, file.getAbsolutePath());
+                render();
             });
         });
+    }
+
+    private static final String NIGHT_CSS = "<style>html{filter:invert(1) hue-rotate(180deg);background:#fff}"
+            + "img,svg{filter:invert(1) hue-rotate(180deg)}</style>";
+
+    /** Loads the converted document, with the night-mode stylesheet in front when it is on. */
+    private void render() {
+        if (baseHtml == null) return;
+        String h = night ? NIGHT_CSS + baseHtml : baseHtml;
+        web.setBackgroundColor(night ? 0xFF121212 : Ui.color(this, R.color.bg));
+        web.loadDataWithBaseURL(BASE, h, "text/html", "utf-8", null);
+    }
+
+    private void toggleNight() {
+        night = !night;
+        Store.setIntPref(this, "doc_night", night ? 1 : 0);
+        restoreY = web.getScrollY();
+        render();
+    }
+
+    private void changeZoom(int delta) {
+        zoom = Math.max(60, Math.min(260, zoom + delta));
+        Store.setIntPref(this, "doc_zoom", zoom);
+        web.getSettings().setTextZoom(zoom);
+        Toast.makeText(this, zoom + "%", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (web != null && file != null) Store.setResume(this, file.getAbsolutePath(), web.getScrollY());
     }
 
     private void askFind() {
