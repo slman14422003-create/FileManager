@@ -98,8 +98,11 @@ public class OpenActivity extends Activity {
         final File target = file;
         runOnUiThread(() -> {
             if (gone) return;
-            int kind = Cats.viewKind(Cats.extOf(target.getName()));
-            if (kind == Cats.V_LEGACY || kind == Cats.V_NONE) {
+            String x = Cats.extOf(target.getName());
+            int kind = Cats.viewKind(x);
+            if (Opener.isArchiveExt(x) || (kind == Cats.V_NONE && Opener.looksLikeZip(target))) {
+                Opener.openArchive(this, target);   // zip / jar / cbz (also files with a missing or wrong extension)
+            } else if (kind == Cats.V_LEGACY || kind == Cats.V_NONE) {
                 Opener.external(this, target, true);
             } else {
                 Opener.open(this, target);

@@ -380,8 +380,8 @@ public class ZipBrowseActivity extends AppCompatActivity {
                 ? new String[]{getString(R.string.zip_item_open), getString(R.string.zip_item_copy),
                         getString(R.string.zip_item_select)}
                 : new String[]{getString(R.string.zip_item_preview), getString(R.string.zip_item_copy),
-                        getString(R.string.zip_item_share), getString(R.string.zip_item_details),
-                        getString(R.string.zip_item_select)};
+                        getString(R.string.zip_item_share), getString(R.string.fm_open_with),
+                        getString(R.string.zip_item_details), getString(R.string.zip_item_select)};
         new Dlg(this).setTitle(n.name).setItems(items, (d, which) -> {
             String pick = items[which];
             if (pick.equals(getString(R.string.zip_item_open))) {
@@ -396,7 +396,9 @@ public class ZipBrowseActivity extends AppCompatActivity {
                 one.add(n.path);
                 destinationMenu(R.string.zip_copy_to, parent, dest -> extract(dest, one, !n.dir));
             } else if (pick.equals(getString(R.string.zip_item_share))) {
-                shareEntry(n);
+                exportEntry(n, true);
+            } else if (pick.equals(getString(R.string.fm_open_with))) {
+                exportEntry(n, false);
             } else if (pick.equals(getString(R.string.zip_item_details))) {
                 details(n);
             } else {
@@ -405,7 +407,8 @@ public class ZipBrowseActivity extends AppCompatActivity {
         }).show();
     }
 
-    private void shareEntry(final Node n) {
+    /** Unpacks one entry into the cache, then shares it or hands it to another app. */
+    private void exportEntry(final Node n, final boolean share) {
         if (n.size > MAX_PREVIEW) {
             Toast.makeText(this, R.string.zip_too_big, Toast.LENGTH_LONG).show();
             return;
@@ -428,7 +431,8 @@ public class ZipBrowseActivity extends AppCompatActivity {
                 if (destroyed) return;
                 loading.setVisibility(View.INVISIBLE);
                 if (f == null) Toast.makeText(this, R.string.zip_failed, Toast.LENGTH_LONG).show();
-                else Opener.share(this, f);
+                else if (share) Opener.share(this, f);
+                else Opener.external(this, f, true);
             });
         });
     }
@@ -663,10 +667,18 @@ public class ZipBrowseActivity extends AppCompatActivity {
                 String msg = ferr != 0 ? getString(ferr)
                         : ftext != null ? ftext
                         : getString(R.string.zip_extracted_to, fc, dest.getName());
-                Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
                 if (ferr == 0 && ftext == null) {
                     selected.clear();
                     refreshChrome();
+                    new Dlg(this).setTitle(R.string.zip_extract_all).setMessage(msg)
+                            .setPositiveButton(R.string.zip_item_open, (d, w) -> {
+                                android.content.Intent i = new android.content.Intent(this, FileManagerActivity.class);
+                                i.putExtra("path", dest.getAbsolutePath());
+                                startActivity(i);
+                            })
+                            .setNegativeButton(android.R.string.ok, null).show();
+                } else {
+                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
                 }
             });
         });

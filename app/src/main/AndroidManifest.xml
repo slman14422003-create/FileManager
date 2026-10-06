@@ -95,6 +95,43 @@
                 <data android:scheme="content" />
                 <data android:scheme="file" />
             </intent-filter>
+            <!-- zip archives announced by their MIME type (browsers, mail and chat apps use these exact names) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+                <data android:mimeType="application/x-zip" />
+                <data android:mimeType="application/java-archive" />
+                <data android:mimeType="application/vnd.comicbook+zip" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+            <!-- file links that end in .zip but arrive with a wrong or missing MIME type -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.zip" />
+                <data android:pathPattern=".*\\..*\\.zip" />
+                <data android:pathPattern=".*\\.jar" />
+                <data android:pathPattern=".*\\.cbz" />
+            </intent-filter>
+            <!-- "Share" / "Send to" a zip from any other app -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+                <data android:mimeType="application/java-archive" />
+                <data android:mimeType="application/vnd.comicbook+zip" />
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW_DOWNLOADS" />
                 <category android:name="android.intent.category.DEFAULT" />

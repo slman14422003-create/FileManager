@@ -25,8 +25,8 @@ public final class Opener {
     /** Opens a regular file with the right viewer. */
     public static void open(Activity a, File f) {
         String ext = Cats.extOf(f.getName());
-        if (ext.equals("zip") || ext.equals("jar") || ext.equals("cbz")) {
-            start(a, ZipBrowseActivity.class, f);
+        if (isArchiveExt(ext)) {
+            openArchive(a, f);
             return;
         }
         switch (Cats.viewKind(ext)) {
@@ -54,6 +54,27 @@ public final class Opener {
             default:
                 external(a, f, ext.equals("zip") || ext.equals("jar"));
                 break;
+        }
+    }
+
+    /** Extensions the built-in archive browser can read. */
+    public static boolean isArchiveExt(String ext) {
+        return ext.equals("zip") || ext.equals("jar") || ext.equals("cbz") || ext.equals("war");
+    }
+
+    /** Opens the archive browser for a zip-like file (whatever its name is). */
+    public static void openArchive(Activity a, File f) {
+        start(a, ZipBrowseActivity.class, f);
+    }
+
+    /** True when the file starts with the ZIP signature (downloads often lose or change the extension). */
+    public static boolean looksLikeZip(File f) {
+        try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
+            byte[] b = new byte[4];
+            if (in.read(b) != 4) return false;
+            return b[0] == 'P' && b[1] == 'K' && (b[2] == 3 || b[2] == 5) && (b[3] == 4 || b[3] == 6);
+        } catch (Exception e) {
+            return false;
         }
     }
 
