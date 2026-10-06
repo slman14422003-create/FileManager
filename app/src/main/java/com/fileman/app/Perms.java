@@ -88,6 +88,49 @@ public final class Perms {
                 .show();
     }
 
+    // ------------------------------------------------------------------ media (Android 13+)
+
+    public static boolean hasMedia(Context c) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true;   // covered by storage access
+        return ContextCompat.checkSelfPermission(c, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(c, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(c, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    public static void requestMedia(Activity a) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return;
+        boolean askedBefore = Store.flag(a, "media_asked");
+        boolean canAsk = ActivityCompat.shouldShowRequestPermissionRationale(a, Manifest.permission.READ_MEDIA_IMAGES)
+                || ActivityCompat.shouldShowRequestPermissionRationale(a, Manifest.permission.READ_MEDIA_VIDEO)
+                || ActivityCompat.shouldShowRequestPermissionRationale(a, Manifest.permission.READ_MEDIA_AUDIO);
+        if (askedBefore && !canAsk) {
+            openAppSettings(a);   // permanently denied: only the settings page can grant it now
+            return;
+        }
+        Store.setFlag(a, "media_asked", true);
+        ActivityCompat.requestPermissions(a, new String[]{
+                Manifest.permission.READ_MEDIA_IMAGES,
+                Manifest.permission.READ_MEDIA_VIDEO,
+                Manifest.permission.READ_MEDIA_AUDIO}, REQ_STORAGE);
+    }
+
+    /** Asks for the first permission that is still missing (files, then media, then installing). True if one was missing. */
+    public static boolean fixNext(Activity a) {
+        if (!hasAllFiles(a)) {
+            requestAllFiles(a);
+            return true;
+        }
+        if (!hasMedia(a)) {
+            requestMedia(a);
+            return true;
+        }
+        if (!canInstall(a)) {
+            requestInstall(a);
+            return true;
+        }
+        return false;
+    }
+
     // ------------------------------------------------------------------ install unknown apps
 
     public static boolean canInstall(Context c) {

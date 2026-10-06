@@ -35,6 +35,11 @@ public class PermissionsActivity extends AppCompatActivity {
         content.addView(Ui.body(this, getString(R.string.perm_intro), 14, R.color.text_secondary));
         content.addView(Ui.sectionTitle(this, getString(R.string.perm_section_needed)));
 
+        final boolean missing = !Perms.hasAllFiles(this) || !Perms.hasMedia(this) || !Perms.canInstall(this);
+        Row fix = new Row(R.drawable.ic_check_circle, missing, getString(R.string.perm_fix_title),
+                getString(missing ? R.string.perm_fix_sub : R.string.perm_all_ok), false, missing);
+        content.addView(Ui.rowView(this, content, fix, (View v) -> Perms.fixNext(this)));
+
         boolean files = Perms.hasAllFiles(this);
         Row r1 = new Row(R.drawable.ic_folder, true, getString(R.string.perm_files_title),
                 getString(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ? R.string.perm_files_sub_r : R.string.perm_files_sub),
@@ -44,6 +49,16 @@ public class PermissionsActivity extends AppCompatActivity {
         content.addView(Ui.rowView(this, content, r1, (View v) -> {
             if (Perms.hasAllFiles(this)) Perms.openAppSettings(this);
             else Perms.requestAllFiles(this);
+        }));
+
+        boolean media = Perms.hasMedia(this);
+        Row rm = new Row(R.drawable.ic_image, true, getString(R.string.perm_media_title),
+                getString(R.string.perm_media_sub), false, !media);
+        rm.badge(getString(media ? R.string.perm_granted : R.string.perm_denied),
+                Ui.color(this, media ? R.color.ok : R.color.bad));
+        content.addView(Ui.rowView(this, content, rm, (View v) -> {
+            if (Perms.hasMedia(this)) Perms.openAppSettings(this);
+            else Perms.requestMedia(this);
         }));
 
         boolean install = Perms.canInstall(this);

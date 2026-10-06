@@ -426,4 +426,9 @@
     <string name="def_system">إعدادات التطبيقات الافتراضية في النظام</string>
     <string name="def_system_sub">فتح صفحة التطبيقات الافتراضية في أندرويد</string>
     <string name="pick_done">تم</string>
+    <string name="perm_media_title">الصور والفيديو والصوت</string>
+    <string name="perm_media_sub">لقراءة ملفات الوسائط (أندرويد 13 فأحدث)</string>
+    <string name="perm_fix_title">منح الأذونات الناقصة</string>
+    <string name="perm_fix_sub">اضغط لمنح أول إذن ناقص، وكرّر حتى تكتمل</string>
+    <string name="perm_all_ok">كل الأذونات ممنوحة</string>
 </resources>

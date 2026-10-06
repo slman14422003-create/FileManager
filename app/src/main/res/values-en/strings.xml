@@ -426,4 +426,9 @@
     <string name="def_system">System default apps settings</string>
     <string name="def_system_sub">Open Android’s default apps page</string>
     <string name="pick_done">Done</string>
+    <string name="perm_media_title">Photos, videos and audio</string>
+    <string name="perm_media_sub">To read media files (Android 13 and newer)</string>
+    <string name="perm_fix_title">Grant missing permissions</string>
+    <string name="perm_fix_sub">Tap to grant the first missing permission, repeat until done</string>
+    <string name="perm_all_ok">All permissions granted</string>
 </resources>

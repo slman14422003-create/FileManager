@@ -323,7 +323,14 @@ public class FileManagerActivity extends AppCompatActivity {
             }
         }
         updatePasteBar();
-        if (pick) toast(R.string.pick_hint);
+        if (pick) {
+            toast(R.string.pick_hint);
+            if (!Perms.hasAllFiles(this)) {
+                new Dlg(this).setTitle(R.string.perm_intro_title).setMessage(R.string.perm_intro_body)
+                        .setPositiveButton(R.string.perm_allow, (d, w) -> Perms.requestAllFiles(this))
+                        .setNegativeButton(R.string.perm_later, null).show();
+            }
+        }
         refresh();   // also builds the places row
         navBar = NavBar.attach(this, getIntent().getBooleanExtra("search", false) ? NavBar.SEARCH : NavBar.FILES);
         buildFab();
