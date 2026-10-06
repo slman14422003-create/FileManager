@@ -404,4 +404,25 @@
     <string name="rd_size">Size</string>
     <string name="rd_path">Path</string>
     <string name="rd_resumed_page">Continued from page %d</string>
+    <string name="open_link_failed">Could not open the link</string>
+    <string name="pick_hint">Tap a file to choose it</string>
+    <string name="def_probe_ok">The test link reached this app</string>
+    <string name="def_section">Open by default</string>
+    <string name="def_intro">This app is offered whenever another app opens a file (image, PDF, video, document…). Android does not let an app make itself the default, so tap a file type and then choose this app and “Always”.</string>
+    <string name="def_row_sub">Tap, then choose this app and “Always”</string>
+    <string name="def_yes">Default</string>
+    <string name="def_no">Not default</string>
+    <string name="def_type_pdf">PDF files</string>
+    <string name="def_type_image">Images</string>
+    <string name="def_type_video">Video</string>
+    <string name="def_type_audio">Audio</string>
+    <string name="def_type_text">Text and code</string>
+    <string name="def_type_doc">Word documents</string>
+    <string name="def_type_zip">Archives (ZIP)</string>
+    <string name="def_type_apk">Install packages (APK)</string>
+    <string name="def_other_title">Another app is the default</string>
+    <string name="def_other_msg">This type now opens with another app. To change it, open that app’s page, then “Open by default”, and clear its defaults.</string>
+    <string name="def_open_other">Open that app’s settings</string>
+    <string name="def_system">System default apps settings</string>
+    <string name="def_system_sub">Open Android’s default apps page</string>
 </resources>

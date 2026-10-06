@@ -20,6 +20,8 @@ final class Safe {
             if (p.startsWith(own)) return true;
             String view = c.getCacheDir().getCanonicalPath() + File.separator + "zipview" + File.separator;
             if (p.startsWith(view)) return true;   // files previewed from inside an archive
+            String incoming = c.getCacheDir().getCanonicalPath() + File.separator + "incoming" + File.separator;
+            if (p.startsWith(incoming)) return true;   // copies of files opened from other apps
             File data = c.getDataDir();
             if (data != null && inside(p, data.getCanonicalPath())) return false;
             File dp = c.createDeviceProtectedStorageContext().getDataDir();

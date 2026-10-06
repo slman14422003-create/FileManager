@@ -142,6 +142,8 @@ public class FileManagerActivity extends AppCompatActivity {
     private File cur;
     private int mode = M_DIR;
     private boolean lastGranted;
+    /** True when another app asked for a file (see PickActivity): tapping a file returns it. */
+    private boolean pick = false;
     private boolean listDenied = false;
     private String query = "";
     private boolean suppressSearch = false;
@@ -284,6 +286,7 @@ public class FileManagerActivity extends AppCompatActivity {
 
         lastGranted = Perms.hasAllFiles(this);
         File start = null;
+        pick = getIntent().getBooleanExtra("pick", false);
         String fromIntent = getIntent().getStringExtra("path");
         if (fromIntent != null && new File(fromIntent).isDirectory()) start = new File(fromIntent);
         String last = prefs.getString("last", null);
@@ -307,6 +310,7 @@ public class FileManagerActivity extends AppCompatActivity {
             }
         }
         updatePasteBar();
+        if (pick) toast(R.string.pick_hint);
         refresh();   // also builds the places row
         navBar = NavBar.attach(this, getIntent().getBooleanExtra("search", false) ? NavBar.SEARCH : NavBar.FILES);
         buildFab();
@@ -1118,6 +1122,11 @@ public class FileManagerActivity extends AppCompatActivity {
     // ------------------------------------------------------------------ opening
 
     private void openFile(Entry e) {
+        if (pick) {
+            setResult(RESULT_OK, new Intent().putExtra("picked", e.f.getAbsolutePath()));
+            finish();
+            return;
+        }
         if (e.ext.equals("zip") || e.ext.equals("jar") || e.ext.equals("cbz")) {
             Intent zi = new Intent(this, ZipBrowseActivity.class);
             zi.putExtra("path", e.f.getAbsolutePath());

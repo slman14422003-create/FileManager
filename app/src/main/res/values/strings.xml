@@ -404,4 +404,25 @@
     <string name="rd_size">الحجم</string>
     <string name="rd_path">المسار</string>
     <string name="rd_resumed_page">تابعنا من الصفحة %d</string>
+    <string name="open_link_failed">تعذّر فتح الرابط</string>
+    <string name="pick_hint">اضغط على ملف لاختياره</string>
+    <string name="def_probe_ok">وصل الرابط التجريبي إلى التطبيق بنجاح</string>
+    <string name="def_section">الفتح الافتراضي</string>
+    <string name="def_intro">يظهر التطبيق ضمن الخيارات عندما يفتح أي تطبيق ملفًا (صورة، PDF، فيديو، مستند…). لا يسمح أندرويد لأي تطبيق بتعيين نفسه افتراضيًا، لذلك اضغط على نوع الملف ثم اختر هذا التطبيق و«دائمًا».</string>
+    <string name="def_row_sub">اضغط ثم اختر هذا التطبيق و«دائمًا»</string>
+    <string name="def_yes">افتراضي</string>
+    <string name="def_no">غير افتراضي</string>
+    <string name="def_type_pdf">ملفات PDF</string>
+    <string name="def_type_image">الصور</string>
+    <string name="def_type_video">الفيديو</string>
+    <string name="def_type_audio">الصوت</string>
+    <string name="def_type_text">النصوص والأكواد</string>
+    <string name="def_type_doc">مستندات Word</string>
+    <string name="def_type_zip">الأرشيف (ZIP)</string>
+    <string name="def_type_apk">حزم التثبيت (APK)</string>
+    <string name="def_other_title">تطبيق آخر هو الافتراضي</string>
+    <string name="def_other_msg">يُفتح هذا النوع الآن بتطبيق آخر. لتغييره افتح صفحة ذلك التطبيق ثم «الفتح افتراضيًا» وامسح الإعدادات الافتراضية.</string>
+    <string name="def_open_other">فتح إعدادات ذلك التطبيق</string>
+    <string name="def_system">إعدادات التطبيقات الافتراضية في النظام</string>
+    <string name="def_system_sub">فتح صفحة التطبيقات الافتراضية في أندرويد</string>
 </resources>

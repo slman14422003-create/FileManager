@@ -2,7 +2,10 @@ package com.fileman.app;
 
 import android.app.Activity;
 import android.content.ClipData;
+import android.content.ComponentName;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.widget.Toast;
 
@@ -68,7 +71,10 @@ public final class Opener {
                 .show();
     }
 
-    /** Hands a file to another app (with an app chooser when asked). */
+    /**
+     * Hands a file to another app (with an app chooser when asked). This app never offers itself: when it
+     * is the system default for a file type it would otherwise receive its own request again.
+     */
     public static void external(Activity a, File f, boolean chooser) {
         if (!Safe.mayExpose(a, f)) {
             Toast.makeText(a, R.string.fm_private_blocked, Toast.LENGTH_SHORT).show();
@@ -80,7 +86,33 @@ public final class Opener {
             i.setDataAndType(u, Cats.mimeOf(f));
             i.setClipData(ClipData.newRawUri("", u));
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            a.startActivity(chooser ? Intent.createChooser(i, f.getName()) : i);
+
+            PackageManager pm = a.getPackageManager();
+            boolean other = false;
+            for (ResolveInfo ri : pm.queryIntentActivities(i, PackageManager.MATCH_DEFAULT_ONLY)) {
+                if (ri.activityInfo != null && !a.getPackageName().equals(ri.activityInfo.packageName)) {
+                    other = true;
+                    break;
+                }
+            }
+            if (!other) {
+                Toast.makeText(a, R.string.fm_no_app, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (!chooser) {
+                ResolveInfo def = pm.resolveActivity(i, PackageManager.MATCH_DEFAULT_ONLY);
+                if (def != null && def.activityInfo != null
+                        && !a.getPackageName().equals(def.activityInfo.packageName)
+                        && !"android".equals(def.activityInfo.packageName)) {
+                    a.startActivity(i);   // the user's own default for this type
+                    return;
+                }
+            }
+            Intent ch = Intent.createChooser(i, f.getName());
+            ch.putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, new ComponentName[]{
+                    new ComponentName(a, OpenActivity.class),
+                    new ComponentName(a, InstallActivity.class)});
+            a.startActivity(ch);
         } catch (Exception ex) {
             Toast.makeText(a, R.string.fm_no_app, Toast.LENGTH_SHORT).show();
         }

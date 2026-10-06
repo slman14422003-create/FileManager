@@ -60,6 +60,26 @@ public class PermissionsActivity extends AppCompatActivity {
                 getString(R.string.pk_perm_installer), getString(R.string.pk_perm_installer_sub), false, false)
                 .badge(getString(R.string.perm_granted), Ui.color(this, R.color.ok)), null));
 
+        content.addView(Ui.sectionTitle(this, getString(R.string.def_section)));
+        content.addView(Ui.body(this, getString(R.string.def_intro), 14, R.color.text_secondary));
+        final int[] names = {R.string.def_type_pdf, R.string.def_type_image, R.string.def_type_video,
+                R.string.def_type_audio, R.string.def_type_text, R.string.def_type_doc,
+                R.string.def_type_zip, R.string.def_type_apk};
+        final int[] icons = {R.drawable.ic_file_text, R.drawable.ic_image, R.drawable.ic_video,
+                R.drawable.ic_music, R.drawable.ic_code, R.drawable.ic_file_text,
+                R.drawable.ic_archive, R.drawable.ic_package};
+        for (int k = 0; k < Perms.DEFAULT_TYPES.length; k++) {
+            final String mime = Perms.DEFAULT_TYPES[k][0];
+            final String ext = Perms.DEFAULT_TYPES[k][1];
+            boolean def = Perms.isDefaultFor(this, mime, ext);
+            Row r = new Row(icons[k], def, getString(names[k]), getString(R.string.def_row_sub), false, !def);
+            r.badge(getString(def ? R.string.def_yes : R.string.def_no), Ui.color(this, def ? R.color.ok : R.color.bad));
+            content.addView(Ui.rowView(this, content, r, (View v) -> Perms.chooseDefault(this, mime, ext)));
+        }
+        content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_settings, false,
+                getString(R.string.def_system), getString(R.string.def_system_sub), false, true),
+                v -> Perms.openDefaultAppsSettings(this)));
+
         content.addView(Ui.sectionTitle(this, getString(R.string.perm_section_other)));
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_settings, false,
                 getString(R.string.perm_app_settings), getString(R.string.perm_app_settings_sub), false, true),

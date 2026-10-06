@@ -145,4 +145,94 @@ public final class Perms {
             android.widget.Toast.makeText(a, R.string.install_failed, android.widget.Toast.LENGTH_LONG).show();
         }
     }
+
+    // ------------------------------------------------------------------ default app for opening files
+
+    /** Representative MIME type and extension for each kind of file the "open by default" screen lists. */
+    public static final String[][] DEFAULT_TYPES = {
+            {"application/pdf", "pdf"},
+            {"image/jpeg", "jpg"},
+            {"video/mp4", "mp4"},
+            {"audio/mpeg", "mp3"},
+            {"text/plain", "txt"},
+            {"application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"},
+            {"application/zip", "zip"},
+            {"application/vnd.android.package-archive", "apk"},
+    };
+
+    /** A link that points nowhere: only used to make Android show its "open with" list for a type. */
+    private static Uri probeUri(Context c, String ext) {
+        File f = new File(new File(c.getCacheDir(), "defaults"), "probe." + ext);
+        return FileProvider.getUriForFile(c, c.getPackageName() + ".files", f);
+    }
+
+    static boolean isProbe(Context c, Uri u) {
+        String p = u.getPath();
+        return u.getAuthority() != null && u.getAuthority().equals(c.getPackageName() + ".files")
+                && p != null && p.contains("/defaults/probe.");
+    }
+
+    private static Intent probeIntent(Context c, String mime, String ext) {
+        Uri u = probeUri(c, ext);
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setDataAndType(u, mime);
+        i.setClipData(android.content.ClipData.newRawUri("", u));
+        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        return i;
+    }
+
+    /** Package that Android would open this type with right now, or null when it would ask. */
+    static String defaultHandler(Context c, String mime, String ext) {
+        try {
+            android.content.pm.ResolveInfo ri = c.getPackageManager()
+                    .resolveActivity(probeIntent(c, mime, ext), PackageManager.MATCH_DEFAULT_ONLY);
+            if (ri == null || ri.activityInfo == null) return null;
+            String pkg = ri.activityInfo.packageName;
+            return "android".equals(pkg) ? null : pkg;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static boolean isDefaultFor(Context c, String mime, String ext) {
+        return c.getPackageName().equals(defaultHandler(c, mime, ext));
+    }
+
+    /**
+     * Android does not let an app make itself the default for files, so this fires a harmless test link
+     * of the given type: the system lists the apps able to open it and the user picks this app and
+     * "Always". When another app is already the default, the page where its defaults are cleared opens.
+     */
+    public static void chooseDefault(final Activity a, String mime, String ext) {
+        final String other = defaultHandler(a, mime, ext);
+        if (other != null && !a.getPackageName().equals(other)) {
+            new Dlg(a)
+                    .setTitle(R.string.def_other_title)
+                    .setMessage(R.string.def_other_msg)
+                    .setPositiveButton(R.string.def_open_other, (d, w) -> {
+                        try {
+                            a.startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                    Uri.parse("package:" + other)));
+                        } catch (Exception ignored) {
+                        }
+                    })
+                    .setNegativeButton(R.string.cancel, null)
+                    .show();
+            return;
+        }
+        try {
+            a.startActivity(probeIntent(a, mime, ext));
+        } catch (Exception e) {
+            android.widget.Toast.makeText(a, R.string.fm_no_app, android.widget.Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** The system "default apps" page (falls back to this app's own settings page). */
+    public static void openDefaultAppsSettings(Activity a) {
+        try {
+            a.startActivity(new Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS));
+        } catch (Exception e) {
+            openAppSettings(a);
+        }
+    }
 }

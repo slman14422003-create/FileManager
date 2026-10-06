@@ -86,13 +86,15 @@ jobs:
                | grep -v -E "/(Net|Updater)\.java:"; then
             echo "::error title=Network guard::network code outside Net.java"; exit 1
           fi
-          # 2) only the launcher and the package install screen (it replaces the system installer) may be exported
+          # 2) only the launcher and the screens that replace the system installer / Files app (install, open link, file picker) may be exported
           M=app/src/main/AndroidManifest.xml
           EXP="$(grep -B1 'android:exported="true"' $M | grep -o 'android:name="[^"]*"' | sort | tr '\n' ' ')"
-          [ "$EXP" = 'android:name=".HomeActivity" android:name=".InstallActivity" ' ] || { echo "::error::only HomeActivity and InstallActivity may be exported (found: $EXP)"; exit 1; }
+          [ "$EXP" = 'android:name=".HomeActivity" android:name=".InstallActivity" android:name=".OpenActivity" android:name=".PickActivity" ' ] || { echo "::error::only HomeActivity, InstallActivity, OpenActivity and PickActivity may be exported (found: $EXP)"; exit 1; }
           # the install screen must only read the data URI it is opened with (no path/text extras from other apps)
-          if grep -n 'getIntent()\.get\(String\|Parcelable\|Serializable\)' $SRC/com/fileman/app/InstallActivity.java; then
-            echo "::error::InstallActivity must not read string/parcelable extras (it is exported)"; exit 1; fi
+          for X in InstallActivity OpenActivity PickActivity; do
+            if grep -n 'getIntent()\.get\(String\|Parcelable\|Serializable\)\|\bin\.get\(String\|Parcelable\|Serializable\)' $SRC/com/fileman/app/$X.java; then
+              echo "::error::$X must not read string/parcelable extras (it is exported)"; exit 1; fi
+          done
           grep -q 'android:usesCleartextTraffic="false"' $M || { echo "::error::cleartext must stay disabled"; exit 1; }
           grep -q 'android:allowBackup="false"' $M || { echo "::error::backup must stay disabled"; exit 1; }
 
