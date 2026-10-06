@@ -431,4 +431,9 @@
     <string name="perm_fix_title">منح الأذونات الناقصة</string>
     <string name="perm_fix_sub">اضغط لمنح أول إذن ناقص، وكرّر حتى تكتمل</string>
     <string name="perm_all_ok">كل الأذونات ممنوحة</string>
+    <string name="pt_title">فحص منتقي الملفات</string>
+    <string name="pt_sub">يعرض هل يراه النظام بديلًا لتطبيق الملفات</string>
+    <string name="pt_ok">النظام يرى هذا التطبيق ضمن منتقيات الملفات.</string>
+    <string name="pt_no">النظام لا يرى هذا التطبيق ضمن منتقيات الملفات.</string>
+    <string name="pt_list">التطبيقات التي تفتح اختيار الملفات:</string>
 </resources>

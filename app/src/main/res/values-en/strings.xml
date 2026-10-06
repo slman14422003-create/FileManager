@@ -431,4 +431,9 @@
     <string name="perm_fix_title">Grant missing permissions</string>
     <string name="perm_fix_sub">Tap to grant the first missing permission, repeat until done</string>
     <string name="perm_all_ok">All permissions granted</string>
+    <string name="pt_title">File picker check</string>
+    <string name="pt_sub">Shows whether the system sees this app as a file picker</string>
+    <string name="pt_ok">The system lists this app as a file picker.</string>
+    <string name="pt_no">The system does not list this app as a file picker.</string>
+    <string name="pt_list">Apps that handle choosing files:</string>
 </resources>

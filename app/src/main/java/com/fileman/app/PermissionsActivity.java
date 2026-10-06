@@ -1,5 +1,6 @@
 package com.fileman.app;
 
+import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
@@ -95,9 +96,29 @@ public class PermissionsActivity extends AppCompatActivity {
                 getString(R.string.def_system), getString(R.string.def_system_sub), false, true),
                 v -> Perms.openDefaultAppsSettings(this)));
 
+        content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_search, false,
+                getString(R.string.pt_title), getString(R.string.pt_sub), false, true),
+                (View v) -> testPicker()));
+
         content.addView(Ui.sectionTitle(this, getString(R.string.perm_section_other)));
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_settings, false,
                 getString(R.string.perm_app_settings), getString(R.string.perm_app_settings_sub), false, true),
                 v -> Perms.openAppSettings(this)));
+    }
+
+    /** Shows which apps the system lists for "choose a file" and whether this app is one of them. */
+    private void testPicker() {
+        Intent i = new Intent(Intent.ACTION_GET_CONTENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE);
+        android.content.pm.PackageManager pm = getPackageManager();
+        boolean ours = false;
+        StringBuilder sb = new StringBuilder();
+        for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(i, 0)) {
+            if (ri.activityInfo == null) continue;
+            if (getPackageName().equals(ri.activityInfo.packageName)) ours = true;
+            sb.append("• ").append(ri.loadLabel(pm)).append("\n");
+        }
+        String head = getString(ours ? R.string.pt_ok : R.string.pt_no);
+        Dlg.result(this, ours, getString(R.string.pt_title),
+                head + "\n\n" + getString(R.string.pt_list) + "\n" + sb + "\n" + BuildConfig.VERSION_NAME);
     }
 }
