@@ -224,7 +224,12 @@ public final class Ui {
         View fill = new View(c);
         GradientDrawable g1 = new GradientDrawable();
         g1.setCornerRadius(dp(c, 6));
-        g1.setColor(color(c, colorRes));
+        if (colorRes == R.color.accent) {   // the brand gradient (same colours as the app icon)
+            g1.setOrientation(GradientDrawable.Orientation.LEFT_RIGHT);
+            g1.setColors(new int[]{color(c, R.color.brand_start), color(c, R.color.brand_mid), color(c, R.color.brand_end)});
+        } else {
+            g1.setColor(color(c, colorRes));
+        }
         fill.setBackground(g1);
         fill.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, pct));
         View rest = new View(c);

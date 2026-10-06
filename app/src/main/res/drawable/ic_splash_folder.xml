@@ -5,7 +5,7 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group android:name="mark" android:pivotX="54" android:pivotY="54" android:scaleX="1.0" android:scaleY="1.0" android:translateX="0.00" android:translateY="0.00">
+    <group android:name="mark" android:pivotX="54" android:pivotY="54" android:scaleX="1.0" android:scaleY="1.0">
         <group android:pivotX="54" android:pivotY="73" android:scaleY="0.2" android:translateY="1">
             <path android:pathData="M54 73m-24 0a24 24 0 1 0 48 0a24 24 0 1 0-48 0">
                 <aapt:attr name="android:fillColor">

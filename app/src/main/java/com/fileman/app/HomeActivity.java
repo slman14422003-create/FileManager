@@ -210,7 +210,7 @@ public class HomeActivity extends AppCompatActivity {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setPadding(Ui.dp(this, 10), Ui.dp(this, 14), Ui.dp(this, 10), Ui.dp(this, 2));
         final File dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-        addShortcut(row, R.drawable.ic_download, getString(R.string.fm_downloads), R.color.accent_text,
+        addShortcut(row, R.drawable.ic_download, getString(R.string.fm_downloads), R.color.ok,
                 v -> openFolder(dl));
         addShortcut(row, R.drawable.ic_clock, getString(Cats.titleOf(Cats.RECENT)), R.color.info,
                 v -> openCategory(Cats.RECENT));
@@ -390,7 +390,7 @@ public class HomeActivity extends AppCompatActivity {
                 break;
             case Cats.APK:
                 icon = R.drawable.ic_package;
-                color = R.color.accent_text;
+                color = R.color.lime;
                 break;
             default:
                 icon = R.drawable.ic_archive;

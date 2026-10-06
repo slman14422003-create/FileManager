@@ -3,7 +3,6 @@ package com.fileman.app;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.res.ColorStateList;
-import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,43 +24,46 @@ final class NavBar {
 
         LinearLayout bar = new LinearLayout(a);
         bar.setOrientation(LinearLayout.HORIZONTAL);
-        bar.setBackgroundResource(R.drawable.bg_nav);
-        bar.setPadding(Ui.dp(a, 8), Ui.dp(a, 8), Ui.dp(a, 8), Ui.dp(a, 8));
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setBackgroundResource(R.drawable.bg_nav_float);
+        bar.setPadding(Ui.dp(a, 6), Ui.dp(a, 6), Ui.dp(a, 6), Ui.dp(a, 6));
         int[] icons = {R.drawable.ic_home, R.drawable.ic_folder, R.drawable.ic_search, R.drawable.ic_settings};
         int[] labels = {R.string.nav_home, R.string.nav_files, R.string.nav_search, R.string.nav_settings};
         for (int i = 0; i < 4; i++) {
             final int idx = i;
             boolean on = i == selected;
             LinearLayout item = new LinearLayout(a);
-            item.setOrientation(LinearLayout.VERTICAL);
-            item.setGravity(Gravity.CENTER_HORIZONTAL);
+            item.setOrientation(LinearLayout.HORIZONTAL);
+            item.setGravity(Gravity.CENTER);
             item.setContentDescription(a.getString(labels[i]));
+            if (on) item.setBackgroundResource(R.drawable.bg_nav_active);
+            item.setPadding(Ui.dp(a, 8), 0, Ui.dp(a, on ? 14 : 8), 0);
 
             ImageView icon = new ImageView(a);
             icon.setImageResource(icons[i]);
-            icon.setImageTintList(ColorStateList.valueOf(Ui.color(a, on ? R.color.accent_text : R.color.text_secondary)));
+            icon.setImageTintList(ColorStateList.valueOf(Ui.color(a, on ? R.color.on_accent : R.color.text_secondary)));
             icon.setScaleType(ImageView.ScaleType.CENTER);
-            GradientDrawable pill = new GradientDrawable();
-            pill.setCornerRadius(Ui.dp(a, 100));
-            pill.setColor(on ? Ui.color(a, R.color.accent_soft) : 0);
-            icon.setBackground(pill);
-            item.addView(icon, new LinearLayout.LayoutParams(Ui.dp(a, 60), Ui.dp(a, 32)));
+            item.addView(icon, new LinearLayout.LayoutParams(Ui.dp(a, 28), Ui.dp(a, 28)));
 
-            TextView t = new TextView(a);
-            t.setText(labels[i]);
-            t.setTextSize(11.5f);
-            t.setSingleLine(true);
-            t.setGravity(Gravity.CENTER);
-            t.setPadding(0, Ui.dp(a, 3), 0, 0);
-            t.setTextColor(Ui.color(a, on ? R.color.text_primary : R.color.text_secondary));
-            item.addView(t);
+            if (on) {   // only the current tab shows its name: a calmer, more modern bar
+                TextView t = new TextView(a);
+                t.setText(labels[i]);
+                t.setTextSize(13.5f);
+                t.setSingleLine(true);
+                t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+                t.setTextColor(Ui.color(a, R.color.on_accent));
+                t.setPadding(Ui.dp(a, 6), 0, 0, 0);
+                item.addView(t);
+            }
 
             Ui.press(a, item);
             item.setOnClickListener(v -> go(a, idx, selected));
-            bar.addView(item, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            bar.addView(item, new LinearLayout.LayoutParams(0, Ui.dp(a, 48), on ? 2.1f : 1f));
         }
-        ((LinearLayout) root).addView(bar, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        blp.setMargins(Ui.dp(a, 16), Ui.dp(a, 6), Ui.dp(a, 16), Ui.dp(a, 12));
+        ((LinearLayout) root).addView(bar, blp);
         return bar;
     }
 

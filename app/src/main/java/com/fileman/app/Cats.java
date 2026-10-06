@@ -101,7 +101,7 @@ public final class Cats {
             case T_ARC:
                 return R.color.warn;
             case T_APK:
-                return R.color.accent_text;
+                return R.color.lime;
             case T_TXT:
                 return R.color.accent_text;
             case T_PDF:

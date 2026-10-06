@@ -1,28 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Brand palette "Midnight Teal": ink-blue canvas, slate surfaces, one teal accent.
-         Category colours (ok / bad / info / warn + violet) are tuned to sit next to the teal. -->
-    <color name="bg">#0B0F14</color>
-    <color name="surface">#151B23</color>
-    <color name="surface_high">#1E2630</color>
-    <color name="field">#10161D</color>
-    <color name="stroke">#2A3441</color>
-    <color name="stroke_soft">#1C2430</color>
-    <color name="text_primary">#F2F5F8</color>
-    <color name="text_secondary">#A3AEBB</color>
-    <color name="text_hint">#738090</color>
-    <color name="accent">#2BD4B4</color>
-    <color name="accent_text">#5EEAD0</color>
-    <color name="accent_soft">#0F2E2C</color>
-    <color name="neutral_soft">#232C38</color>
-    <color name="on_accent">#04211C</color>
+    <!-- Brand palette taken from the launcher icon: deep navy canvas, indigo-tinted surfaces,
+         one blue accent that flows into the cyan -> blue -> violet brand gradient. -->
+    <color name="bg">#060A1E</color>
+    <color name="surface">#0F1631</color>
+    <color name="surface_high">#19224A</color>
+    <color name="field">#0B1128</color>
+    <color name="stroke">#263262</color>
+    <color name="stroke_soft">#161F42</color>
+    <color name="text_primary">#F1F4FF</color>
+    <color name="text_secondary">#A7B0D4</color>
+    <color name="text_hint">#6F7AA6</color>
+    <color name="accent">#3B82F6</color>
+    <color name="accent_text">#8FB8FF</color>
+    <color name="accent_soft">#14214F</color>
+    <color name="neutral_soft">#1D2650</color>
+    <color name="on_accent">#FFFFFF</color>
     <color name="ripple">#22FFFFFF</color>
     <color name="ripple_on_accent">#22000000</color>
-    <color name="ok">#7BE495</color>
-    <color name="bad">#FF7A85</color>
-    <color name="warn">#F5B94A</color>
-    <color name="info">#6EB6FF</color>
-    <color name="violet">#A99BFF</color>
-    <color name="brand_deep">#0E7C6B</color>
+    <color name="brand_start">#2F8CFF</color>
+    <color name="brand_mid">#5B5BF0</color>
+    <color name="brand_end">#A855F7</color>
+    <color name="ok">#5EEAD0</color>
+    <color name="bad">#FF5C77</color>
+    <color name="warn">#FBBF4A</color>
+    <color name="info">#60A5FA</color>
+    <color name="violet">#B794FF</color>
+    <color name="lime">#B6F26B</color>
     <color name="ic_launcher_bg">#060A1E</color>
 </resources>
