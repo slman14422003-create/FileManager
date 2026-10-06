@@ -144,6 +144,7 @@ public class FileManagerActivity extends AppCompatActivity {
     private boolean lastGranted;
     /** True when another app asked for a file (see PickActivity): tapping a file returns it. */
     private boolean pick = false;
+    private boolean pickMulti = false;
     private boolean listDenied = false;
     private String query = "";
     private boolean suppressSearch = false;
@@ -240,6 +241,18 @@ public class FileManagerActivity extends AppCompatActivity {
         findViewById(R.id.selCut).setOnClickListener(v -> toClipboard(true));
         findViewById(R.id.selDelete).setOnClickListener(v -> deleteSelected());
         findViewById(R.id.selMore).setOnClickListener(v -> moreMenu());
+        pick = getIntent().getBooleanExtra("pick", false);
+        pickMulti = pick && getIntent().getBooleanExtra("pick_multi", false);
+        if (pick) {
+            // picking for another app: the selection bar only offers "done" (no copy / move / delete)
+            ImageButton done = findViewById(R.id.selCopy);
+            done.setImageResource(R.drawable.ic_check);
+            done.setContentDescription(getString(R.string.pick_done));
+            done.setOnClickListener(v -> finishPick());
+            findViewById(R.id.selCut).setVisibility(View.GONE);
+            findViewById(R.id.selDelete).setVisibility(View.GONE);
+            findViewById(R.id.selMore).setVisibility(View.GONE);
+        }
         findViewById(R.id.pasteGo).setOnClickListener(v -> paste());
         findViewById(R.id.pasteCancel).setOnClickListener(v -> {
             clip.clear();
@@ -1108,6 +1121,15 @@ public class FileManagerActivity extends AppCompatActivity {
         return out;
     }
 
+    /** Returns every selected file to PickActivity (folders in the selection are skipped). */
+    private void finishPick() {
+        ArrayList<String> paths = new ArrayList<>();
+        for (File f : selectedFiles()) if (f.isFile()) paths.add(f.getAbsolutePath());
+        if (paths.isEmpty()) return;
+        setResult(RESULT_OK, new Intent().putStringArrayListExtra("picked_all", paths));
+        finish();
+    }
+
     private void toClipboard(boolean cut) {
         List<File> files = selectedFiles();
         if (files.isEmpty()) return;
@@ -1123,8 +1145,13 @@ public class FileManagerActivity extends AppCompatActivity {
 
     private void openFile(Entry e) {
         if (pick) {
-            setResult(RESULT_OK, new Intent().putExtra("picked", e.f.getAbsolutePath()));
-            finish();
+            if (pickMulti) {
+                selected.add(e.f.getAbsolutePath());
+                updateChrome();
+            } else {
+                setResult(RESULT_OK, new Intent().putExtra("picked", e.f.getAbsolutePath()));
+                finish();
+            }
             return;
         }
         if (e.ext.equals("zip") || e.ext.equals("jar") || e.ext.equals("cbz")) {

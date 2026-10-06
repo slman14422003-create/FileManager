@@ -425,4 +425,5 @@
     <string name="def_open_other">فتح إعدادات ذلك التطبيق</string>
     <string name="def_system">إعدادات التطبيقات الافتراضية في النظام</string>
     <string name="def_system_sub">فتح صفحة التطبيقات الافتراضية في أندرويد</string>
+    <string name="pick_done">تم</string>
 </resources>

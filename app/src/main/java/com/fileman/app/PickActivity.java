@@ -25,6 +25,7 @@ public class PickActivity extends Activity {
         if (savedInstanceState == null) {
             Intent i = new Intent(this, FileManagerActivity.class);
             i.putExtra("pick", true);
+            i.putExtra("pick_multi", getIntent().getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE, false));
             startActivityForResult(i, REQ_PICK);
         }
     }
@@ -33,25 +34,35 @@ public class PickActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != REQ_PICK) return;
-        String path = resultCode == RESULT_OK && data != null ? data.getStringExtra("picked") : null;
-        File f = path == null ? null : new File(path);
-        if (f == null || !f.isFile()) {
-            setResult(RESULT_CANCELED);
-            finish();
-            return;
+        java.util.ArrayList<String> paths = new java.util.ArrayList<>();
+        if (resultCode == RESULT_OK && data != null) {
+            java.util.ArrayList<String> many = data.getStringArrayListExtra("picked_all");
+            if (many != null) paths.addAll(many);
+            String one = data.getStringExtra("picked");
+            if (one != null) paths.add(one);
         }
-        if (!Safe.mayExpose(this, f)) {
-            Toast.makeText(this, R.string.fm_private_blocked, Toast.LENGTH_SHORT).show();
+        java.util.ArrayList<File> files = new java.util.ArrayList<>();
+        for (String p : paths) {
+            File f = new File(p);
+            if (f.isFile() && Safe.mayExpose(this, f)) files.add(f);
+        }
+        if (files.isEmpty()) {
+            if (!paths.isEmpty()) Toast.makeText(this, R.string.fm_private_blocked, Toast.LENGTH_SHORT).show();
             setResult(RESULT_CANCELED);
             finish();
             return;
         }
         try {
-            Uri u = FileProvider.getUriForFile(this, getPackageName() + ".files", f);
+            String auth = getPackageName() + ".files";
+            Uri first = FileProvider.getUriForFile(this, auth, files.get(0));
+            ClipData clip = ClipData.newRawUri("", first);
+            for (int k = 1; k < files.size(); k++) {
+                clip.addItem(new ClipData.Item(FileProvider.getUriForFile(this, auth, files.get(k))));
+            }
             int asked = getIntent() == null ? 0 : getIntent().getFlags();
             Intent r = new Intent();
-            r.setData(u);
-            r.setClipData(ClipData.newRawUri("", u));
+            r.setData(first);
+            r.setClipData(clip);
             int flags = Intent.FLAG_GRANT_READ_URI_PERMISSION;
             if ((asked & Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != 0) flags |= Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
             if ((asked & Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION) != 0) flags |= Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION;
