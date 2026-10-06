@@ -7,7 +7,7 @@
             android:insetRight="4dp"
             android:insetBottom="4dp">
             <shape android:shape="oval">
-                <solid android:color="#FFFFFF" />
+                <solid android:color="@color/on_accent" />
                 <size android:width="20dp" android:height="20dp" />
             </shape>
         </inset>

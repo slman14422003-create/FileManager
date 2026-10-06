@@ -97,11 +97,11 @@ public final class Cats {
             case T_VID:
                 return R.color.bad;
             case T_AUD:
-                return R.color.info;
+                return R.color.violet;
             case T_ARC:
                 return R.color.warn;
             case T_APK:
-                return R.color.ok;
+                return R.color.accent_text;
             case T_TXT:
                 return R.color.accent_text;
             case T_PDF:

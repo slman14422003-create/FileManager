@@ -29,12 +29,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Home screen: storage overview, quick-access tiles (images, videos, audio, documents, apps,
- * archives), tools (recent, largest, favorites), pinned favorites, common places and the newest files.
+ * Home screen, simplified: search, storage, four big shortcuts (downloads, recent, favorites, largest),
+ * six category tiles, pinned favorites, the newest files and the two advanced tools at the bottom.
  */
 public class HomeActivity extends AppCompatActivity {
     private static final long SCAN_MAX_AGE_MS = 60_000;
-    private static final int RECENT_ON_HOME = 6;
+    private static final int RECENT_ON_HOME = 5;
     private static final int PINNED_ON_HOME = 4;
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
@@ -125,7 +125,7 @@ public class HomeActivity extends AppCompatActivity {
         if (!access) content.addView(permissionCard());
         content.addView(searchPill());
 
-        // storage
+        // storage (one compact card per volume)
         File internal = Environment.getExternalStorageDirectory();
         content.addView(storageCard(internal, getString(R.string.fm_internal), R.drawable.ic_drive));
         int n = 1;
@@ -135,29 +135,16 @@ public class HomeActivity extends AppCompatActivity {
             n++;
         }
 
-        // places as chips: one tap to the folders used most
-        content.addView(placeChips());
+        // the four places people reach for most: one big tap each
+        content.addView(shortcutRow());
 
-        // quick access tiles
+        // categories
         content.addView(Ui.sectionTitle(this, getString(R.string.home_quick)));
         content.addView(tileRow(Cats.IMG, Cats.VID, Cats.AUD));
         content.addView(tileRow(Cats.DOC, Cats.APK, Cats.ARC));
 
-        // tools
-        content.addView(Ui.sectionTitle(this, getString(R.string.home_tools)));
-        LinearLayout tools = new LinearLayout(this);
-        tools.setOrientation(LinearLayout.VERTICAL);
-        tools.addView(catRow(R.drawable.ic_clock, Cats.RECENT, getString(R.string.home_recent_sub), 0, R.color.accent_text));
-        tools.addView(catRow(R.drawable.ic_chart, Cats.LARGE, getString(R.string.home_large_sub), 0, R.color.warn));
-        final List<File> favs = existingFavorites();   // read once per render
-        tools.addView(catRow(R.drawable.ic_star, Cats.FAV, getString(R.string.home_fav_sub), favs.size(), R.color.warn));
-        tools.addView(toolRow(R.drawable.ic_package, R.string.pk_title, R.string.pk_subtitle,
-                InstallerActivity.class, getString(R.string.pk_beta)));
-        tools.addView(toolRow(R.drawable.ic_chart, R.string.tl_title, R.string.tl_subtitle, ToolsActivity.class, null));
-        Ui.group(this, tools);
-        content.addView(tools);
-
         // pinned favorites
+        final List<File> favs = existingFavorites();   // read once per render
         if (!favs.isEmpty()) {
             content.addView(Ui.sectionTitle(this, getString(R.string.home_pinned)));
             LinearLayout pinned = new LinearLayout(this);
@@ -176,6 +163,16 @@ public class HomeActivity extends AppCompatActivity {
             Ui.group(this, recent);
             content.addView(recent);
         }
+
+        // tools: only the two bigger features, kept at the bottom
+        content.addView(Ui.sectionTitle(this, getString(R.string.home_tools)));
+        LinearLayout tools = new LinearLayout(this);
+        tools.setOrientation(LinearLayout.VERTICAL);
+        tools.addView(toolRow(R.drawable.ic_package, R.string.pk_title, R.string.pk_subtitle,
+                InstallerActivity.class, getString(R.string.pk_beta)));
+        tools.addView(toolRow(R.drawable.ic_chart, R.string.tl_title, R.string.tl_subtitle, ToolsActivity.class, null));
+        Ui.group(this, tools);
+        content.addView(tools);
         if (keepY > 0) scroller.post(() -> scroller.scrollTo(0, keepY));
         if (!entered) {   // soft staggered entrance the first time the screen is drawn
             entered = true;
@@ -207,40 +204,52 @@ public class HomeActivity extends AppCompatActivity {
         return t;
     }
 
-    private View placeChips() {
-        android.widget.HorizontalScrollView hs = new android.widget.HorizontalScrollView(this);
-        hs.setHorizontalScrollBarEnabled(false);
-        hs.setClipToPadding(false);
-        hs.setPadding(Ui.dp(this, 16), Ui.dp(this, 12), Ui.dp(this, 16), Ui.dp(this, 2));
+    /** Four large round shortcuts: Downloads, Recent, Favorites, Largest files. */
+    private View shortcutRow() {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        addChip(row, R.drawable.ic_download, R.string.fm_downloads,
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
-        addChip(row, R.drawable.ic_camera, R.string.fm_dcim,
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM));
-        addChip(row, R.drawable.ic_image, R.string.fm_pictures,
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
-        addChip(row, R.drawable.ic_file_text, R.string.fm_documents,
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS));
-        addChip(row, R.drawable.ic_music, R.string.fm_music,
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC));
-        addChip(row, R.drawable.ic_video, R.string.fm_movies,
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES));
-        addChip(row, R.drawable.ic_folder, R.string.fm_app_folder, appDir());
-        hs.addView(row);
-        return hs;
+        row.setPadding(Ui.dp(this, 10), Ui.dp(this, 14), Ui.dp(this, 10), Ui.dp(this, 2));
+        final File dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        addShortcut(row, R.drawable.ic_download, getString(R.string.fm_downloads), R.color.accent_text,
+                v -> openFolder(dl));
+        addShortcut(row, R.drawable.ic_clock, getString(Cats.titleOf(Cats.RECENT)), R.color.info,
+                v -> openCategory(Cats.RECENT));
+        addShortcut(row, R.drawable.ic_star, getString(Cats.titleOf(Cats.FAV)), R.color.warn,
+                v -> openCategory(Cats.FAV));
+        addShortcut(row, R.drawable.ic_chart, getString(Cats.titleOf(Cats.LARGE)), R.color.violet,
+                v -> openCategory(Cats.LARGE));
+        return row;
     }
 
-    private void addChip(LinearLayout row, int icon, int title, final File dir) {
-        if (dir == null || !dir.exists()) return;
-        TextView t = Ui.chip(this, getString(title), false);
-        t.setTextSize(14);
-        t.setPadding(Ui.dp(this, 14), Ui.dp(this, 10), Ui.dp(this, 18), Ui.dp(this, 10));
-        t.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
-        t.setCompoundDrawablePadding(Ui.dp(this, 8));
-        t.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.accent_text)));
-        t.setOnClickListener(v -> openFolder(dir));
-        row.addView(t);
+    private void addShortcut(LinearLayout row, int icon, String label, int colorRes, View.OnClickListener click) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setGravity(Gravity.CENTER_HORIZONTAL);
+        item.setContentDescription(label);
+        int col = Ui.color(this, colorRes);
+
+        ImageView iv = new ImageView(this);
+        iv.setImageResource(icon);
+        iv.setImageTintList(android.content.res.ColorStateList.valueOf(col));
+        iv.setScaleType(ImageView.ScaleType.CENTER);
+        GradientDrawable g = new GradientDrawable();
+        g.setShape(GradientDrawable.OVAL);
+        g.setColor((col & 0x00FFFFFF) | 0x24000000);
+        iv.setBackground(g);
+        item.addView(iv, new LinearLayout.LayoutParams(Ui.dp(this, 58), Ui.dp(this, 58)));
+
+        TextView t = new TextView(this);
+        t.setText(label);
+        t.setTextSize(12.5f);
+        t.setSingleLine(true);
+        t.setGravity(Gravity.CENTER);
+        t.setTextColor(Ui.color(this, R.color.text_primary));
+        t.setPadding(0, Ui.dp(this, 8), 0, 0);
+        item.addView(t);
+
+        Ui.press(this, item);
+        item.setOnClickListener(click);
+        row.addView(item, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
     }
 
     private View permissionCard() {
@@ -279,7 +288,7 @@ public class HomeActivity extends AppCompatActivity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackgroundResource(R.drawable.bg_card_hero);
-        card.setPadding(Ui.dp(this, 20), Ui.dp(this, 18), Ui.dp(this, 20), Ui.dp(this, 14));
+        card.setPadding(Ui.dp(this, 18), Ui.dp(this, 14), Ui.dp(this, 18), Ui.dp(this, 12));
         Ui.block(this, card);
         Ui.press(this, card);
         card.setOnClickListener(v -> openFolder(root));
@@ -314,11 +323,11 @@ public class HomeActivity extends AppCompatActivity {
         card.addView(top);
 
         TextView big = new TextView(this);
-        big.setTextSize(30);
+        big.setTextSize(26);
         big.setTypeface(Typeface.create("serif", Typeface.NORMAL));
         big.setTextColor(Ui.color(this, R.color.text_primary));
         big.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-        big.setPadding(0, Ui.dp(this, 16), 0, Ui.dp(this, 2));
+        big.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 2));
         card.addView(big);
 
         TextView line = new TextView(this);
@@ -373,15 +382,15 @@ public class HomeActivity extends AppCompatActivity {
                 break;
             case Cats.AUD:
                 icon = R.drawable.ic_music;
-                color = R.color.info;
+                color = R.color.violet;
                 break;
             case Cats.DOC:
                 icon = R.drawable.ic_file_text;
-                color = R.color.accent_text;
+                color = R.color.info;
                 break;
             case Cats.APK:
                 icon = R.drawable.ic_package;
-                color = R.color.ok;
+                color = R.color.accent_text;
                 break;
             default:
                 icon = R.drawable.ic_archive;
@@ -412,16 +421,9 @@ public class HomeActivity extends AppCompatActivity {
 
     private View toolRow(int icon, int title, int sub, final Class<?> target, String badge) {
         Row r = new Row(icon, false, getString(title), getString(sub), false, true)
-                .tint(Ui.color(this, R.color.info));
+                .tint(Ui.color(this, R.color.accent_text));
         if (badge != null) r.badge(badge, Ui.color(this, R.color.warn));
         return Ui.rowView(this, content, r, v -> startActivity(new Intent(this, target)));
-    }
-
-    private View catRow(int icon, final String cat, String sub, int count, int color) {
-        Row r = new Row(icon, false, getString(Cats.titleOf(cat)), sub, false, true)
-                .tint(Ui.color(this, color));
-        if (count > 0) r.badge(String.valueOf(count), Ui.color(this, R.color.warn));
-        return Ui.rowView(this, content, r, v -> openCategory(cat));
     }
 
     /** A row for a file or folder (pinned favorites and the newest files). */
