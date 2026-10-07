@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg"
+    android:background="?attr/cBg"
     android:orientation="vertical">
 
     <include layout="@layout/view_header" />
@@ -23,7 +23,7 @@
         android:paddingTop="6dp"
         android:paddingEnd="22dp"
         android:paddingBottom="6dp"
-        android:textColor="@color/text_secondary"
+        android:textColor="?attr/cTextSecondary"
         android:textSize="13sp"
         android:visibility="gone" />
 
@@ -44,7 +44,7 @@
         android:layoutDirection="ltr"
         android:padding="12dp"
         android:scrollbars="vertical"
-        android:textColor="@color/text_primary"
+        android:textColor="?attr/cTextPrimary"
         android:textDirection="firstStrong"
         android:textSize="13sp" />
 </LinearLayout>

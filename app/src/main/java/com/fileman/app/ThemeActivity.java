@@ -60,6 +60,13 @@ public class ThemeActivity extends BaseActivity {
             }
             row.addView(swatch(i, i == pal, nightNow));
         }
+        // keep the last row's cards the same width as the others
+        for (int k = Appearance.PALETTES.length % 3; row != null && k != 0 && k < 3; k++) {
+            View sp = new View(this);
+            LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(0, 1, 1f);
+            slp.setMargins(Ui.dp(this, 4), 0, Ui.dp(this, 4), 0);
+            row.addView(sp, slp);
+        }
         content.addView(Ui.body(this, getString(R.string.theme_colors_note), 13, R.color.text_hint));
     }
 
@@ -162,6 +169,11 @@ public class ThemeActivity extends BaseActivity {
         card.setOnClickListener(v -> {
             if (id.equals(Store.palette(this))) return;
             Store.setPalette(this, id);
+            // AMOLED black only exists in night mode, so picking it from day mode switches to night
+            if ("amoled".equals(id) && Appearance.LIGHT.equals(Store.themeMode(this))) {
+                Store.setThemeMode(this, Appearance.DARK);
+                Appearance.applyMode(this);
+            }
             Appearance.recreateAll();
         });
         return card;

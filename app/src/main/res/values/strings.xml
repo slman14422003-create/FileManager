@@ -452,6 +452,8 @@
     <string name="pal_rose">وردي</string>
     <string name="pal_violet">بنفسجي</string>
     <string name="pal_graphite">رمادي</string>
+    <string name="pal_mono">محايد</string>
+    <string name="pal_amoled">أسود AMOLED</string>
     <string name="pk_beta2">بيتا 2</string>
     <string name="pk_chip_blocked">لا يمكن التثبيت</string>
     <string name="pk_d_abi">المعمارية</string>

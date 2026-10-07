@@ -32,7 +32,7 @@
             android:layout_marginTop="10dp"
             android:singleLine="true"
             android:textAlignment="viewStart"
-            android:textColor="@color/text_primary"
+            android:textColor="?attr/cTextPrimary"
             android:textSize="15sp" />
 
         <TextView
@@ -42,7 +42,7 @@
             android:layout_marginTop="1dp"
             android:singleLine="true"
             android:textAlignment="viewStart"
-            android:textColor="@color/text_secondary"
+            android:textColor="?attr/cTextSecondary"
             android:textSize="12sp" />
     </LinearLayout>
 </FrameLayout>

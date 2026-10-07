@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg"
+    android:background="?attr/cBg"
     android:orientation="vertical">
 
     <LinearLayout
@@ -28,7 +28,7 @@
             android:paddingEnd="10dp"
             android:text="@string/pk_title"
             android:textAlignment="viewStart"
-            android:textColor="@color/text_secondary"
+            android:textColor="?attr/cTextSecondary"
             android:textSize="15sp" />
 
         <TextView
@@ -101,7 +101,7 @@
                     android:fontFamily="serif"
                     android:gravity="center"
                     android:maxLines="2"
-                    android:textColor="@color/text_primary"
+                    android:textColor="?attr/cTextPrimary"
                     android:textSize="24sp" />
 
                 <TextView
@@ -112,7 +112,7 @@
                     android:ellipsize="middle"
                     android:gravity="center"
                     android:singleLine="true"
-                    android:textColor="@color/text_hint"
+                    android:textColor="?attr/cTextHint"
                     android:textDirection="ltr"
                     android:textSize="12sp" />
 
@@ -122,7 +122,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:gravity="center"
-                    android:textColor="@color/text_secondary"
+                    android:textColor="?attr/cTextSecondary"
                     android:textSize="14sp" />
 
                 <TextView
@@ -145,7 +145,7 @@
                     android:layout_marginTop="12dp"
                     android:gravity="center"
                     android:lineSpacingExtra="2dp"
-                    android:textColor="@color/text_secondary"
+                    android:textColor="?attr/cTextSecondary"
                     android:textSize="14sp"
                     android:visibility="gone" />
 
@@ -164,7 +164,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:gravity="center"
-                    android:textColor="@color/text_hint"
+                    android:textColor="?attr/cTextHint"
                     android:textSize="12sp"
                     android:visibility="gone" />
             </LinearLayout>

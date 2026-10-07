@@ -57,4 +57,43 @@
         <item name="cBrandMid">#FF475569</item>
         <item name="cBrandEnd">#FF334155</item>
     </style>
+
+    <!-- Colourless themes. Mono = neutral greys. Amoled = pure black in night mode (same as Mono by day). -->
+    <style name="Palette.Mono">
+        <item name="cAccent">#FF262626</item>
+        <item name="cAccentText">#FF171717</item>
+        <item name="cAccentSoft">#FFE8E8E8</item>
+        <item name="cBrandStart">#FF737373</item>
+        <item name="cBrandMid">#FF525252</item>
+        <item name="cBrandEnd">#FF262626</item>
+        <item name="cBg">#FFF5F5F5</item>
+        <item name="cSurface">#FFFFFFFF</item>
+        <item name="cSurfaceHigh">#FFEBEBEB</item>
+        <item name="cField">#FFEFEFEF</item>
+        <item name="cStroke">#FFD4D4D4</item>
+        <item name="cStrokeSoft">#FFE4E4E4</item>
+        <item name="cTextPrimary">#FF111111</item>
+        <item name="cTextSecondary">#FF525252</item>
+        <item name="cTextHint">#FF8A8A8A</item>
+        <item name="cNeutralSoft">#FFE5E5E5</item>
+    </style>
+
+    <style name="Palette.Amoled">
+        <item name="cAccent">#FF262626</item>
+        <item name="cAccentText">#FF171717</item>
+        <item name="cAccentSoft">#FFE8E8E8</item>
+        <item name="cBrandStart">#FF737373</item>
+        <item name="cBrandMid">#FF525252</item>
+        <item name="cBrandEnd">#FF262626</item>
+        <item name="cBg">#FFF5F5F5</item>
+        <item name="cSurface">#FFFFFFFF</item>
+        <item name="cSurfaceHigh">#FFEBEBEB</item>
+        <item name="cField">#FFEFEFEF</item>
+        <item name="cStroke">#FFD4D4D4</item>
+        <item name="cStrokeSoft">#FFE4E4E4</item>
+        <item name="cTextPrimary">#FF111111</item>
+        <item name="cTextSecondary">#FF525252</item>
+        <item name="cTextHint">#FF8A8A8A</item>
+        <item name="cNeutralSoft">#FFE5E5E5</item>
+    </style>
 </resources>

@@ -452,6 +452,8 @@
     <string name="pal_rose">Rose</string>
     <string name="pal_violet">Violet</string>
     <string name="pal_graphite">Graphite</string>
+    <string name="pal_mono">Neutral</string>
+    <string name="pal_amoled">AMOLED Black</string>
     <string name="pk_beta2">Beta 2</string>
     <string name="pk_chip_blocked">Cannot install</string>
     <string name="pk_d_abi">Architecture</string>

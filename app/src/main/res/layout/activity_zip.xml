@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg"
+    android:background="?attr/cBg"
     android:orientation="vertical">
 
     <include layout="@layout/view_header" />
@@ -38,11 +38,11 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:drawablePadding="14dp"
-            android:drawableTint="@color/text_hint"
+            android:drawableTint="?attr/cTextHint"
             android:drawableTop="@drawable/ic_archive"
             android:gravity="center"
             android:padding="32dp"
-            android:textColor="@color/text_hint"
+            android:textColor="?attr/cTextHint"
             android:textSize="15sp"
             android:visibility="gone" />
     </FrameLayout>

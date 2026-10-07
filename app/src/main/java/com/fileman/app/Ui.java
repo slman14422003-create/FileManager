@@ -64,6 +64,16 @@ public final class Ui {
         else if (res == R.color.brand_start) attr = R.attr.cBrandStart;
         else if (res == R.color.brand_mid) attr = R.attr.cBrandMid;
         else if (res == R.color.brand_end) attr = R.attr.cBrandEnd;
+        else if (res == R.color.bg) attr = R.attr.cBg;
+        else if (res == R.color.surface) attr = R.attr.cSurface;
+        else if (res == R.color.surface_high) attr = R.attr.cSurfaceHigh;
+        else if (res == R.color.field) attr = R.attr.cField;
+        else if (res == R.color.stroke) attr = R.attr.cStroke;
+        else if (res == R.color.stroke_soft) attr = R.attr.cStrokeSoft;
+        else if (res == R.color.text_primary) attr = R.attr.cTextPrimary;
+        else if (res == R.color.text_secondary) attr = R.attr.cTextSecondary;
+        else if (res == R.color.text_hint) attr = R.attr.cTextHint;
+        else if (res == R.color.neutral_soft) attr = R.attr.cNeutralSoft;
         if (attr != 0) {
             android.util.TypedValue tv = new android.util.TypedValue();
             if (c.getTheme().resolveAttribute(attr, tv, true)

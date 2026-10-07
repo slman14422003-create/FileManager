@@ -42,6 +42,8 @@ public final class Appearance {
             new Palette("rose", R.string.pal_rose, R.style.Palette_Rose),
             new Palette("violet", R.string.pal_violet, R.style.Palette_Violet),
             new Palette("graphite", R.string.pal_graphite, R.style.Palette_Graphite),
+            new Palette("mono", R.string.pal_mono, R.style.Palette_Mono),
+            new Palette("amoled", R.string.pal_amoled, R.style.Palette_Amoled),
     };
 
     public static int paletteIndex(String id) {
