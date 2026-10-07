@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Home screen, simplified: search, storage, four big shortcuts (downloads, recent, favorites, largest),
  * six category tiles, pinned favorites, the newest files and the two advanced tools at the bottom.
  */
-public class HomeActivity extends AppCompatActivity {
+public class HomeActivity extends BaseActivity {
     private static final long SCAN_MAX_AGE_MS = 60_000;
     private static final int RECENT_ON_HOME = 5;
     private static final int PINNED_ON_HOME = 4;

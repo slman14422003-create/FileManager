@@ -28,7 +28,7 @@ import java.util.concurrent.Executors;
  * HTML and SVG files. The document is converted to HTML ({@link DocHtml}) and shown in a locked-down
  * WebView: no JavaScript, no file or content access, no navigation to other pages.
  */
-public class DocViewActivity extends AppCompatActivity {
+public class DocViewActivity extends BaseActivity {
     private static final String BASE = "https://doc.local/view";
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
@@ -48,6 +48,9 @@ public class DocViewActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        DocHtml.canvas = String.format("#%06X", 0xFFFFFF & Ui.color(this, R.color.bg));
+        DocHtml.ring = String.format("#%06X", 0xFFFFFF & Ui.color(this, R.color.stroke));
+        
         setContentView(R.layout.activity_viewer);
         String path = getIntent().getStringExtra("path");
         file = path == null ? null : new File(path);

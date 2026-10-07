@@ -89,11 +89,18 @@ final class DocHtml {
 
     // Dark canvas like the rest of the app, with the document on a rounded "paper" card. Colors written
     // inside the document (Word runs, cell fills) assume a white page, so the page itself stays white.
-    private static final String CSS = "html{background:#000}"
-            + "body{margin:0;padding:12px 10px 28px;background:#000;font-family:sans-serif;font-size:16px;"
+    /** Page canvas / ring colours behind the paper; set by the viewer from the current day / night theme. */
+    static volatile String canvas = "#000000", ring = "#2a2a2a";
+
+    private static String css() {
+        return CSS_HEAD.replace("%CANVAS%", canvas).replace("%RING%", ring);
+    }
+
+    private static final String CSS_HEAD = "html{background:%CANVAS%}"
+            + "body{margin:0;padding:12px 10px 28px;background:%CANVAS%;font-family:sans-serif;font-size:16px;"
             + "line-height:1.55;word-wrap:break-word;-webkit-text-size-adjust:100%}"
             + ".paper{max-width:900px;margin:0 auto;background:#fff;color:#1b1b1b;border-radius:16px;"
-            + "padding:20px 18px;box-shadow:0 0 0 1px #2a2a2a;overflow:hidden}"
+            + "padding:20px 18px;box-shadow:0 0 0 1px %RING%;overflow:hidden}"
             + "p{margin:0 0 .6em;white-space:pre-wrap}h1,h2,h3,h4,h5,h6{margin:.8em 0 .4em;line-height:1.3;color:#111}"
             + "h3{font-family:serif;font-size:19px;margin:1.1em 0 .5em}"
             + "table{border-collapse:collapse;margin:10px 0}td,th{border:1px solid #d6d9de;padding:5px 9px;vertical-align:top}"
@@ -113,7 +120,7 @@ final class DocHtml {
     private static String page(String body) {
         return "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
                 + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-                + "<style>" + CSS + "</style></head><body><div class=\"paper\">" + body + "</div></body></html>";
+                + "<style>" + css() + "</style></head><body><div class=\"paper\">" + body + "</div></body></html>";
     }
 
     static String esc(String s) {

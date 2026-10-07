@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colour themes (day variants). Applied on top of AppTheme by Appearance / BaseActivity. -->
+    <style name="Palette.Ocean">
+        <item name="cAccent">#FF2F6FEB</item>
+        <item name="cAccentText">#FF1D55CC</item>
+        <item name="cAccentSoft">#FFE2EBFF</item>
+        <item name="cBrandStart">#FF2F8CFF</item>
+        <item name="cBrandMid">#FF5B5BF0</item>
+        <item name="cBrandEnd">#FFA855F7</item>
+    </style>
+
+    <style name="Palette.Emerald">
+        <item name="cAccent">#FF059669</item>
+        <item name="cAccentText">#FF047857</item>
+        <item name="cAccentSoft">#FFDBF5EA</item>
+        <item name="cBrandStart">#FF34D399</item>
+        <item name="cBrandMid">#FF10B981</item>
+        <item name="cBrandEnd">#FF0891B2</item>
+    </style>
+
+    <style name="Palette.Sunset">
+        <item name="cAccent">#FFEA6A0A</item>
+        <item name="cAccentText">#FFB54708</item>
+        <item name="cAccentSoft">#FFFFEADA</item>
+        <item name="cBrandStart">#FFFB923C</item>
+        <item name="cBrandMid">#FFF97316</item>
+        <item name="cBrandEnd">#FFEF4444</item>
+    </style>
+
+    <style name="Palette.Rose">
+        <item name="cAccent">#FFE11D48</item>
+        <item name="cAccentText">#FFBE123C</item>
+        <item name="cAccentSoft">#FFFFE3EA</item>
+        <item name="cBrandStart">#FFFB7185</item>
+        <item name="cBrandMid">#FFF43F5E</item>
+        <item name="cBrandEnd">#FFC026D3</item>
+    </style>
+
+    <style name="Palette.Violet">
+        <item name="cAccent">#FF7C3AED</item>
+        <item name="cAccentText">#FF6D28D9</item>
+        <item name="cAccentSoft">#FFEEE6FF</item>
+        <item name="cBrandStart">#FFA78BFA</item>
+        <item name="cBrandMid">#FF8B5CF6</item>
+        <item name="cBrandEnd">#FFEC4899</item>
+    </style>
+
+    <style name="Palette.Graphite">
+        <item name="cAccent">#FF475569</item>
+        <item name="cAccentText">#FF334155</item>
+        <item name="cAccentSoft">#FFE5E9F0</item>
+        <item name="cBrandStart">#FF64748B</item>
+        <item name="cBrandMid">#FF475569</item>
+        <item name="cBrandEnd">#FF334155</item>
+    </style>
+</resources>

@@ -47,7 +47,7 @@ import java.util.zip.ZipFile;
  * Browses a ZIP / JAR / CBZ like a folder tree without unpacking it: open a file to preview it,
  * long-press to select, extract everything or only the selection.
  */
-public class ZipBrowseActivity extends AppCompatActivity {
+public class ZipBrowseActivity extends BaseActivity {
     private static final long MAX_PREVIEW = 256L * 1024 * 1024;
     private static final int MAX_ENTRIES = 200000;
 

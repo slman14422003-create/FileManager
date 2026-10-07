@@ -25,7 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /** Image viewer: pinch / double-tap zoom, and swipe to move between the images of the same folder. */
-public class ImageViewActivity extends AppCompatActivity {
+public class ImageViewActivity extends BaseActivity {
     private static final int MAX_SIDE = 2560;
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();

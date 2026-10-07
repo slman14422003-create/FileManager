@@ -26,6 +26,45 @@ public final class Store {
         sp(c).edit().putString("lang", v == null ? "system" : v).apply();
     }
 
+    // ------------------------------------------------------------------ appearance
+
+    /** "light" (default, white), "dark" or "auto" (follows the system). */
+    public static String themeMode(Context c) {
+        return sp(c).getString("theme_mode", "light");
+    }
+
+    public static void setThemeMode(Context c, String v) {
+        sp(c).edit().putString("theme_mode", v == null ? "light" : v).apply();
+    }
+
+    /** Id of the colour theme ("ocean" by default); see {@link Appearance}. */
+    public static String palette(Context c) {
+        return sp(c).getString("theme_palette", "ocean");
+    }
+
+    public static void setPalette(Context c, String v) {
+        sp(c).edit().putString("theme_palette", v == null ? "ocean" : v).apply();
+    }
+
+    // ------------------------------------------------------------------ package installer (beta 2)
+
+    public static boolean instBool(Context c, String key, boolean def) {
+        return sp(c).getBoolean("inst_" + key, def);
+    }
+
+    public static void setInstBool(Context c, String key, boolean v) {
+        sp(c).edit().putBoolean("inst_" + key, v).apply();
+    }
+
+    /** Install results, newest first; one line per install, tab-separated (see PkgInstaller.log). */
+    public static String instHistory(Context c) {
+        return sp(c).getString("inst_history", "");
+    }
+
+    public static void setInstHistory(Context c, String v) {
+        sp(c).edit().putString("inst_history", v == null ? "" : v).apply();
+    }
+
     // ------------------------------------------------------------------ browsing options
 
     public static boolean showHidden(Context c) {

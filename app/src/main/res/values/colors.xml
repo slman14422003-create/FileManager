@@ -1,31 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Brand palette taken from the launcher icon: deep navy canvas, indigo-tinted surfaces,
-         one blue accent that flows into the cyan -> blue -> violet brand gradient. -->
-    <color name="bg">#060A1E</color>
-    <color name="surface">#0F1631</color>
-    <color name="surface_high">#19224A</color>
-    <color name="field">#0B1128</color>
-    <color name="stroke">#263262</color>
-    <color name="stroke_soft">#161F42</color>
-    <color name="text_primary">#F1F4FF</color>
-    <color name="text_secondary">#A7B0D4</color>
-    <color name="text_hint">#6F7AA6</color>
-    <color name="accent">#3B82F6</color>
-    <color name="accent_text">#8FB8FF</color>
-    <color name="accent_soft">#14214F</color>
-    <color name="neutral_soft">#1D2650</color>
+    <!-- DAY palette (the default). The dark counterpart lives in values-night/colors.xml with the same names.
+         accent / accent_text / accent_soft / brand_* are the defaults of the "Ocean" colour theme; the other
+         colour themes override them through the cAccent... attributes (see palettes.xml). -->
+    <color name="bg">#F3F6FC</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_high">#EAF0FB</color>
+    <color name="field">#EDF1F9</color>
+    <color name="stroke">#D3DBEC</color>
+    <color name="stroke_soft">#E3E9F5</color>
+    <color name="text_primary">#0C1330</color>
+    <color name="text_secondary">#454F78</color>
+    <color name="text_hint">#7F89AD</color>
+    <color name="accent">#2F6FEB</color>
+    <color name="accent_text">#1D55CC</color>
+    <color name="accent_soft">#E2EBFF</color>
+    <color name="neutral_soft">#E2E8F4</color>
     <color name="on_accent">#FFFFFF</color>
-    <color name="ripple">#22FFFFFF</color>
+    <color name="ripple">#1F2F4BC8</color>
     <color name="ripple_on_accent">#22000000</color>
     <color name="brand_start">#2F8CFF</color>
     <color name="brand_mid">#5B5BF0</color>
     <color name="brand_end">#A855F7</color>
-    <color name="ok">#5EEAD0</color>
-    <color name="bad">#FF5C77</color>
-    <color name="warn">#FBBF4A</color>
-    <color name="info">#60A5FA</color>
-    <color name="violet">#B794FF</color>
-    <color name="lime">#B6F26B</color>
+    <color name="ok">#0E9F7E</color>
+    <color name="bad">#D92D4A</color>
+    <color name="warn">#C27803</color>
+    <color name="info">#2563EB</color>
+    <color name="violet">#7A4BD6</color>
+    <color name="lime">#5A9A10</color>
     <color name="ic_launcher_bg">#060A1E</color>
 </resources>

@@ -81,7 +81,7 @@ import java.util.zip.ZipOutputStream;
  *
  * Intent extras: "path" = folder to open, "cat" = a {@link Cats} key to open a category list.
  */
-public class FileManagerActivity extends AppCompatActivity {
+public class FileManagerActivity extends BaseActivity {
 
     private static final int SORT_NAME = 0, SORT_DATE = 1, SORT_SIZE = 2, SORT_TYPE = 3;
     private static final int M_DIR = 0, M_SEARCH = 1, M_FAV = 2, M_LARGEST = 3, M_CAT = 4;

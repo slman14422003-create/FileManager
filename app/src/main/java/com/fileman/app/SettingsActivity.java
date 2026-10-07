@@ -9,7 +9,7 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
 /** Language, hidden files, permissions and app info. */
-public class SettingsActivity extends AppCompatActivity {
+public class SettingsActivity extends BaseActivity {
     private LinearLayout content;
 
     @Override
@@ -39,6 +39,13 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void render() {
         content.removeAllViews();
+
+        content.addView(Ui.sectionTitle(this, getString(R.string.theme_title)));
+        content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_palette, true,
+                getString(R.string.theme_title),
+                getString(Appearance.modeName(Store.themeMode(this))) + " · "
+                        + getString(Appearance.current(this).name), false, true),
+                v -> startActivity(new Intent(this, ThemeActivity.class))));
 
         content.addView(Ui.sectionTitle(this, getString(R.string.set_general)));
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_language, false,

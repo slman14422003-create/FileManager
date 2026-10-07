@@ -33,7 +33,7 @@ import java.util.concurrent.Executors;
  * junk cleaner (empty folders, empty files, temporary files) and a folder size analyzer.
  * Every scan is bounded, runs off the UI thread and is cancelled when the screen goes away.
  */
-public class ToolsActivity extends AppCompatActivity {
+public class ToolsActivity extends BaseActivity {
     private static final int S_HOME = 0, S_DUP = 1, S_JUNK = 2, S_SPACE = 3;
     private static final long MIN_DUP_BYTES = 16 * 1024;
     private static final int WALK_BUDGET = 200000;

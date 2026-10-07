@@ -10,6 +10,7 @@ import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -53,13 +54,13 @@ import java.util.zip.ZipOutputStream;
  * Package installer (beta). Opens with a package file (APK / APKS / XAPK / APKM) to inspect and install it,
  * or without one to find packages on the device and manage installed apps (open, info, extract, uninstall).
  */
-public class InstallerActivity extends AppCompatActivity {
-    private static final int S_HOME = 0, S_FOUND = 1, S_APPS = 2;
+public class InstallerActivity extends BaseActivity {
+    private static final int S_HOME = 0, S_FOUND = 1, S_APPS = 2, S_HISTORY = 3;
     private static final int MAX_FOUND = 200, MAX_APPS = 400, MAX_SHOWN_APPS = 300;
 
     private static final class App {
         String pkg = "", label = "", ver = "";
-        long size;
+        long size, updated;
         Drawable icon;
     }
 
@@ -79,6 +80,7 @@ public class InstallerActivity extends AppCompatActivity {
     private LinearLayout appList;
     private String appQuery = "";
     private boolean showSystem = false;
+    private int sortMode = 0;               // 0 name, 1 size, 2 recently updated
 
     private volatile PkgInstaller.Info installing;   // package being installed right now
 
@@ -153,6 +155,9 @@ public class InstallerActivity extends AppCompatActivity {
             case S_APPS:
                 loadApps();
                 break;
+            case S_HISTORY:
+                showHistory();
+                break;
             default:
                 showHome();
                 break;
@@ -217,8 +222,9 @@ public class InstallerActivity extends AppCompatActivity {
         header(getString(R.string.pk_subtitle));
         busy(false);
         clear();
-        content.addView(Ui.noteCard(this, getString(R.string.pk_beta_note), R.color.warn));
+        content.addView(Ui.noteCard(this, getString(R.string.pk_beta_note), R.color.info));
 
+        // ---- permissions the installer works with
         content.addView(Ui.sectionTitle(this, getString(R.string.perm_section_needed)));
         boolean can = Perms.canInstall(this);
         Row r = new Row(R.drawable.ic_package, true, getString(R.string.perm_install_title),
@@ -230,11 +236,98 @@ public class InstallerActivity extends AppCompatActivity {
             else Perms.requestInstall(this);
         }));
 
+        boolean files = Perms.hasAllFiles(this);
+        Row rf = new Row(R.drawable.ic_folder, true, getString(R.string.pk_perm_files),
+                getString(R.string.pk_perm_files_sub), false, !files);
+        rf.badge(getString(files ? R.string.perm_granted : R.string.perm_denied),
+                Ui.color(this, files ? R.color.ok : R.color.bad));
+        content.addView(Ui.rowView(this, content, rf, v -> {
+            if (Perms.hasAllFiles(this)) Perms.openAppSettings(this);
+            else Perms.requestAllFiles(this);
+        }));
+
+        if (Build.VERSION.SDK_INT >= 33) {
+            boolean notif = Perms.hasNotifications(this);
+            Row rn = new Row(R.drawable.ic_info, true, getString(R.string.pk_perm_notif),
+                    getString(R.string.pk_perm_notif_sub), false, !notif);
+            rn.badge(getString(notif ? R.string.perm_granted : R.string.perm_denied),
+                    Ui.color(this, notif ? R.color.ok : R.color.bad));
+            content.addView(Ui.rowView(this, content, rn, v -> {
+                if (Perms.hasNotifications(this)) Perms.openAppSettings(this);
+                else Perms.requestNotifications(this);
+            }));
+        }
+        content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_shield, false,
+                getString(R.string.pk_perm_installer), getString(R.string.pk_perm_installer_sub), false, false)
+                .badge(getString(R.string.perm_granted), Ui.color(this, R.color.ok)), null));
+
+        // ---- installer options
+        content.addView(Ui.sectionTitle(this, getString(R.string.pk_h_settings)));
+        addOption("smart", true, R.string.pk_opt_smart, R.string.pk_opt_smart_sub);
+        addOption("delete_after", false, R.string.pk_opt_delete, R.string.pk_opt_delete_sub);
+        addOption("notify", true, R.string.pk_opt_notify, R.string.pk_opt_notify_sub);
+        if (Build.VERSION.SDK_INT >= 34) {
+            addOption("owner", false, R.string.pk_opt_owner, R.string.pk_opt_owner_sub);
+        }
+
+        // ---- tools
         content.addView(Ui.sectionTitle(this, getString(R.string.pk_tools)));
         content.addView(row(R.drawable.ic_search, getString(R.string.pk_found), getString(R.string.pk_found_sub),
                 v -> scanFound()));
         content.addView(row(R.drawable.ic_archive, getString(R.string.pk_apps), getString(R.string.pk_apps_sub),
                 v -> loadApps()));
+        content.addView(row(R.drawable.ic_clock, getString(R.string.pk_h_history), getString(R.string.pk_h_history_sub),
+                v -> showHistory()));
+    }
+
+    private void addOption(final String key, boolean def, int titleRes, int subRes) {
+        Ui.Toggle t = Ui.toggle(this, content, titleRes, subRes, Store.instBool(this, key, def));
+        t.onChange((b, on) -> Store.setInstBool(this, key, on));
+        content.addView(t.view);
+    }
+
+    // ------------------------------------------------------------------ install history
+
+    private void showHistory() {
+        screen = S_HISTORY;
+        header(getString(R.string.pk_h_history));
+        busy(false);
+        clear();
+        String raw = Store.instHistory(this);
+        if (raw.isEmpty()) {
+            content.addView(Ui.body(this, getString(R.string.pk_hist_none), 14, R.color.text_secondary));
+            return;
+        }
+        content.addView(row(R.drawable.ic_delete, getString(R.string.pk_hist_clear), null, v ->
+                new Dlg(this).setTitle(R.string.pk_hist_clear)
+                        .setMessage(R.string.pk_hist_clear_q)
+                        .setPositiveButton(R.string.delete, (d, w) -> {
+                            Store.setInstHistory(this, "");
+                            showHistory();
+                        })
+                        .setNegativeButton(R.string.cancel, null)
+                        .show()));
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        for (String line : raw.split("\n")) {
+            final String[] f = line.split("\t", -1);
+            if (f.length < 5) continue;
+            long t = 0;
+            try {
+                t = Long.parseLong(f[0]);
+            } catch (NumberFormatException ignored) {
+            }
+            boolean ok = "1".equals(f[1]);
+            String sub = (f[4].isEmpty() ? "" : f[4] + " · ") + Fmt.ago(t)
+                    + (!ok && f.length > 5 && !f[5].isEmpty() ? "\n" + f[5] : "");
+            Row hr = new Row(ok ? R.drawable.ic_check_circle : R.drawable.ic_cancel, false, f[2], sub, false, ok)
+                    .tint(Ui.color(this, ok ? R.color.ok : R.color.bad));
+            hr.badge(getString(ok ? R.string.pk_hist_ok : R.string.pk_hist_fail), Ui.color(this, ok ? R.color.ok : R.color.bad));
+            final String pkg = f[3];
+            list.addView(Ui.rowView(this, list, hr, ok ? v -> openApp(pkg) : null));
+        }
+        Ui.group(this, list);
+        content.addView(list);
     }
 
     // ------------------------------------------------------------------ packages on the device
@@ -289,8 +382,7 @@ public class InstallerActivity extends AppCompatActivity {
             content.addView(Ui.body(this, getString(R.string.pk_none_found), 14, R.color.text_secondary));
             return;
         }
-        final List<File> singles = new ArrayList<>();
-        for (File f : foundFiles) if (Cats.extOf(f.getName()).equals("apk")) singles.add(f);
+        final List<File> singles = new ArrayList<>(foundFiles);
         if (singles.size() > 1) {
             content.addView(row(R.drawable.ic_download, getString(R.string.pk_install_all, singles.size()),
                     getString(R.string.pk_install_all_sub), v -> confirmBatch(singles)));
@@ -333,6 +425,8 @@ public class InstallerActivity extends AppCompatActivity {
                 }));
                 // the final result arrives through the receiver below
                 ui.post(() -> setStatus(getString(R.string.pk_waiting)));
+            } catch (PkgInstaller.NoSpace e) {
+                ui.post(() -> onInstallResult(false, getString(R.string.pk_fail_storage)));
             } catch (Throwable e) {
                 ui.post(() -> onInstallResult(false, getString(R.string.pk_fail_invalid)));
             }
@@ -362,6 +456,8 @@ public class InstallerActivity extends AppCompatActivity {
     };
 
     private String friendly(int st, String msg) {
+        int fr = PkgInstaller.friendlyMessage(msg);
+        if (fr != 0) return getString(fr);
         switch (st) {
             case PackageInstaller.STATUS_FAILURE_ABORTED:
                 return getString(R.string.pk_fail_aborted);
@@ -385,6 +481,7 @@ public class InstallerActivity extends AppCompatActivity {
         busy(false);
         PkgInstaller.Info in = installing;
         String label = in != null && !in.label.isEmpty() ? in.label : getString(R.string.pk_title);
+        if (in != null) PkgInstaller.log(this, in, ok, msg);
         if (batchActive) {
             if (ok) batchOk++;
             else batchFail++;
@@ -457,6 +554,7 @@ public class InstallerActivity extends AppCompatActivity {
                     a.label = String.valueOf(ai.loadLabel(pm));
                     a.ver = pi.versionName == null ? "" : pi.versionName;
                     a.size = ai.sourceDir == null ? 0 : new File(ai.sourceDir).length();
+                    a.updated = pi.lastUpdateTime;
                     out.add(a);
                     if (out.size() >= MAX_APPS) break;
                 }
@@ -473,8 +571,17 @@ public class InstallerActivity extends AppCompatActivity {
             ui.post(() -> {
                 if (destroyed || screen != S_APPS) return;
                 apps = out;
+                sortApps();
                 renderApps();
             });
+        });
+    }
+
+    private void sortApps() {
+        Collections.sort(apps, (x, y) -> {
+            if (sortMode == 1) return Long.compare(y.size, x.size);
+            if (sortMode == 2) return Long.compare(y.updated, x.updated);
+            return x.label.compareToIgnoreCase(y.label);
         });
     }
 
@@ -498,6 +605,22 @@ public class InstallerActivity extends AppCompatActivity {
             }
         });
         content.addView(q);
+
+        LinearLayout chips = new LinearLayout(this);
+        chips.setOrientation(LinearLayout.HORIZONTAL);
+        chips.setPadding(Ui.dp(this, 16), 0, Ui.dp(this, 16), Ui.dp(this, 4));
+        final int[] sortNames = {R.string.pk_sort_name, R.string.pk_sort_size, R.string.pk_sort_date};
+        for (int k = 0; k < sortNames.length; k++) {
+            final int mode = k;
+            TextView ch = Ui.chip(this, getString(sortNames[k]), sortMode == k);
+            ch.setOnClickListener(v -> {
+                sortMode = mode;
+                sortApps();
+                renderApps();
+            });
+            chips.addView(ch);
+        }
+        content.addView(chips);
 
         Ui.Toggle sys = Ui.toggle(this, content, R.string.pk_show_system, R.string.pk_show_system_sub, showSystem);
         sys.onChange((b, on) -> {

@@ -36,7 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /** PDF viewer built on the platform PdfRenderer: scrolling pages, 4 zoom levels, page counter. */
-public class PdfViewActivity extends AppCompatActivity {
+public class PdfViewActivity extends BaseActivity {
     private static final float[] ZOOMS = {1f, 1.5f, 2f, 3f};
     private static final int MAX_BITMAP_W = 2600;
 

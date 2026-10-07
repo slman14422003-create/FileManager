@@ -22,7 +22,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /** Checks the app's GitHub Releases for a newer APK, downloads it and starts the installer. */
-public class UpdateActivity extends AppCompatActivity {
+public class UpdateActivity extends BaseActivity {
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler ui = new Handler(Looper.getMainLooper());
 

@@ -57,7 +57,7 @@ import java.util.concurrent.Executors;
  *   <li>Both: speed, sleep timer, resume where you stopped, pause on audio-focus loss.</li>
  * </ul>
  */
-public class MediaActivity extends AppCompatActivity {
+public class MediaActivity extends BaseActivity {
     private static final float[] SPEEDS = {1f, 1.25f, 1.5f, 2f, 0.5f, 0.75f};
     private static final int SKIP_MS = 10_000;
     private static final int HIDE_MS = 3500;
@@ -383,7 +383,7 @@ public class MediaActivity extends AppCompatActivity {
         row.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         shuffleBtn = round(R.drawable.ic_shuffle, 44, 0, Ui.color(this, R.color.text_secondary), R.string.mp_shuffle);
         prevBtn = round(R.drawable.ic_skip_prev, 54, sur, txt, R.string.mp_prev);
-        playBtn = round(R.drawable.ic_play_fill, 78, Ui.color(this, R.color.accent_text), 0xFF000000, R.string.v_play);
+        playBtn = round(R.drawable.ic_play_fill, 78, Ui.color(this, R.color.accent), Ui.color(this, R.color.on_accent), R.string.v_play);
         nextBtn = round(R.drawable.ic_skip_next, 54, sur, txt, R.string.mp_next);
         repeatBtn = round(R.drawable.ic_repeat, 44, 0, Ui.color(this, R.color.text_secondary), R.string.mp_repeat_off);
         int gap = Ui.dp(this, 10);

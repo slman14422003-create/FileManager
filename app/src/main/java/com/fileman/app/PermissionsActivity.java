@@ -10,7 +10,7 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
 /** Shows every permission the app uses, whether it is granted, and lets the user fix it in one tap. */
-public class PermissionsActivity extends AppCompatActivity {
+public class PermissionsActivity extends BaseActivity {
     private LinearLayout content;
 
     @Override

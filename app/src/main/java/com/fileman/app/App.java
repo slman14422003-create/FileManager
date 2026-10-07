@@ -6,6 +6,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -15,13 +18,26 @@ import androidx.core.view.WindowInsetsCompat;
  * Android 16. This keeps every screen clear of the status bar, navigation bar, cutout and keyboard.
  */
 public class App extends Application {
+    private static final List<Activity> OPEN = new ArrayList<>();
+
+    /** Screens currently alive (used to recreate them when the colour theme changes). */
+    static List<Activity> openActivities() {
+        synchronized (OPEN) {
+            return new ArrayList<>(OPEN);
+        }
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
         Lang.init(this);
+        Appearance.applyMode(this);
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override
             public void onActivityCreated(Activity a, Bundle b) {
+                synchronized (OPEN) {
+                    OPEN.add(a);
+                }
             }
 
             @Override
@@ -43,7 +59,12 @@ public class App extends Application {
             @Override public void onActivityPaused(Activity a) { }
             @Override public void onActivityStopped(Activity a) { }
             @Override public void onActivitySaveInstanceState(Activity a, Bundle b) { }
-            @Override public void onActivityDestroyed(Activity a) { }
+            @Override
+            public void onActivityDestroyed(Activity a) {
+                synchronized (OPEN) {
+                    OPEN.remove(a);
+                }
+            }
         });
     }
 }

@@ -240,7 +240,7 @@
             android:layout_height="22dp"
             android:importantForAccessibility="no"
             android:src="@drawable/ic_clipboard"
-            android:tint="@color/accent_text" />
+            android:tint="?attr/cAccentText" />
 
         <TextView
             android:id="@+id/pasteText"

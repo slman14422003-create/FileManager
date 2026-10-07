@@ -87,7 +87,7 @@
             android:layout_height="24dp"
             android:importantForAccessibility="no"
             android:src="@drawable/ic_check_circle"
-            android:tint="@color/accent_text"
+            android:tint="?attr/cAccentText"
             android:visibility="gone" />
 
         <ImageView

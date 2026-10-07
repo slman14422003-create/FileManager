@@ -152,6 +152,23 @@ public final class Perms {
         openAppSettings(a);
     }
 
+    // ------------------------------------------------------------------ notifications (installer results)
+
+    public static boolean hasNotifications(Context c) {
+        return Notifs.allowed(c);
+    }
+
+    public static void requestNotifications(Activity a) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            try {
+                a.requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 4022);
+                return;
+            } catch (Exception ignored) {
+            }
+        }
+        openAppSettings(a);
+    }
+
     public static void openAppSettings(Activity a) {
         try {
             a.startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
