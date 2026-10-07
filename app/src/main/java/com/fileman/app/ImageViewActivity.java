@@ -184,44 +184,52 @@ public class ImageViewActivity extends BaseActivity {
         root.addView(zoom, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
 
-        ProgressBar pb = new ProgressBar(this);
-        pb.setIndeterminate(true);
-        pb.setIndeterminateTintList(ColorStateList.valueOf(0xFFFFFFFF));
+        SpinnerView pb = new SpinnerView(this);
+        pb.setColor(0xFFFFFFFF);
         pb.setVisibility(View.INVISIBLE);
         loading = pb;
-        root.addView(pb, new FrameLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40), Gravity.CENTER));
+        root.addView(pb, new FrameLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44), Gravity.CENTER));
 
-        // top bar: back, name + position / size / dimensions, more
+        // top bar: a floating rounded card (same look as the action bar) so it stays readable on any picture
         LinearLayout top = new LinearLayout(this);
-        top.setOrientation(LinearLayout.HORIZONTAL);
-        top.setGravity(Gravity.CENTER_VERTICAL);
-        top.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 26));
-        top.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0xCC000000, 0x00000000}));
+        top.setOrientation(LinearLayout.VERTICAL);
+        top.setPadding(Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12), 0);
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setPadding(Ui.dp(this, 6), Ui.dp(this, 6), Ui.dp(this, 6), Ui.dp(this, 6));
+        GradientDrawable cardBg = new GradientDrawable();
+        cardBg.setCornerRadius(Ui.dp(this, 28));
+        cardBg.setColor(0xD9101420);
+        cardBg.setStroke(Ui.dp(this, 1), 0x33FFFFFF);
+        card.setBackground(cardBg);
         ImageButton back = iconButton(R.drawable.ic_back, R.string.back);
         back.setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
-        top.addView(back);
+        card.addView(back);
         LinearLayout tl = new LinearLayout(this);
         tl.setOrientation(LinearLayout.VERTICAL);
         tl.setPadding(Ui.dp(this, 8), 0, Ui.dp(this, 8), 0);
         titleView = new TextView(this);
         titleView.setTextColor(0xFFFFFFFF);
-        titleView.setTextSize(16);
+        titleView.setTextSize(15.5f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
         titleView.setSingleLine(true);
         titleView.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
         titleView.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
         subtitleView = new TextView(this);
-        subtitleView.setTextColor(0xCCFFFFFF);
+        subtitleView.setTextColor(0xBFFFFFFF);
         subtitleView.setTextSize(12);
         subtitleView.setSingleLine(true);
+        subtitleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         subtitleView.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
         tl.addView(titleView);
         tl.addView(subtitleView);
-        top.addView(tl, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        card.addView(tl, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         ImageButton more = iconButton(R.drawable.ic_more, R.string.more);
         more.setOnClickListener(v -> Opener.moreMenu(this, images.get(index)));
-        top.addView(more);
+        card.addView(more);
+        top.addView(card, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
         topBar = top;
         root.addView(top, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP));
@@ -268,8 +276,7 @@ public class ImageViewActivity extends BaseActivity {
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             androidx.core.graphics.Insets in = insets.getInsets(
                     WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-            topBar.setPadding(in.left + Ui.dp(this, 8), in.top + Ui.dp(this, 8), in.right + Ui.dp(this, 8),
-                    Ui.dp(this, 26));
+            topBar.setPadding(in.left + Ui.dp(this, 12), in.top + Ui.dp(this, 8), in.right + Ui.dp(this, 12), 0);
             bottomBox.setPadding(in.left, Ui.dp(this, 28), in.right, in.bottom + Ui.dp(this, 12));
             return insets;
         });

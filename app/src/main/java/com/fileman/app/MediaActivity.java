@@ -717,12 +717,11 @@ public class MediaActivity extends BaseActivity {
         indicator.setPadding(Ui.dp(this, 20), Ui.dp(this, 12), Ui.dp(this, 20), Ui.dp(this, 12));
         root.addView(indicator, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
-        ProgressBar pb = new ProgressBar(this);
-        pb.setIndeterminate(true);
-        pb.setIndeterminateTintList(ColorStateList.valueOf(0xFFFFFFFF));
+        SpinnerView pb = new SpinnerView(this);
+        pb.setColor(0xFFFFFFFF);
         pb.setVisibility(View.INVISIBLE);
         loading = pb;
-        root.addView(pb, new FrameLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44), Gravity.CENTER));
+        root.addView(pb, new FrameLayout.LayoutParams(Ui.dp(this, 46), Ui.dp(this, 46), Gravity.CENTER));
 
         // unlock button (visible only while locked)
         lockOverlay = round(R.drawable.ic_lock_fill, 52, 0x88000000, 0xFFFFFFFF, R.string.mp_unlock);

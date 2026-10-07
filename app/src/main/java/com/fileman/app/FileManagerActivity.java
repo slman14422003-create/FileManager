@@ -167,6 +167,7 @@ public class FileManagerActivity extends BaseActivity {
 
     private AlertDialog busy;
     private TextView busyText;
+    private BusyBox busyBox;
 
     /** Category shown right now (a Cats key) when mode == M_CAT, and whether we were opened with one. */
     private String catKey = Cats.IMG;
@@ -1420,19 +1421,9 @@ public class FileManagerActivity extends BaseActivity {
         cancelled = false;
         LinearLayout box = Ui.box(this);
         box.setPadding(Ui.dp(this, 22), Ui.dp(this, 14), Ui.dp(this, 22), Ui.dp(this, 8));
-        busyText = new TextView(this);
-        busyText.setText(text);
-        busyText.setSingleLine(true);
-        busyText.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
-        busyText.setTextColor(Ui.color(this, R.color.text_secondary));
-        busyText.setTextSize(14);
-        busyText.setPadding(0, 0, 0, Ui.dp(this, 12));
-        ProgressBar bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        bar.setIndeterminate(true);
-        Ui.tint(this, bar);
-        box.addView(busyText);
-        box.addView(bar);
-        busy = new Dlg(this).setTitle(R.string.working).setView(box)
+        busyBox = new BusyBox(this, text);
+        busyText = busyBox.text;
+        busy = new Dlg(this).setTitle(R.string.working).setView(busyBox.view)
                 .setCancelable(false)
                 .setNegativeButton(R.string.cancel, (d, w) -> cancelled = true)
                 .create();
@@ -1454,6 +1445,13 @@ public class FileManagerActivity extends BaseActivity {
             busy = null;
         }
         busyText = null;
+        busyBox = null;
+    }
+
+    private void setBusyPercent(final int pct) {
+        post(() -> {
+            if (busyBox != null) busyBox.setPercent(pct);
+        });
     }
 
     private void runTask(String text, final Work w) {
@@ -1671,6 +1669,16 @@ public class FileManagerActivity extends BaseActivity {
             String root = dest.getCanonicalPath() + File.separator;
             int count = 0;
             long written = 0;
+            long total = 0;
+            int lastPct = -1;
+            try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(zip)) {   // for the percentage
+                java.util.Enumeration<? extends ZipEntry> en = zf.entries();
+                while (en.hasMoreElements()) {
+                    long sz = en.nextElement().getSize();
+                    if (sz > 0) total += sz;
+                }
+            } catch (Exception ignored) {
+            }
             final long room = Math.max(0L, dest.getUsableSpace() - 64L * 1024 * 1024);
             try (ZipInputStream zin = new ZipInputStream(new BufferedInputStream(new FileInputStream(zip)))) {
                 ZipEntry e;
@@ -1696,6 +1704,13 @@ public class FileManagerActivity extends BaseActivity {
                             written += r;
                             if (written > room) throw new IOException(getString(R.string.fm_err_zip_unsafe));
                             os.write(buf, 0, r);
+                            if (total > 0) {
+                                int pct = (int) Math.min(99, written * 100 / total);
+                                if (pct != lastPct) {
+                                    lastPct = pct;
+                                    setBusyPercent(pct);
+                                }
+                            }
                         }
                     }
                     count++;

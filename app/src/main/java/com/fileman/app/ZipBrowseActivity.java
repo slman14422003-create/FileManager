@@ -514,7 +514,15 @@ public class ZipBrowseActivity extends BaseActivity {
         return s;
     }
 
+    private interface Progress {
+        void add(long bytes);
+    }
+
     private static long copyEntry(ZipFile z, ZipEntry e, File out, long limit) throws IOException {
+        return copyEntry(z, e, out, limit, null);
+    }
+
+    private static long copyEntry(ZipFile z, ZipEntry e, File out, long limit, Progress pr) throws IOException {
         long total = 0;
         try (InputStream in = new BufferedInputStream(z.getInputStream(e));
              OutputStream os = new BufferedOutputStream(new FileOutputStream(out))) {
@@ -524,6 +532,7 @@ public class ZipBrowseActivity extends BaseActivity {
                 total += r;
                 if (total > limit) throw new IOException("too large");
                 os.write(buf, 0, r);
+                if (pr != null) pr.add(r);
             }
         }
         return total;
@@ -619,6 +628,23 @@ public class ZipBrowseActivity extends BaseActivity {
     private void extract(final File dest, final Set<String> sel, final boolean flat) {
         cancel[0] = false;
         showBusy();
+        final long[] totalBytes = {0};
+        final long[] done = {0};
+        final int[] files = {0};
+        final int[] filesDone = {0};
+        final long[] lastPost = {0};
+        final int[] lastPct = {-2};
+        final String[] cur = {""};
+        final Runnable report = () -> {
+            int pct = totalBytes[0] > 0 ? (int) Math.min(99, done[0] * 100 / totalBytes[0])
+                    : files[0] > 0 ? Math.min(99, filesDone[0] * 100 / files[0]) : -1;
+            long now = System.currentTimeMillis();
+            if (pct != lastPct[0] || now - lastPost[0] > 150) {
+                lastPct[0] = pct;
+                lastPost[0] = now;
+                pushProgress(pct, cur[0]);
+            }
+        };
         io.execute(() -> {
             int count = 0;
             int err = 0;
@@ -626,6 +652,16 @@ public class ZipBrowseActivity extends BaseActivity {
             try (ZipFile z = openZip()) {
                 if (!dest.exists() && !dest.mkdirs()) throw new IOException(getString(R.string.fm_err_mkdir, dest.getName()));
                 final String root = dest.getCanonicalPath() + File.separator;
+                // size of what will be written, so the dialog can show a real percentage
+                Enumeration<? extends ZipEntry> pre = z.entries();
+                while (pre.hasMoreElements()) {
+                    ZipEntry pe = pre.nextElement();
+                    String pn = pe.getName().replace('\\', '/');
+                    while (pn.startsWith("/")) pn = pn.substring(1);
+                    if (pn.isEmpty() || pe.isDirectory() || pn.endsWith("/") || !wanted(pn, sel)) continue;
+                    files[0]++;
+                    if (pe.getSize() > 0) totalBytes[0] += pe.getSize();
+                }
                 long room = Math.max(0L, dest.getUsableSpace() - 64L * 1024 * 1024);
                 long written = 0;
                 Enumeration<? extends ZipEntry> en = z.entries();
@@ -648,7 +684,13 @@ public class ZipBrowseActivity extends BaseActivity {
                     }
                     File p = out.getParentFile();
                     if (p != null) p.mkdirs();
-                    written += copyEntry(z, e, out, Math.max(0, room - written));
+                    cur[0] = out.getName();
+                    report.run();
+                    written += copyEntry(z, e, out, Math.max(0, room - written), n -> {
+                        done[0] += n;
+                        report.run();
+                    });
+                    filesDone[0]++;
                     count++;
                 }
             } catch (ZipException e) {
@@ -685,15 +727,20 @@ public class ZipBrowseActivity extends BaseActivity {
         });
     }
 
+    private BusyBox busyBox;
+
+    private void pushProgress(final int pct, final String name) {
+        ui.post(() -> {
+            if (destroyed || busyBox == null) return;
+            busyBox.setPercent(pct);
+            if (name != null && !name.isEmpty()) busyBox.setText(name);
+        });
+    }
+
     private void showBusy() {
         hideBusy();
-        LinearLayout box = Ui.box(this);
-        box.setPadding(Ui.dp(this, 22), Ui.dp(this, 14), Ui.dp(this, 22), Ui.dp(this, 8));
-        ProgressBar pb = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        pb.setIndeterminate(true);
-        Ui.tint(this, pb);
-        box.addView(pb);
-        busyDialog = new Dlg(this).setTitle(R.string.fm_extracting).setView(box).setCancelable(false)
+        busyBox = new BusyBox(this, "");
+        busyDialog = new Dlg(this).setTitle(R.string.fm_extracting).setView(busyBox.view).setCancelable(false)
                 .setNegativeButton(R.string.cancel, (d, w) -> cancel[0] = true).create();
         busyDialog.show();
     }
@@ -706,6 +753,7 @@ public class ZipBrowseActivity extends BaseActivity {
             }
             busyDialog = null;
         }
+        busyBox = null;
     }
 
     private static void deleteTree(File f) {
