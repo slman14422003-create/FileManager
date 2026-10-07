@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Colour themes (day variants). Applied on top of AppTheme by Appearance / BaseActivity. -->
+    <!-- Root of the Palette.* family: dotted style names inherit from this implicitly. -->
+    <style name="Palette" />
+
     <style name="Palette.Ocean">
         <item name="cAccent">#FF2F6FEB</item>
         <item name="cAccentText">#FF1D55CC</item>
