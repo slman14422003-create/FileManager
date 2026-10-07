@@ -11,7 +11,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
  * Base of every screen: applies the user's colour theme on top of the app theme and keeps the system bar
  * icons readable in day and night mode.
  */
-public abstract class BaseActivity extends BaseActivity {
+public abstract class BaseActivity extends AppCompatActivity {
     @Override
     protected void onApplyThemeResource(Resources.Theme theme, int resid, boolean first) {
         super.onApplyThemeResource(theme, resid, first);
