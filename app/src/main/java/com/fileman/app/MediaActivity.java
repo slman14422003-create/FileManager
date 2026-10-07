@@ -170,6 +170,7 @@ public class MediaActivity extends BaseActivity {
             if (loading instanceof ProgressBar) Ui.tint(this, (ProgressBar) loading);
             findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
             findViewById(R.id.btnRefresh).setVisibility(View.GONE);
+            ViewerBar.headerIcon(this, file);
             ImageButton more = findViewById(R.id.btnA1);
             more.setImageResource(R.drawable.ic_more);
             more.setContentDescription(getString(R.string.more));
@@ -330,6 +331,7 @@ public class MediaActivity extends BaseActivity {
         art = new ImageView(this);
         art.setScaleType(ImageView.ScaleType.CENTER_CROP);
         rounded(art, 30);
+        art.setElevation(Ui.dp(this, 14));
         setDefaultArt();
         LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(side, side);
         ap.topMargin = Ui.dp(this, 14);
@@ -663,7 +665,7 @@ public class MediaActivity extends BaseActivity {
         lockBtn.setOnClickListener(v -> setLocked(true));
         prevBtn = round(R.drawable.ic_skip_prev, 46, 0, 0xFFFFFFFF, R.string.mp_prev);
         ImageButton back10 = round(R.drawable.ic_rewind, 46, 0, 0xFFFFFFFF, R.string.v_back10);
-        playBtn = round(R.drawable.ic_play_fill, 62, 0x33FFFFFF, 0xFFFFFFFF, R.string.v_play);
+        playBtn = round(R.drawable.ic_play_fill, 62, Ui.color(this, R.color.accent), 0xFFFFFFFF, R.string.v_play);
         ImageButton fwd10 = round(R.drawable.ic_forward, 46, 0, 0xFFFFFFFF, R.string.v_fwd10);
         nextBtn = round(R.drawable.ic_skip_next, 46, 0, 0xFFFFFFFF, R.string.mp_next);
         ImageButton rot = round(R.drawable.ic_rotate, 42, 0, 0xFFFFFFFF, R.string.mp_rotate);
@@ -703,6 +705,11 @@ public class MediaActivity extends BaseActivity {
         root.addView(bottom, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
 
+        // big centre play / pause button, shown together with the controls
+        centerPlay = round(R.drawable.ic_play_fill, 78, 0x66000000, 0xFFFFFFFF, R.string.v_play);
+        centerPlay.setOnClickListener(v -> togglePlay());
+        root.addView(centerPlay, new FrameLayout.LayoutParams(Ui.dp(this, 78), Ui.dp(this, 78), Gravity.CENTER));
+
         // centre feedback + loading
         indicator = pill("");
         indicator.setTextSize(18);
@@ -737,6 +744,14 @@ public class MediaActivity extends BaseActivity {
     }
 
     private ImageButton lockOverlay;
+    private ImageButton centerPlay;
+
+    /** Keeps every play / pause button (bottom bar and the big centre one) in step. */
+    private void setPlayIcon(boolean isPlaying) {
+        int res = isPlaying ? R.drawable.ic_pause_fill : R.drawable.ic_play_fill;
+        if (playBtn != null) playBtn.setImageResource(res);
+        if (centerPlay != null) centerPlay.setImageResource(res);
+    }
 
     /** Wires the controls that audio and video share. */
     private void wireCommon() {
@@ -779,7 +794,8 @@ public class MediaActivity extends BaseActivity {
     private void showControls(boolean show) {
         if (!video || locked) return;
         controlsShown = show;
-        for (View v : new View[]{topBar, bottomBar}) {
+        for (View v : new View[]{topBar, bottomBar, centerPlay}) {
+            if (v == null) continue;
             v.animate().cancel();
             if (show) {
                 v.setVisibility(View.VISIBLE);
@@ -892,7 +908,7 @@ public class MediaActivity extends BaseActivity {
         vidW = vidH = 0;
         loading.setVisibility(View.VISIBLE);
         playBtn.setEnabled(false);
-        playBtn.setImageResource(R.drawable.ic_play_fill);
+        setPlayIcon(false);
         seek.setProgress(0);
         seek.setMax(0);
         timeNow.setText(time(0));
@@ -1111,7 +1127,7 @@ public class MediaActivity extends BaseActivity {
             requestFocus();
             if (video) videoView.start();
             else player.start();
-            playBtn.setImageResource(R.drawable.ic_pause_fill);
+            setPlayIcon(true);
             scheduleHide();
         } catch (Exception ignored) {
         }
@@ -1125,7 +1141,7 @@ public class MediaActivity extends BaseActivity {
             }
         } catch (Exception ignored) {
         }
-        if (playBtn != null) playBtn.setImageResource(R.drawable.ic_play_fill);
+        setPlayIcon(false);
     }
 
     private void togglePlay() {

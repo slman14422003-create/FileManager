@@ -52,6 +52,7 @@ public class FileEditActivity extends BaseActivity {
         }
 
         ((TextView) findViewById(R.id.title)).setText(file.getName());
+        ViewerBar.headerIcon(this, file);
         TextView sub = findViewById(R.id.subtitle);
         sub.setText(file.getAbsolutePath());
         findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());

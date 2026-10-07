@@ -514,4 +514,8 @@
     <string name="pk_sort_name">Name</string>
     <string name="pk_sort_size">Size</string>
     <string name="pk_sort_date">Recent</string>
+    <string name="home_used_of">%1$s / %2$s</string>
+    <string name="home_analysis">Storage analysis</string>
+    <string name="home_by_size">By size</string>
+    <string name="home_installer">Package installer</string>
 </resources>

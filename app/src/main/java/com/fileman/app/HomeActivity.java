@@ -29,8 +29,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Home screen, simplified: search, storage, four big shortcuts (downloads, recent, favorites, largest),
- * six category tiles, pinned favorites, the newest files and the two advanced tools at the bottom.
+ * Home screen: one grid of big tiles (volumes with a usage ring, downloads, storage analysis, the categories,
+ * new files, favorites, archives and largest files). Search and settings live in the bottom bar.
  */
 public class HomeActivity extends BaseActivity {
     private static final long SCAN_MAX_AGE_MS = 60_000;
@@ -46,6 +46,8 @@ public class HomeActivity extends BaseActivity {
     private long statsAt = 0;
     private boolean scanning = false;
     private boolean hadAccess = false;
+    private volatile int dlCount = -1;
+    private volatile long dlSize = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,6 +103,15 @@ public class HomeActivity extends BaseActivity {
                 s = Cats.scan(Environment.getExternalStorageDirectory(), hidden, RECENT_ON_HOME, stop);
             } catch (Throwable ignored) {
             }
+            final int[] dlc = {0};
+            final long[] dls = {0};
+            try {
+                dirTotals(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                        dlc, dls, new int[]{30000}, 0);
+            } catch (Throwable ignored) {
+            }
+            dlCount = dlc[0];
+            dlSize = dls[0];
             final Cats.Stats res = s;
             ui.post(() -> {
                 scanning = false;
@@ -112,6 +123,23 @@ public class HomeActivity extends BaseActivity {
         });
     }
 
+    /** Counts the files under a folder (bounded, so a huge folder never stalls the scan). */
+    private void dirTotals(File dir, int[] count, long[] size, int[] budget, int depth) {
+        if (dir == null || stop.get() || budget[0] <= 0 || depth > 12) return;
+        File[] arr = dir.listFiles();
+        if (arr == null) return;
+        for (File f : arr) {
+            if (stop.get() || budget[0] <= 0) return;
+            budget[0]--;
+            if (f.isDirectory()) {
+                if (!Cats.isLink(f)) dirTotals(f, count, size, budget, depth + 1);
+            } else {
+                count[0]++;
+                size[0] += f.length();
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ rendering
 
     private boolean entered = false;
@@ -120,59 +148,46 @@ public class HomeActivity extends BaseActivity {
         final View scroller = (View) content.getParent();
         final int keepY = scroller.getScrollY();
         content.removeAllViews();
-        boolean access = Perms.hasAllFiles(this);
+        final boolean access = Perms.hasAllFiles(this);
 
         if (!access) content.addView(permissionCard());
-        content.addView(searchPill());
 
-        // storage (one compact card per volume)
+        // one grid of big tiles: volumes, downloads, analysis, the categories, then the smart lists
+        List<View> tiles = new ArrayList<>();
         File internal = Environment.getExternalStorageDirectory();
-        content.addView(storageCard(internal, getString(R.string.fm_internal), R.drawable.ic_drive));
+        tiles.add(storageTile(internal, getString(R.string.fm_internal)));
         int n = 1;
         for (File sd : sdRoots()) {
-            content.addView(storageCard(sd, getString(R.string.fm_sdcard) + (n > 1 ? " " + n : ""),
-                    R.drawable.ic_drive));
+            tiles.add(storageTile(sd, getString(R.string.fm_sdcard) + (n > 1 ? " " + n : "")));
             n++;
         }
+        final File dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        String dlSub = dlCount >= 0 ? getString(R.string.home_tile_sub, dlCount, Fmt.size(dlSize)) : (access ? "…" : "");
+        tiles.add(homeTile(R.drawable.ic_download, R.color.ok, getString(R.string.fm_downloads), dlSub,
+                v -> openFolder(dl)));
+        tiles.add(analysisTile(internal));
+        tiles.add(catTile(Cats.IMG));
+        tiles.add(catTile(Cats.AUD));
+        tiles.add(catTile(Cats.VID));
+        tiles.add(catTile(Cats.DOC));
+        tiles.add(catTile(Cats.APK));
+        tiles.add(catTile(Cats.RECENT));
+        tiles.add(catTile(Cats.FAV));
+        tiles.add(catTile(Cats.ARC));
+        tiles.add(catTile(Cats.LARGE));
+        tiles.add(homeTile(R.drawable.ic_package, R.color.lime, getString(R.string.home_installer),
+                getString(R.string.pk_beta), v -> startActivity(new Intent(this, InstallerActivity.class))));
 
-        // the four places people reach for most: one big tap each
-        content.addView(shortcutRow());
-
-        // categories
-        content.addView(Ui.sectionTitle(this, getString(R.string.home_quick)));
-        content.addView(tileRow(Cats.IMG, Cats.VID, Cats.AUD));
-        content.addView(tileRow(Cats.DOC, Cats.APK, Cats.ARC));
-
-        // pinned favorites
-        final List<File> favs = existingFavorites();   // read once per render
-        if (!favs.isEmpty()) {
-            content.addView(Ui.sectionTitle(this, getString(R.string.home_pinned)));
-            LinearLayout pinned = new LinearLayout(this);
-            pinned.setOrientation(LinearLayout.VERTICAL);
-            for (int i = 0; i < Math.min(PINNED_ON_HOME, favs.size()); i++) pinned.addView(fileRow(favs.get(i), true));
-            Ui.group(this, pinned);
-            content.addView(pinned);
+        for (int i = 0; i < tiles.size(); i += 3) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setPadding(Ui.dp(this, 10), i == 0 ? Ui.dp(this, 6) : 0, Ui.dp(this, 10), 0);
+            for (int k = 0; k < 3; k++) {
+                View cell = i + k < tiles.size() ? tiles.get(i + k) : new View(this);
+                row.addView(cell, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            }
+            content.addView(row);
         }
-
-        // newest files
-        if (stats != null && !stats.recent.isEmpty()) {
-            content.addView(Ui.sectionTitle(this, getString(R.string.home_newest)));
-            LinearLayout recent = new LinearLayout(this);
-            recent.setOrientation(LinearLayout.VERTICAL);
-            for (File f : stats.recent) recent.addView(fileRow(f, false));
-            Ui.group(this, recent);
-            content.addView(recent);
-        }
-
-        // tools: only the two bigger features, kept at the bottom
-        content.addView(Ui.sectionTitle(this, getString(R.string.home_tools)));
-        LinearLayout tools = new LinearLayout(this);
-        tools.setOrientation(LinearLayout.VERTICAL);
-        tools.addView(toolRow(R.drawable.ic_package, R.string.pk_title, R.string.pk_subtitle,
-                InstallerActivity.class, getString(R.string.pk_beta)));
-        tools.addView(toolRow(R.drawable.ic_chart, R.string.tl_title, R.string.tl_subtitle, ToolsActivity.class, null));
-        Ui.group(this, tools);
-        content.addView(tools);
         if (keepY > 0) scroller.post(() -> scroller.scrollTo(0, keepY));
         if (!entered) {   // soft staggered entrance the first time the screen is drawn
             entered = true;
@@ -180,76 +195,116 @@ public class HomeActivity extends BaseActivity {
         }
     }
 
-    /** Big search field at the top; tapping it opens the search screen with the keyboard up. */
-    private View searchPill() {
-        TextView t = new TextView(this);
-        t.setText(R.string.fm_search_hint);
-        t.setTextSize(15);
-        t.setTextColor(Ui.color(this, R.color.text_hint));
-        t.setSingleLine(true);
-        t.setGravity(Gravity.CENTER_VERTICAL);
-        t.setBackgroundResource(R.drawable.bg_input);
-        t.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_search, 0, 0, 0);
-        t.setCompoundDrawablePadding(Ui.dp(this, 12));
-        t.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.text_hint)));
-        t.setPadding(Ui.dp(this, 18), Ui.dp(this, 15), Ui.dp(this, 18), Ui.dp(this, 15));
-        Ui.block(this, t);
-        ((LinearLayout.LayoutParams) t.getLayoutParams()).topMargin = Ui.dp(this, 4);
-        Ui.press(this, t);
-        t.setOnClickListener(v -> {
-            Intent i = new Intent(this, FileManagerActivity.class);
-            i.putExtra("search", true);
-            startActivity(i);
-        });
-        return t;
-    }
-
-    /** Four large round shortcuts: Downloads, Recent, Favorites, Largest files. */
-    private View shortcutRow() {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(Ui.dp(this, 10), Ui.dp(this, 14), Ui.dp(this, 10), Ui.dp(this, 2));
-        final File dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-        addShortcut(row, R.drawable.ic_download, getString(R.string.fm_downloads), R.color.ok,
-                v -> openFolder(dl));
-        addShortcut(row, R.drawable.ic_clock, getString(Cats.titleOf(Cats.RECENT)), R.color.info,
-                v -> openCategory(Cats.RECENT));
-        addShortcut(row, R.drawable.ic_star, getString(Cats.titleOf(Cats.FAV)), R.color.warn,
-                v -> openCategory(Cats.FAV));
-        addShortcut(row, R.drawable.ic_chart, getString(Cats.titleOf(Cats.LARGE)), R.color.violet,
-                v -> openCategory(Cats.LARGE));
-        return row;
-    }
-
-    private void addShortcut(LinearLayout row, int icon, String label, int colorRes, View.OnClickListener click) {
-        LinearLayout item = new LinearLayout(this);
-        item.setOrientation(LinearLayout.VERTICAL);
-        item.setGravity(Gravity.CENTER_HORIZONTAL);
-        item.setContentDescription(label);
-        int col = Ui.color(this, colorRes);
-
-        ImageView iv = new ImageView(this);
+    /** One grid cell: a rounded icon box, the name under it and a small detail line. */
+    private View homeTile(int icon, int colorRes, String title, String sub, View.OnClickListener click) {
+        View v = LayoutInflater.from(this).inflate(R.layout.item_home_tile, content, false);
+        ImageView iv = v.findViewById(R.id.icon);
         iv.setImageResource(icon);
-        iv.setImageTintList(android.content.res.ColorStateList.valueOf(col));
-        iv.setScaleType(ImageView.ScaleType.CENTER);
-        GradientDrawable g = new GradientDrawable();
-        g.setShape(GradientDrawable.OVAL);
-        g.setColor((col & 0x00FFFFFF) | 0x24000000);
-        iv.setBackground(g);
-        item.addView(iv, new LinearLayout.LayoutParams(Ui.dp(this, 58), Ui.dp(this, 58)));
+        iv.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, colorRes)));
+        ((TextView) v.findViewById(R.id.title)).setText(title);
+        ((TextView) v.findViewById(R.id.sub)).setText(sub);
+        v.setContentDescription(title);
+        Ui.press(this, v);
+        v.setOnClickListener(click);
+        return v;
+    }
 
-        TextView t = new TextView(this);
-        t.setText(label);
-        t.setTextSize(12.5f);
-        t.setSingleLine(true);
-        t.setGravity(Gravity.CENTER);
-        t.setTextColor(Ui.color(this, R.color.text_primary));
-        t.setPadding(0, Ui.dp(this, 8), 0, 0);
-        item.addView(t);
+    /** A category tile: icon, name and "count · size" from the last scan. */
+    private View catTile(final String cat) {
+        int icon;
+        int color;
+        String sub = null;
+        switch (cat) {
+            case Cats.IMG:
+                icon = R.drawable.ic_image;
+                color = R.color.ok;
+                break;
+            case Cats.VID:
+                icon = R.drawable.ic_video;
+                color = R.color.bad;
+                break;
+            case Cats.AUD:
+                icon = R.drawable.ic_music;
+                color = R.color.violet;
+                break;
+            case Cats.DOC:
+                icon = R.drawable.ic_file_text;
+                color = R.color.info;
+                break;
+            case Cats.APK:
+                icon = R.drawable.ic_package;
+                color = R.color.lime;
+                break;
+            case Cats.RECENT:
+                icon = R.drawable.ic_clock;
+                color = R.color.info;
+                if (stats != null) sub = getString(R.string.home_tile_sub, stats.newCount, Fmt.size(stats.newSize));
+                break;
+            case Cats.FAV:
+                icon = R.drawable.ic_star;
+                color = R.color.warn;
+                sub = getString(R.string.fm_items_n, existingFavorites().size());
+                break;
+            case Cats.LARGE:
+                icon = R.drawable.ic_chart;
+                color = R.color.violet;
+                sub = getString(R.string.home_by_size);
+                break;
+            default:
+                icon = R.drawable.ic_archive;
+                color = R.color.warn;
+                break;
+        }
+        if (sub == null) {
+            if (stats != null) {
+                sub = getString(R.string.home_tile_sub, Cats.countOf(stats, cat), Fmt.size(Cats.sizeOf(stats, cat)));
+            } else {
+                sub = Perms.hasAllFiles(this) ? "…" : "";
+            }
+        }
+        return homeTile(icon, color, getString(Cats.titleOf(cat)), sub, v -> openCategory(cat));
+    }
 
-        Ui.press(this, item);
-        item.setOnClickListener(click);
-        row.addView(item, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+    /** Volume tile: a usage ring around the drive icon, "used / total" under the name. */
+    private View storageTile(final File root, String label) {
+        View v = homeTile(R.drawable.ic_drive, R.color.accent_text, label, "…", x -> openFolder(root));
+        try {
+            StatFs st = new StatFs(root.getAbsolutePath());
+            long total = st.getTotalBytes();
+            long used = Math.max(0, total - st.getAvailableBytes());
+            if (total <= 0) throw new IllegalStateException();
+            double pct = used * 100.0 / total;
+            ((TextView) v.findViewById(R.id.sub)).setText(getString(R.string.home_used_of, Fmt.size(used), Fmt.size(total)));
+            v.findViewById(R.id.icon).setVisibility(View.GONE);
+            UsageView u = v.findViewById(R.id.usage);
+            u.setVisibility(View.VISIBLE);
+            u.setUsage(UsageView.RING, pct, Ui.color(this, pct > 90 ? R.color.bad : R.color.accent),
+                    Ui.color(this, R.color.neutral_soft));
+            u.setCenterIcon(R.drawable.ic_drive, Ui.color(this, R.color.accent_text));
+        } catch (Exception e) {
+            ((TextView) v.findViewById(R.id.sub)).setText(R.string.fm_unreadable);
+        }
+        return v;
+    }
+
+    /** Storage analysis tile: a small pie of the used space, opens the advanced tools. */
+    private View analysisTile(File root) {
+        View v = homeTile(R.drawable.ic_chart, R.color.accent_text, getString(R.string.home_analysis), "",
+                x -> startActivity(new Intent(this, ToolsActivity.class)));
+        try {
+            StatFs st = new StatFs(root.getAbsolutePath());
+            long total = st.getTotalBytes();
+            long used = Math.max(0, total - st.getAvailableBytes());
+            if (total <= 0) throw new IllegalStateException();
+            double pct = used * 100.0 / total;
+            ((TextView) v.findViewById(R.id.sub)).setText(getString(R.string.home_used_pct, Math.round(pct)));
+            v.findViewById(R.id.icon).setVisibility(View.GONE);
+            UsageView u = v.findViewById(R.id.usage);
+            u.setVisibility(View.VISIBLE);
+            u.setUsage(UsageView.PIE, pct, Ui.color(this, R.color.accent), Ui.color(this, R.color.neutral_soft));
+        } catch (Exception ignored) {
+        }
+        return v;
     }
 
     private View permissionCard() {
@@ -281,170 +336,6 @@ public class HomeActivity extends BaseActivity {
         box.addView(grant, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         return box;
-    }
-
-    /** Card with the volume name, used / total size and a usage bar. Tapping it opens the volume. */
-    private View storageCard(final File root, String label, int iconRes) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackgroundResource(R.drawable.bg_card_hero);
-        card.setPadding(Ui.dp(this, 18), Ui.dp(this, 14), Ui.dp(this, 18), Ui.dp(this, 12));
-        Ui.block(this, card);
-        Ui.press(this, card);
-        card.setOnClickListener(v -> openFolder(root));
-
-        LinearLayout top = new LinearLayout(this);
-        top.setGravity(Gravity.CENTER_VERTICAL);
-        ImageView icon = new ImageView(this);
-        icon.setImageResource(iconRes);
-        icon.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.accent_text)));
-        int p = Ui.dp(this, 10);
-        icon.setPadding(p, p, p, p);
-        GradientDrawable circle = new GradientDrawable();
-        circle.setShape(GradientDrawable.OVAL);
-        circle.setColor(Ui.color(this, R.color.accent_soft));
-        icon.setBackground(circle);
-        top.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44)));
-
-        TextView name = new TextView(this);
-        name.setText(label);
-        name.setTextColor(Ui.color(this, R.color.text_primary));
-        name.setTextSize(17);
-        name.setSingleLine(true);
-        name.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-        LinearLayout.LayoutParams nl = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        nl.setMarginStart(Ui.dp(this, 14));
-        top.addView(name, nl);
-
-        TextView pctView = new TextView(this);
-        pctView.setTextSize(13);
-        pctView.setTextColor(Ui.color(this, R.color.text_secondary));
-        top.addView(pctView);
-        card.addView(top);
-
-        TextView big = new TextView(this);
-        big.setTextSize(26);
-        big.setTypeface(Typeface.create("serif", Typeface.NORMAL));
-        big.setTextColor(Ui.color(this, R.color.text_primary));
-        big.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-        big.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 2));
-        card.addView(big);
-
-        TextView line = new TextView(this);
-        line.setTextSize(13);
-        line.setTextColor(Ui.color(this, R.color.text_secondary));
-        line.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-        line.setPadding(0, 0, 0, Ui.dp(this, 10));
-        card.addView(line);
-
-        try {
-            StatFs st = new StatFs(root.getAbsolutePath());
-            long total = st.getTotalBytes();
-            long free = st.getAvailableBytes();
-            long used = Math.max(0, total - free);
-            if (total <= 0) throw new IllegalStateException();
-            double pct = used * 100.0 / total;
-            big.setText(Fmt.size(used));
-            line.setText(getString(R.string.home_storage_line, Fmt.size(total), Fmt.size(free)));
-            pctView.setText(getString(R.string.home_used_pct, Math.round(pct)));
-            card.addView(Ui.bar(this, pct, pct > 90 ? R.color.bad : R.color.accent, 0, 4));
-        } catch (Exception e) {
-            big.setText("—");
-            line.setText(R.string.fm_unreadable);
-        }
-        return card;
-    }
-
-    /** A horizontal row of three category tiles with equal width. */
-    private View tileRow(String... cats) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(Ui.dp(this, 10), 0, Ui.dp(this, 10), 0);
-        for (String c : cats) {
-            View t = tile(c);
-            row.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        }
-        return row;
-    }
-
-    private View tile(final String cat) {
-        View v = LayoutInflater.from(this).inflate(R.layout.item_tile, content, false);
-        int icon;
-        int color;
-        switch (cat) {
-            case Cats.IMG:
-                icon = R.drawable.ic_image;
-                color = R.color.ok;
-                break;
-            case Cats.VID:
-                icon = R.drawable.ic_video;
-                color = R.color.bad;
-                break;
-            case Cats.AUD:
-                icon = R.drawable.ic_music;
-                color = R.color.violet;
-                break;
-            case Cats.DOC:
-                icon = R.drawable.ic_file_text;
-                color = R.color.info;
-                break;
-            case Cats.APK:
-                icon = R.drawable.ic_package;
-                color = R.color.lime;
-                break;
-            default:
-                icon = R.drawable.ic_archive;
-                color = R.color.warn;
-                break;
-        }
-        int col = Ui.color(this, color);
-        ImageView iv = v.findViewById(R.id.icon);
-        iv.setImageResource(icon);
-        iv.setImageTintList(android.content.res.ColorStateList.valueOf(col));
-        GradientDrawable g = new GradientDrawable();
-        g.setCornerRadius(Ui.dp(this, 14));
-        g.setColor((col & 0x00FFFFFF) | 0x26000000);
-        iv.setBackground(g);
-
-        ((TextView) v.findViewById(R.id.title)).setText(Cats.titleOf(cat));
-        TextView sub = v.findViewById(R.id.sub);
-        if (stats != null) {
-            sub.setText(getString(R.string.home_tile_sub, Cats.countOf(stats, cat),
-                    Fmt.size(Cats.sizeOf(stats, cat))));
-        } else {
-            sub.setText(Perms.hasAllFiles(this) ? "…" : "");
-        }
-        Ui.press(this, v.findViewById(R.id.card));
-        v.findViewById(R.id.card).setOnClickListener(x -> openCategory(cat));
-        return v;
-    }
-
-    private View toolRow(int icon, int title, int sub, final Class<?> target, String badge) {
-        Row r = new Row(icon, false, getString(title), getString(sub), false, true)
-                .tint(Ui.color(this, R.color.accent_text));
-        if (badge != null) r.badge(badge, Ui.color(this, R.color.warn));
-        return Ui.rowView(this, content, r, v -> startActivity(new Intent(this, target)));
-    }
-
-    /** A row for a file or folder (pinned favorites and the newest files). */
-    private View fileRow(final File f, boolean showPath) {
-        boolean dir = f.isDirectory();
-        int type = dir ? Cats.T_DIR : Cats.typeOfExt(Cats.extOf(f.getName()));
-        String sub;
-        if (dir) {
-            String[] kids = f.list();
-            sub = kids == null ? getString(R.string.fm_unreadable) : getString(R.string.fm_items_n, kids.length);
-            File p = f.getParentFile();
-            if (showPath && p != null) sub += " · " + p.getName();
-        } else {
-            sub = Fmt.size(f.length()) + " · " + Fmt.ago(f.lastModified());
-        }
-        Row r = new Row(Cats.iconFor(type), false, f.getName(), sub, false, dir)
-                .tint(Ui.color(this, Cats.colorFor(type)));
-        return Ui.rowView(this, content, r, v -> {
-            if (dir) openFolder(f);
-            else Opener.open(this, f);
-        });
     }
 
     // ------------------------------------------------------------------ navigation

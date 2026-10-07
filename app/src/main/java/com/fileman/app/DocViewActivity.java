@@ -13,6 +13,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -67,6 +68,7 @@ public class DocViewActivity extends BaseActivity {
         if (loading instanceof ProgressBar) Ui.tint(this, (ProgressBar) loading);
         findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
         findViewById(R.id.btnRefresh).setVisibility(View.GONE);
+        ViewerBar.headerIcon(this, file);
         ImageButton more = findViewById(R.id.btnA1);
         more.setImageResource(R.drawable.ic_more);
         more.setContentDescription(getString(R.string.more));
@@ -77,18 +79,7 @@ public class DocViewActivity extends BaseActivity {
                 new String[]{getString(R.string.rd_night) + (night ? "  ✓" : ""),
                         getString(R.string.rd_text_size) + " +", getString(R.string.rd_text_size) + " −"},
                 new Runnable[]{this::toggleNight, () -> changeZoom(20), () -> changeZoom(-20)}));
-        findBtn = findViewById(R.id.btnA2);
-        findBtn.setImageResource(R.drawable.ic_search);
-        findBtn.setContentDescription(getString(R.string.v_find));
-        findBtn.setVisibility(View.VISIBLE);
-        findBtn.setOnClickListener(v -> {
-            if (finding) web.findNext(true);
-            else askFind();
-        });
-        findBtn.setOnLongClickListener(v -> {
-            askFind();
-            return true;
-        });
+        // find / text size / night mode live in a floating bar over the page (set up after the WebView exists)
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -147,8 +138,24 @@ public class DocViewActivity extends BaseActivity {
                 loading.setVisibility(View.VISIBLE);
             }
         });
-        ((FrameLayout) findViewById(R.id.holder)).addView(web,
+        FrameLayout holder = findViewById(R.id.holder);
+        holder.addView(web,
                 new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        LinearLayout bar = ViewerBar.attach(this, holder, false,
+                new int[]{R.drawable.ic_search, R.drawable.ic_zoom, R.drawable.ic_night},
+                new int[]{R.string.v_find, R.string.rd_text_size, R.string.rd_night},
+                new View.OnClickListener[]{
+                        v -> {
+                            if (finding) web.findNext(true);
+                            else askFind();
+                        },
+                        v -> cycleZoom(),
+                        v -> toggleNight()});
+        findBtn = (ImageButton) bar.getChildAt(0);
+        findBtn.setOnLongClickListener(v -> {
+            askFind();
+            return true;
+        });
 
         loading.setVisibility(View.VISIBLE);
         io.execute(() -> {
@@ -178,13 +185,16 @@ public class DocViewActivity extends BaseActivity {
         });
     }
 
+    /** Room at the end of the page so the floating bar never hides the last lines. */
+    private static final String EXTRA_CSS = "<style>body{padding-bottom:96px !important}</style>";
+
     private static final String NIGHT_CSS = "<style>html{filter:invert(1) hue-rotate(180deg);background:#fff}"
             + "img,svg{filter:invert(1) hue-rotate(180deg)}</style>";
 
     /** Loads the converted document, with the night-mode stylesheet in front when it is on. */
     private void render() {
         if (baseHtml == null) return;
-        String h = night ? NIGHT_CSS + baseHtml : baseHtml;
+        String h = EXTRA_CSS + (night ? NIGHT_CSS : "") + baseHtml;
         web.setBackgroundColor(night ? 0xFF121212 : Ui.color(this, R.color.bg));
         web.loadDataWithBaseURL(BASE, h, "text/html", "utf-8", null);
     }
@@ -194,6 +204,10 @@ public class DocViewActivity extends BaseActivity {
         Store.setIntPref(this, "doc_night", night ? 1 : 0);
         restoreY = web.getScrollY();
         render();
+    }
+
+    private void cycleZoom() {
+        changeZoom((zoom >= 200 ? 80 : zoom + 20) - zoom);
     }
 
     private void changeZoom(int delta) {

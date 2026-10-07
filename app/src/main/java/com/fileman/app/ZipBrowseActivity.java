@@ -95,6 +95,7 @@ public class ZipBrowseActivity extends BaseActivity {
         title = findViewById(R.id.title);
         subtitle = findViewById(R.id.subtitle);
         title.setText(zip.getName());
+        ViewerBar.headerIcon(this, zip);
         loading = findViewById(R.id.loading);
         if (loading instanceof ProgressBar) Ui.tint(this, (ProgressBar) loading);
         empty = findViewById(R.id.empty);

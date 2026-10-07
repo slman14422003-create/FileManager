@@ -1,5 +1,6 @@
 package com.fileman.app;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Matrix;
 import android.graphics.drawable.Drawable;
@@ -7,14 +8,26 @@ import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
+import android.view.animation.DecelerateInterpolator;
 
 import androidx.appcompat.widget.AppCompatImageView;
 
-/** Image view with pinch-to-zoom, drag, double-tap zoom and a horizontal swipe callback. */
+/**
+ * Image view with pinch-to-zoom, drag, animated double-tap zoom, a finger-following horizontal swipe
+ * (next / previous image), a fling-down to close and a single-tap callback.
+ */
 public class ZoomImageView extends AppCompatImageView {
     public interface SwipeListener {
-        /** dir = +1 for next, -1 for previous. */
+        /** dir = +1 for next, -1 for previous. The listener must slide to the new image or call {@link #snapBack()}. */
         void onSwipe(int dir);
+    }
+
+    public interface TapListener {
+        void onTap();
+    }
+
+    public interface DismissListener {
+        void onDismiss();
     }
 
     private static final float MAX_ZOOM = 6f;
@@ -22,7 +35,12 @@ public class ZoomImageView extends AppCompatImageView {
     private final Matrix matrix = new Matrix();
     private final float[] vals = new float[9];
     private float baseScale = 1f;
+    private float dragX = 0f;
+    private boolean flinged = false;
+    private ValueAnimator zoomAnim;
     private SwipeListener swipe;
+    private TapListener tap;
+    private DismissListener dismiss;
     private final ScaleGestureDetector scaleDetector;
     private final GestureDetector gestureDetector;
 
@@ -52,32 +70,42 @@ public class ZoomImageView extends AppCompatImageView {
             }
 
             @Override
+            public boolean onSingleTapConfirmed(MotionEvent e) {
+                if (tap != null) tap.onTap();
+                return true;
+            }
+
+            @Override
             public boolean onScroll(MotionEvent e1, MotionEvent e2, float dx, float dy) {
                 if (isZoomed()) {
                     matrix.postTranslate(-dx, -dy);
                     fixTranslation();
                     setImageMatrix(matrix);
+                } else if (swipe != null && (Math.abs(dx) > Math.abs(dy) || dragX != 0f)) {
+                    dragX -= dx;
+                    setTranslationX(dragX);
                 }
                 return true;
             }
 
             @Override
             public boolean onDoubleTap(MotionEvent e) {
-                if (isZoomed()) {
-                    fit();
-                } else {
-                    float f = 2.5f;
-                    matrix.postScale(f, f, e.getX(), e.getY());
-                    fixTranslation();
-                    setImageMatrix(matrix);
-                }
+                if (isZoomed()) animateScale(baseScale, getWidth() / 2f, getHeight() / 2f);
+                else animateScale(baseScale * 2.5f, e.getX(), e.getY());
                 return true;
             }
 
             @Override
             public boolean onFling(MotionEvent e1, MotionEvent e2, float vx, float vy) {
-                if (!isZoomed() && swipe != null && Math.abs(vx) > 800 && Math.abs(vx) > Math.abs(vy)) {
+                if (isZoomed()) return false;
+                if (swipe != null && Math.abs(vx) > 900 && Math.abs(vx) > Math.abs(vy)) {
+                    flinged = true;
                     swipe.onSwipe(vx < 0 ? 1 : -1);
+                    return true;
+                }
+                if (dismiss != null && vy > 2200 && Math.abs(vy) > Math.abs(vx) * 1.5f) {
+                    flinged = true;
+                    dismiss.onDismiss();
                     return true;
                 }
                 return false;
@@ -89,10 +117,26 @@ public class ZoomImageView extends AppCompatImageView {
         swipe = l;
     }
 
+    public void setTapListener(TapListener l) {
+        tap = l;
+    }
+
+    public void setDismissListener(DismissListener l) {
+        dismiss = l;
+    }
+
     /** Shows a bitmap fitted to the view. */
     public void show(android.graphics.Bitmap b) {
+        dragX = 0f;
+        flinged = false;
         setImageBitmap(b);
         fit();
+    }
+
+    /** Slides the picture back to the middle (a swipe that had nowhere to go, or one that was not far enough). */
+    public void snapBack() {
+        dragX = 0f;
+        animate().translationX(0f).alpha(1f).setDuration(170).start();
     }
 
     @Override
@@ -108,6 +152,23 @@ public class ZoomImageView extends AppCompatImageView {
 
     private boolean isZoomed() {
         return currentScale() > baseScale * 1.02f;
+    }
+
+    private void animateScale(final float target, final float fx, final float fy) {
+        if (zoomAnim != null) zoomAnim.cancel();
+        final float start = currentScale();
+        zoomAnim = ValueAnimator.ofFloat(0f, 1f);
+        zoomAnim.setDuration(230);
+        zoomAnim.setInterpolator(new DecelerateInterpolator());
+        zoomAnim.addUpdateListener(a -> {
+            float t = (float) a.getAnimatedValue();
+            float want = start + (target - start) * t;
+            float f = want / currentScale();
+            matrix.postScale(f, f, fx, fy);
+            fixTranslation();
+            setImageMatrix(matrix);
+        });
+        zoomAnim.start();
     }
 
     private void fit() {
@@ -142,10 +203,32 @@ public class ZoomImageView extends AppCompatImageView {
         matrix.postTranslate(nx - tx, ny - ty);
     }
 
+    private void settleDrag() {
+        if (dragX == 0f) return;
+        float w = Math.max(1, getWidth());
+        if (!flinged) {
+            if (Math.abs(dragX) > w * 0.25f && swipe != null) {
+                flinged = true;
+                swipe.onSwipe(dragX < 0 ? 1 : -1);
+            } else {
+                snapBack();
+            }
+        }
+        dragX = 0f;
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent ev) {
+        int act = ev.getActionMasked();
+        if (act == MotionEvent.ACTION_DOWN) {
+            flinged = false;
+            if (zoomAnim != null) zoomAnim.cancel();
+            animate().cancel();
+            dragX = getTranslationX();
+        }
         scaleDetector.onTouchEvent(ev);
         if (!scaleDetector.isInProgress()) gestureDetector.onTouchEvent(ev);
+        if (act == MotionEvent.ACTION_UP || act == MotionEvent.ACTION_CANCEL) settleDrag();
         return true;
     }
 }

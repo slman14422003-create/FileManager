@@ -84,11 +84,12 @@ public class PdfViewActivity extends BaseActivity {
         if (loading instanceof ProgressBar) Ui.tint(this, (ProgressBar) loading);
         findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
         findViewById(R.id.btnRefresh).setVisibility(View.GONE);
+        ViewerBar.headerIcon(this, file);
 
         ImageButton zoomBtn = findViewById(R.id.btnA1);
         zoomBtn.setImageResource(R.drawable.ic_zoom);
         zoomBtn.setContentDescription(getString(R.string.v_zoom));
-        zoomBtn.setVisibility(View.VISIBLE);
+        zoomBtn.setVisibility(View.GONE);   // zoom now lives in the floating bar
         zoomBtn.setOnClickListener(v -> cycleZoom());
         ImageButton more = findViewById(R.id.btnA2);
         more.setImageResource(R.drawable.ic_more);
@@ -159,7 +160,7 @@ public class PdfViewActivity extends BaseActivity {
             list.setVerticalScrollBarEnabled(false);
             list.setSelector(android.R.color.transparent);
             list.setClipToPadding(false);
-            list.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 72));
+            list.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 100));
             list.setFastScrollEnabled(true);
             adapter = new PageAdapter();
             list.setAdapter(adapter);
@@ -194,8 +195,12 @@ public class PdfViewActivity extends BaseActivity {
             Ui.press(this, pill);
             FrameLayout.LayoutParams pl = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-            pl.bottomMargin = Ui.dp(this, 22);
+            pl.bottomMargin = Ui.dp(this, 92);
             holder.addView(pill, pl);
+            ViewerBar.attach(this, holder, false,
+                    new int[]{R.drawable.ic_zoom, R.drawable.ic_list_play, R.drawable.ic_night},
+                    new int[]{R.string.v_zoom, R.string.rd_page_jump, R.string.rd_night},
+                    new View.OnClickListener[]{v -> cycleZoom(), v -> askPage(), v -> toggleNight()});
             int saved = (int) Store.resume(this, file.getAbsolutePath());
             if (saved > 0 && saved < pageCount) {
                 list.setSelection(saved);

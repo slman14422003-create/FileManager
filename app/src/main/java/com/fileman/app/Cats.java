@@ -234,6 +234,10 @@ public final class Cats {
         public final long[] size = new long[10];
         public final List<File> recent = new ArrayList<>();
         public boolean complete = true;
+        /** Files changed during the last week ("new files" tile). */
+        public int newCount = 0;
+        public long newSize = 0;
+        public final long newSince = System.currentTimeMillis() - 7L * 24 * 3600 * 1000;
     }
 
     /** Safety limit so a huge phone never makes the home screen scan forever. */
@@ -275,6 +279,10 @@ public final class Cats {
             st.size[t] += len;
             if (t != T_OTHER || len > 0) {
                 long mod = f.lastModified();
+                if (mod >= st.newSince) {
+                    st.newCount++;
+                    st.newSize += len;
+                }
                 if (heap.size() < keep || mod > heap.peek().mod) {
                     heap.add(new Hit(f));
                     if (heap.size() > keep) heap.poll();
