@@ -5,7 +5,9 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.graphics.Outline;
+import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.media.ExifInterface;
 import android.os.Build;
@@ -18,12 +20,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.WindowManager;
+import android.view.animation.AccelerateInterpolator;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -50,8 +53,10 @@ public class ImageViewActivity extends BaseActivity {
     private static final int MAX_SIDE = 2560;
     private static final int THUMB_WINDOW = 24;
     private static final int SLIDE_MS = 3500;
+    private static final int PREFETCH = 2;   // images decoded ahead in each direction
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService preIo = Executors.newSingleThreadExecutor();   // neighbours, never blocks the visible image
     private final ExecutorService thumbIo = Executors.newFixedThreadPool(2);
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final List<File> images = new ArrayList<>();
@@ -60,6 +65,10 @@ public class ImageViewActivity extends BaseActivity {
     private LruCache<String, Bitmap> thumbCache;
     private int index = 0;
     private volatile int gen = 0;
+    private final Runnable showSpinner = () -> {
+        View l = ImageViewActivity.this.loading;
+        if (l != null) l.setVisibility(View.VISIBLE);
+    };
 
     private FrameLayout root;
     private ZoomImageView zoom;
@@ -104,7 +113,7 @@ public class ImageViewActivity extends BaseActivity {
                 return b.getByteCount();
             }
         };
-        goImmersive();
+        setupWindow();
         buildUi(start);
 
         // the other images of the same folder, in name order
@@ -148,16 +157,32 @@ public class ImageViewActivity extends BaseActivity {
 
     // ------------------------------------------------------------------ UI
 
-    private void goImmersive() {
+    /**
+     * Edge-to-edge black stage. The system bars are transparent over the black picture and are shown / hidden
+     * together with the floating bars (see {@link #showBars}), so the status bar never looks like a separate strip.
+     */
+    private void setupWindow() {
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-        WindowInsetsControllerCompat c = new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
-        c.hide(WindowInsetsCompat.Type.systemBars());
-        c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        getWindow().setBackgroundDrawable(new ColorDrawable(Color.BLACK));
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        if (Build.VERSION.SDK_INT >= 29) {
+            getWindow().setStatusBarContrastEnforced(false);
+            getWindow().setNavigationBarContrastEnforced(false);
+        }
         if (Build.VERSION.SDK_INT >= 28) {
             WindowManager.LayoutParams wl = getWindow().getAttributes();
             wl.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
             getWindow().setAttributes(wl);
         }
+        WindowInsetsControllerCompat c = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+    }
+
+    private void setSystemBars(boolean show) {
+        WindowInsetsControllerCompat c = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (show) c.show(WindowInsetsCompat.Type.systemBars());
+        else c.hide(WindowInsetsCompat.Type.systemBars());
     }
 
     private ImageButton iconButton(int icon, int descRes) {
@@ -284,16 +309,23 @@ public class ImageViewActivity extends BaseActivity {
 
     private void showBars(boolean show) {
         barsShown = show;
-        for (View v : new View[]{topBar, bottomBox}) {
+        setSystemBars(show);   // status / navigation bar follow the floating bars
+        float shift = Ui.dp(this, 10);
+        for (int k = 0; k < 2; k++) {
+            final View v = k == 0 ? topBar : bottomBox;
+            float away = k == 0 ? -shift : shift;
             v.animate().cancel();
             if (show) {
                 v.setVisibility(View.VISIBLE);
-                v.animate().alpha(1f).setDuration(180).start();
+                v.setTranslationY(away);
+                v.animate().alpha(1f).translationY(0f).setDuration(200)
+                        .setInterpolator(new DecelerateInterpolator(1.5f)).withLayer().start();
             } else {
-                final View fv = v;
-                v.animate().alpha(0f).setDuration(180).withEndAction(() -> {
-                    if (!barsShown) fv.setVisibility(View.INVISIBLE);
-                }).start();
+                v.animate().alpha(0f).translationY(away).setDuration(160)
+                        .setInterpolator(new AccelerateInterpolator(1.2f)).withLayer()
+                        .withEndAction(() -> {
+                            if (!barsShown) v.setVisibility(View.INVISIBLE);
+                        }).start();
             }
         }
     }
@@ -358,11 +390,14 @@ public class ImageViewActivity extends BaseActivity {
         for (int k = 0; k < thumbs.getChildCount(); k++) {
             final View c = thumbs.getChildAt(k);
             boolean on = thumbStart + k == index;
-            GradientDrawable g = new GradientDrawable();
-            g.setCornerRadius(Ui.dp(this, 13));
-            if (on) g.setStroke(Ui.dp(this, 2), Ui.color(this, R.color.accent));
-            c.setBackground(g);
-            c.setAlpha(on ? 1f : 0.72f);
+            if (c.getTag() == null || ((Boolean) c.getTag()) != on) {   // restyle only what changed
+                GradientDrawable g = new GradientDrawable();
+                g.setCornerRadius(Ui.dp(this, 13));
+                if (on) g.setStroke(Ui.dp(this, 2), Ui.color(this, R.color.accent));
+                c.setBackground(g);
+                c.setAlpha(on ? 1f : 0.72f);
+                c.setTag(on);
+            }
             if (on) {
                 thumbScroll.post(() -> thumbScroll.smoothScrollTo(
                         Math.max(0, c.getLeft() - (thumbScroll.getWidth() - c.getWidth()) / 2), 0));
@@ -464,10 +499,20 @@ public class ImageViewActivity extends BaseActivity {
 
     private void updateTitle() {
         File f = images.get(index);
+        if (zoom != null) zoom.setEdges(index > 0, index + 1 < images.size());
         titleView.setText(f.getName());
         String pos = images.size() > 1 ? (index + 1) + " / " + images.size() + " · " : "";
         String d = dims.get(f.getAbsolutePath());
         subtitleView.setText(pos + Fmt.size(f.length()) + (d != null ? " · " + d : ""));
+    }
+
+    /** Slides the current picture out (against the swipe direction) and then runs {@code end}. */
+    private void slideOut(int dir, Runnable end) {
+        zoom.animate().cancel();
+        android.view.ViewPropertyAnimator a = zoom.animate().translationX(-dir * zoom.getWidth() * 0.3f)
+                .alpha(0f).setDuration(110).setInterpolator(new AccelerateInterpolator(1.3f)).withLayer();
+        if (end != null) a.withEndAction(end);
+        a.start();
     }
 
     /** Shows the current image; dir says which way it slides in (0 = no animation). */
@@ -476,28 +521,30 @@ public class ImageViewActivity extends BaseActivity {
         final File f = images.get(index);
         final String key = f.getAbsolutePath();
         final Bitmap hit = cache.get(key);
-        final float off = dir * zoom.getWidth() * 0.3f;
+        ui.removeCallbacks(showSpinner);
+        loading.setVisibility(View.INVISIBLE);
         if (hit != null) {
             if (dir == 0) {
                 present(hit, 0);
                 prefetch();
                 return;
             }
-            zoom.animate().translationX(-off).alpha(0f).setDuration(90).start();
-            ui.postDelayed(() -> {
+            slideOut(dir, () -> {
                 if (my != gen || isFinishing() || isDestroyed()) return;
                 present(hit, dir);
                 prefetch();
-            }, 90);
+            });
             return;
         }
-        loading.setVisibility(View.VISIBLE);
-        if (dir != 0) zoom.animate().translationX(-off).alpha(0f).setDuration(110).start();
+        ui.postDelayed(showSpinner, 220);   // only when decoding is really slow: no flicker on quick loads
+        if (dir != 0) slideOut(dir, null);
         io.execute(() -> {
             if (my != gen) return;
             final Bitmap b = decode(f);
+            if (b != null) b.prepareToDraw();   // upload to the GPU off the UI thread: no hitch on first draw
             ui.post(() -> {
                 if (my != gen || isFinishing() || isDestroyed()) return;
+                ui.removeCallbacks(showSpinner);
                 loading.setVisibility(View.INVISIBLE);
                 if (b == null) {
                     zoom.snapBack();
@@ -517,28 +564,34 @@ public class ImageViewActivity extends BaseActivity {
         zoom.animate().cancel();
         zoom.show(b);
         if (dir != 0) {
-            zoom.setTranslationX(dir * zoom.getWidth() * 0.3f);
+            zoom.setTranslationX(dir * zoom.getWidth() * 0.22f);
             zoom.setAlpha(0f);
-            zoom.animate().translationX(0f).alpha(1f).setDuration(170).start();
+            zoom.animate().translationX(0f).alpha(1f).setDuration(240)
+                    .setInterpolator(new DecelerateInterpolator(1.8f)).withLayer().start();
         } else {
             zoom.setTranslationX(0f);
             zoom.setAlpha(1f);
         }
     }
 
-    /** Decodes the neighbours in the background so swiping feels instant. */
+    /** Decodes the neighbours in the background (own thread) so swiping feels instant. */
     private void prefetch() {
-        for (int d : new int[]{1, -1}) {
-            int j = index + d;
-            if (j < 0 || j >= images.size()) continue;
-            final File f = images.get(j);
-            final String key = f.getAbsolutePath();
-            if (cache.get(key) != null) continue;
-            io.execute(() -> {
-                if (isDestroyed() || cache.get(key) != null) return;
-                Bitmap b = decode(f);
-                if (b != null) cache.put(key, b);
-            });
+        for (int step = 1; step <= PREFETCH; step++) {
+            for (int d : new int[]{1, -1}) {
+                final int j = index + d * step;
+                if (j < 0 || j >= images.size()) continue;
+                final File f = images.get(j);
+                final String key = f.getAbsolutePath();
+                if (cache.get(key) != null) continue;
+                preIo.execute(() -> {
+                    if (isDestroyed() || Math.abs(j - index) > PREFETCH || cache.get(key) != null) return;
+                    Bitmap b = decode(f);
+                    if (b != null) {
+                        b.prepareToDraw();
+                        cache.put(key, b);
+                    }
+                });
+            }
         }
     }
 
@@ -582,6 +635,7 @@ public class ImageViewActivity extends BaseActivity {
         super.onDestroy();
         ui.removeCallbacksAndMessages(null);
         io.shutdownNow();
+        preIo.shutdownNow();
         thumbIo.shutdownNow();
     }
 }

@@ -37,6 +37,7 @@ public class ZoomImageView extends AppCompatImageView {
     private float baseScale = 1f;
     private float dragX = 0f;
     private boolean flinged = false;
+    private boolean hasPrev = true, hasNext = true;
     private ValueAnimator zoomAnim;
     private SwipeListener swipe;
     private TapListener tap;
@@ -82,8 +83,11 @@ public class ZoomImageView extends AppCompatImageView {
                     fixTranslation();
                     setImageMatrix(matrix);
                 } else if (swipe != null && (Math.abs(dx) > Math.abs(dy) || dragX != 0f)) {
-                    dragX -= dx;
+                    float next = dragX - dx;
+                    boolean blocked = (next < 0 && !hasNext) || (next > 0 && !hasPrev);
+                    dragX = blocked ? dragX - dx * 0.3f : next;   // rubber band where there is no image
                     setTranslationX(dragX);
+                    setAlpha(1f - Math.min(0.3f, Math.abs(dragX) / Math.max(1f, getWidth()) * 0.5f));
                 }
                 return true;
             }
@@ -133,10 +137,18 @@ public class ZoomImageView extends AppCompatImageView {
         fit();
     }
 
+    /** Tells the view whether there is an image before / after the current one (rubber-band at the ends). */
+    public void setEdges(boolean prev, boolean next) {
+        hasPrev = prev;
+        hasNext = next;
+    }
+
     /** Slides the picture back to the middle (a swipe that had nowhere to go, or one that was not far enough). */
     public void snapBack() {
         dragX = 0f;
-        animate().translationX(0f).alpha(1f).setDuration(170).start();
+        animate().cancel();
+        animate().translationX(0f).alpha(1f).setDuration(220)
+                .setInterpolator(new DecelerateInterpolator(1.8f)).withLayer().start();
     }
 
     @Override
@@ -158,8 +170,8 @@ public class ZoomImageView extends AppCompatImageView {
         if (zoomAnim != null) zoomAnim.cancel();
         final float start = currentScale();
         zoomAnim = ValueAnimator.ofFloat(0f, 1f);
-        zoomAnim.setDuration(230);
-        zoomAnim.setInterpolator(new DecelerateInterpolator());
+        zoomAnim.setDuration(260);
+        zoomAnim.setInterpolator(new DecelerateInterpolator(1.6f));
         zoomAnim.addUpdateListener(a -> {
             float t = (float) a.getAnimatedValue();
             float want = start + (target - start) * t;
