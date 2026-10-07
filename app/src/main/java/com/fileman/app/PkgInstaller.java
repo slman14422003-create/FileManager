@@ -710,7 +710,7 @@ final class PkgInstaller {
         }
         if (Build.VERSION.SDK_INT >= 33) {
             p.setPackageSource(PackageInstaller.PACKAGE_SOURCE_LOCAL_FILE);
-            p.setInstallScenario(PackageInstaller.INSTALL_SCENARIO_FAST);
+            p.setInstallScenario(PackageManager.INSTALL_SCENARIO_FAST);
         }
         if (Build.VERSION.SDK_INT >= 34 && Store.instBool(c, "owner", false)) {
             try {
