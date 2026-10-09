@@ -187,8 +187,6 @@ public final class ArcExtra {
                     if (h.isEncrypted()) throw new Arc.Unsupported("password", true);
                     try (InputStream in = a.getInputStream(h)) {
                         v.file(it, in);
-                    } catch (com.github.junrar.exception.RarException e) {
-                        throw new IOException(String.valueOf(e.getMessage()));
                     }
                 }
             }
