@@ -6,6 +6,10 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- package installer (beta): uninstall requests, installed-app list, confirmation-free updates of our own installs -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- storage analysis: per-app sizes (the user grants it from the system usage-access screen) -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
@@ -163,6 +167,7 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
+        <activity android:name=".StorageActivity" android:exported="false" android:configChanges="orientation|screenSize|keyboardHidden" />
         <activity android:name=".ToolsActivity" android:exported="false" android:configChanges="orientation|screenSize|keyboardHidden" />
 
         <!-- keeps the in-app language choice across restarts on Android 12 and older -->

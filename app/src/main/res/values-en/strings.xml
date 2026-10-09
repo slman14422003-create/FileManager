@@ -230,7 +230,10 @@
     <string name="zip_folder_empty">This folder is empty</string>
     <string name="zip_encrypted">Cannot read the file: the archive is password-protected or uses an unsupported method</string>
     <string name="zip_failed">Could not read the archive (corrupt file or unsupported format)</string>
-    <string name="zip_too_big">The file is too large to preview (over 256 MB). Extract it first.</string>
+    <string name="zip_unsupported">This archive format or compression method is not supported in this build</string>
+    <string name="zip_no_space">Not enough space: extraction needs %1$s but only %2$s is free</string>
+    <string name="fm_zip_fast">Fast compression (slightly larger, quicker for big files)</string>
+    <string name="zip_too_big">There is not enough free space to preview this file. Extract it to another folder first.</string>
     <string name="zip_extracted_to">Extracted %1$d files to “%2$s”</string>
     <string name="zip_select_all">Select all</string>
     <string name="zip_info">Archive info</string>
@@ -239,8 +242,8 @@
     <!-- package installer (beta) and advanced tools -->
     <string name="pk_title">Package installer</string>
     <string name="pk_beta">Beta</string>
-    <string name="pk_subtitle">Beta 2 · install APK and split bundles, manage apps</string>
-    <string name="pk_beta_note">Beta 2: installs APK, APKS, XAPK and APKM through the official system installer, checks the package before installing (Android version, CPU, space, signature, downgrade), automatically picks the packages that fit your device, copies OBB files and keeps a history of results. Silent installs without consent are not available to any normal app, so the system may ask you to confirm.</string>
+    <string name="pk_subtitle">Beta 3 · install APK and split bundles (even huge ones) with integrity check and app management</string>
+    <string name="pk_beta_note">Beta 3: installs APK, APKS, XAPK and APKM through the official system installer, reads huge bundles (ZIP64) and Arabic file names, verifies package integrity (CRC) before installing, checks version, CPU, space and signature, picks the splits that fit your device, compares the file SHA-256 with the clipboard, copies OBB files and keeps a history of results. Silent installs without consent are not available to any normal app, so the system may ask you to confirm.</string>
     <string name="pk_tools">Tools</string>
     <string name="pk_found">Packages on device</string>
     <string name="pk_found_sub">Find APK, APKS, XAPK and APKM files in storage</string>
@@ -454,7 +457,7 @@
     <string name="pal_graphite">Graphite</string>
     <string name="pal_mono">Neutral</string>
     <string name="pal_amoled">AMOLED Black</string>
-    <string name="pk_beta2">Beta 2</string>
+    <string name="pk_beta2">Beta 3</string>
     <string name="pk_chip_blocked">Cannot install</string>
     <string name="pk_d_abi">Architecture</string>
     <string name="pk_d_abi_none">No native code: runs on any architecture</string>
@@ -518,4 +521,27 @@
     <string name="home_analysis">Storage analysis</string>
     <string name="home_by_size">By size</string>
     <string name="home_installer">Package installer</string>
+    <string name="fm_places">Places</string>
+    <string name="sa_free">%s free</string>
+    <string name="sa_others">Others</string>
+    <string name="sa_more">More</string>
+    <string name="sa_apps">Apps</string>
+    <string name="sa_apps_need">Allow usage access to see how much space is being used by apps.</string>
+    <string name="sa_permit">Permit usage access</string>
+    <string name="sa_none">No data</string>
+    <string name="sa_large">Large files</string>
+    <string name="sa_large_hint">Files larger than 10 MB</string>
+    <string name="sa_cache">Cache files</string>
+    <string name="sa_cache_apps">Total cache of all apps</string>
+    <string name="sa_cache_own">This app\'s cache (permit usage access to see other apps)</string>
+    <string name="sa_clean_own">Clean this app\'s cache</string>
+    <string name="sa_cleaned">Freed %s</string>
+    <string name="sa_folders">Folder analyzer</string>
+    <string name="pk_verifying">Checking package integrity…</string>
+    <string name="pk_fail_corrupt">The package is corrupt or incomplete (integrity check failed). Download it again and retry.</string>
+    <string name="pk_opt_verify">Check package integrity before installing</string>
+    <string name="pk_opt_verify_sub">Reads the file and verifies its CRC to catch a bad download before starting</string>
+    <string name="pk_hash_match">✓ matches the hash on the clipboard</string>
+    <string name="pk_hash_differs">✗ differs from the hash on the clipboard</string>
+    <string name="pk_issue_nobase">No base APK found inside the package; the system may refuse to install it.</string>
 </resources>

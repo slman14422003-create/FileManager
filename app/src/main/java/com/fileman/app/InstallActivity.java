@@ -425,8 +425,12 @@ public class InstallActivity extends BaseActivity {
         // ---- options
         boolean canSmart = in.bundle && in.allEntries.size() >= 3;
         boolean canDelete = in.original != null;
-        if (canSmart || canDelete) {
+        if (true) {
             details.addView(Ui.sectionTitle(this, getString(R.string.pk_opt_section)));
+            Ui.Toggle tv = Ui.toggle(this, details, R.string.pk_opt_verify, R.string.pk_opt_verify_sub,
+                    Store.instBool(this, "verify", true));
+            tv.onChange((b, on) -> Store.setInstBool(this, "verify", on));
+            details.addView(tv.view);
             if (canSmart) {
                 Ui.Toggle t = Ui.toggle(this, details, R.string.pk_opt_smart, R.string.pk_opt_smart_sub,
                         Store.instBool(this, "smart", true));
@@ -480,6 +484,11 @@ public class InstallActivity extends BaseActivity {
                 cert.isEmpty() ? null : v -> copy(cert)));
 
         String hashSub = in.fileSha.isEmpty() ? getString(R.string.pk_d_filehash_tap) : in.fileSha.substring(0, 32);
+        if (!in.fileSha.isEmpty()) {
+            int hv = PkgInstaller.hashVsClipboard(this, in.fileSha);
+            if (hv == 1) hashSub += " · " + getString(R.string.pk_hash_match);
+            else if (hv == -1) hashSub += " · " + getString(R.string.pk_hash_differs);
+        }
         details.addView(row(R.drawable.ic_copy, getString(R.string.pk_d_filehash), hashSub, v -> {
             if (!in.fileSha.isEmpty()) {
                 copy(in.fileSha);
@@ -520,12 +529,27 @@ public class InstallActivity extends BaseActivity {
         final PkgInstaller.Info in = info;
         if (in == null) return;
         installStarted = true;
-        stageRes = R.string.pk_installing_plain;
+        final boolean verify = Store.instBool(this, "verify", true);
+        stageRes = verify ? R.string.pk_verifying : R.string.pk_installing_plain;
         progress.setProgress(0);
         progressText.setText("");
         setState(S_INSTALLING);
         io.execute(() -> {
             try {
+                if (verify) {
+                    PkgInstaller.verify(in, (done, total) -> ui.post(() -> {
+                        if (destroyed || state != S_INSTALLING) return;
+                        progress.setProgress((int) Math.min(100, done * 100 / Math.max(1, total)));
+                        progressText.setText(getString(R.string.pk_installing_size, Fmt.size(done), Fmt.size(total)));
+                    }));
+                    ui.post(() -> {
+                        if (destroyed || state != S_INSTALLING) return;
+                        stageRes = R.string.pk_installing_plain;
+                        progress.setProgress(0);
+                        progressText.setText("");
+                        note(getString(stageRes));
+                    });
+                }
                 PkgInstaller.install(this, in, (done, total) -> ui.post(() -> {
                     if (destroyed || state != S_INSTALLING) return;
                     progress.setProgress((int) Math.min(100, done * 100 / Math.max(1, total)));
@@ -540,6 +564,9 @@ public class InstallActivity extends BaseActivity {
                 });
             } catch (PkgInstaller.NoSpace e) {
                 ui.post(() -> fail(getString(R.string.pk_fail_storage), "no space"));
+            } catch (java.util.zip.ZipException e) {
+                final String tech = String.valueOf(e.getMessage());
+                ui.post(() -> fail(getString(R.string.pk_fail_corrupt), tech));
             } catch (IOException | RuntimeException e) {
                 final String tech = String.valueOf(e.getMessage());
                 ui.post(() -> fail(getString(R.string.pk_fail_invalid), tech));

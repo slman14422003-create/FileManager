@@ -25,11 +25,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -39,17 +36,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipException;
-import java.util.zip.ZipFile;
 
 /**
  * Browses a ZIP / JAR / CBZ like a folder tree without unpacking it: open a file to preview it,
  * long-press to select, extract everything or only the selection.
  */
 public class ZipBrowseActivity extends BaseActivity {
-    private static final long MAX_PREVIEW = 256L * 1024 * 1024;
-    private static final int MAX_ENTRIES = 200000;
+    private static final int MAX_ENTRIES = Arc.MAX_ENTRIES;
 
     private static final class Node {
         String name;       // last path segment
@@ -57,6 +50,7 @@ public class ZipBrowseActivity extends BaseActivity {
         boolean dir;
         long size, packed, time;
         int kids;
+        Arc.Item item;
     }
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
@@ -67,7 +61,7 @@ public class ZipBrowseActivity extends BaseActivity {
     private final boolean[] cancel = {false};
 
     private File zip;
-    private Charset charset = StandardCharsets.UTF_8;
+    private Arc arc;
     private String cur = "";
     private int fileCount;
     private long totalSize, totalPacked;
@@ -151,34 +145,14 @@ public class ZipBrowseActivity extends BaseActivity {
 
     // ------------------------------------------------------------------ reading the archive
 
-    private ZipFile openZip() throws IOException {
-        Charset[] tries = {StandardCharsets.UTF_8, Charset.forName("windows-1256"), StandardCharsets.ISO_8859_1};
-        IOException last = null;
-        for (Charset cs : tries) {
-            try {
-                ZipFile z = new ZipFile(zip, cs);
-                charset = cs;
-                return z;
-            } catch (IOException | IllegalArgumentException e) {
-                last = e instanceof IOException ? (IOException) e : new IOException(e);
-            }
-        }
-        throw last == null ? new IOException("zip") : last;
-    }
-
     private void load() {
         int err = 0;
-        try (ZipFile z = openZip()) {
-            Enumeration<? extends ZipEntry> en = z.entries();
+        try {
+            arc = Arc.open(zip);
             Map<String, Node> dirs = new HashMap<>();
-            int n = 0;
-            while (en.hasMoreElements()) {
-                ZipEntry e = en.nextElement();
-                if (++n > MAX_ENTRIES) break;
-                String name = e.getName().replace('\\', '/');
-                while (name.startsWith("/")) name = name.substring(1);
-                if (name.isEmpty() || name.contains("../") || name.equals("..") || name.startsWith("..")) continue;
-                boolean dir = e.isDirectory() || name.endsWith("/");
+            for (Arc.Item e : arc.items) {
+                String name = e.name;
+                boolean dir = e.dir || name.endsWith("/");
                 String[] parts = (dir ? name.substring(0, name.length() - 1) : name).split("/");
                 StringBuilder acc = new StringBuilder();
                 for (int i = 0; i < parts.length; i++) {
@@ -191,9 +165,10 @@ public class ZipBrowseActivity extends BaseActivity {
                         Node f = new Node();
                         f.name = parts[i];
                         f.path = full;
-                        f.size = Math.max(0, e.getSize());
-                        f.packed = Math.max(0, e.getCompressedSize());
-                        f.time = e.getTime();
+                        f.size = Math.max(0, e.size);
+                        f.packed = Math.max(0, e.packed);
+                        f.time = e.time;
+                        f.item = e;
                         add(parent, f);
                         fileCount++;
                         totalSize += f.size;
@@ -203,7 +178,7 @@ public class ZipBrowseActivity extends BaseActivity {
                         d.name = parts[i];
                         d.path = full;
                         d.dir = true;
-                        d.time = last ? e.getTime() : 0;
+                        d.time = last ? e.time : 0;
                         dirs.put(full, d);
                         add(parent, d);
                     }
@@ -216,9 +191,9 @@ public class ZipBrowseActivity extends BaseActivity {
                     return a.name.compareToIgnoreCase(c.name);
                 });
             }
-        } catch (ZipException e) {
-            err = R.string.zip_failed;
-        } catch (IOException | RuntimeException e) {
+        } catch (Arc.Unsupported e) {
+            err = e.encrypted ? R.string.zip_encrypted : R.string.zip_unsupported;
+        } catch (IOException | RuntimeException | OutOfMemoryError e) {
             err = R.string.zip_failed;
         }
         final int ferr = err;
@@ -230,6 +205,7 @@ public class ZipBrowseActivity extends BaseActivity {
                 finish();
                 return;
             }
+            subtitle.setText(arc.format);
             show();
         });
     }
@@ -408,50 +384,54 @@ public class ZipBrowseActivity extends BaseActivity {
         }).show();
     }
 
+    /** Most an entry may take in the cache: whatever space the device has left, minus a safety margin. */
+    private long cacheRoom() {
+        return Math.max(0L, getCacheDir().getUsableSpace() - 128L * 1024 * 1024);
+    }
+
     /** Unpacks one entry into the cache, then shares it or hands it to another app. */
     private void exportEntry(final Node n, final boolean share) {
-        if (n.size > MAX_PREVIEW) {
+        if (n.size > cacheRoom()) {
             Toast.makeText(this, R.string.zip_too_big, Toast.LENGTH_LONG).show();
             return;
         }
         loading.setVisibility(View.VISIBLE);
         io.execute(() -> {
             File out = null;
-            try (ZipFile z = openZip()) {
-                ZipEntry e = z.getEntry(rawName(z, n.path));
-                if (e == null) throw new IOException("missing");
-                File dir = new File(getCacheDir(), "zipview/" + System.nanoTime());
-                if (!dir.mkdirs()) throw new IOException("mkdir");
-                out = new File(dir, safeName(n.name));
-                copyEntry(z, e, out, MAX_PREVIEW);
+            int err = 0;
+            try {
+                out = unpackToCache(n);
+            } catch (Arc.Unsupported e) {
+                err = e.encrypted ? R.string.zip_encrypted : R.string.zip_unsupported;
             } catch (Exception e) {
-                out = null;
+                err = R.string.zip_failed;
             }
             final File f = out;
+            final int ferr = err;
             ui.post(() -> {
                 if (destroyed) return;
                 loading.setVisibility(View.INVISIBLE);
-                if (f == null) Toast.makeText(this, R.string.zip_failed, Toast.LENGTH_LONG).show();
+                if (f == null) Toast.makeText(this, ferr != 0 ? ferr : R.string.zip_failed, Toast.LENGTH_LONG).show();
                 else if (share) Opener.share(this, f);
                 else Opener.external(this, f, true);
             });
         });
     }
 
+    private File unpackToCache(Node n) throws IOException {
+        File dir = new File(getCacheDir(), "zipview/" + System.nanoTime());
+        if (!dir.mkdirs()) throw new IOException("mkdir");
+        File out = new File(dir, safeName(n.name));
+        arc.copyTo(n.item, out, cacheRoom(), null);
+        return out;
+    }
+
     private void details(Node n) {
-        String crc = "—";
-        String method = "—";
+        String crc = n.item != null && n.item.crc >= 0 ? String.format(Locale.US, "%08X", n.item.crc) : "—";
+        String method = n.item != null && !n.item.method.isEmpty()
+                ? (n.item.method.equals("Store") ? getString(R.string.zip_stored) : n.item.method) : "—";
         long packed = n.packed;
-        try (ZipFile z = openZip()) {
-            ZipEntry e = z.getEntry(rawName(z, n.path));
-            if (e != null) {
-                if (e.getCrc() >= 0) crc = String.format(Locale.US, "%08X", e.getCrc());
-                method = e.getMethod() == ZipEntry.STORED ? getString(R.string.zip_stored) : "Deflate";
-                packed = Math.max(0, e.getCompressedSize());
-            }
-        } catch (Exception ignored) {
-        }
-        int ratio = n.size > 0 ? (int) Math.round(100.0 - packed * 100.0 / n.size) : 0;
+        int ratio = n.size > 0 && packed > 0 ? (int) Math.round(100.0 - packed * 100.0 / n.size) : 0;
         new Dlg(this).setTitle(n.name)
                 .setMessage(getString(R.string.zip_detail_body, "/" + n.path, Fmt.size(n.size), Fmt.size(packed),
                         Math.max(0, ratio), n.time > 0 ? Fmt.date(n.time) : "—", method, crc))
@@ -461,7 +441,7 @@ public class ZipBrowseActivity extends BaseActivity {
     // ------------------------------------------------------------------ preview
 
     private void preview(final Node n) {
-        if (n.size > MAX_PREVIEW) {
+        if (n.size > cacheRoom()) {
             Toast.makeText(this, R.string.zip_too_big, Toast.LENGTH_LONG).show();
             return;
         }
@@ -469,15 +449,10 @@ public class ZipBrowseActivity extends BaseActivity {
         io.execute(() -> {
             File out = null;
             int err = 0;
-            try (ZipFile z = openZip()) {
-                ZipEntry e = z.getEntry(rawName(z, n.path));
-                if (e == null) throw new IOException("missing");
-                File dir = new File(getCacheDir(), "zipview/" + System.nanoTime());
-                if (!dir.mkdirs()) throw new IOException("mkdir");
-                out = new File(dir, safeName(n.name));
-                copyEntry(z, e, out, MAX_PREVIEW);
-            } catch (ZipException e) {
-                err = R.string.zip_encrypted;
+            try {
+                out = unpackToCache(n);
+            } catch (Arc.Unsupported e) {
+                err = e.encrypted ? R.string.zip_encrypted : R.string.zip_unsupported;
             } catch (Exception e) {
                 err = R.string.zip_failed;
             }
@@ -495,47 +470,10 @@ public class ZipBrowseActivity extends BaseActivity {
         });
     }
 
-    /** The entry as stored (the archive may use backslashes or a leading slash). */
-    private String rawName(ZipFile z, String path) {
-        if (z.getEntry(path) != null) return path;
-        Enumeration<? extends ZipEntry> en = z.entries();
-        while (en.hasMoreElements()) {
-            ZipEntry e = en.nextElement();
-            String name = e.getName().replace('\\', '/');
-            while (name.startsWith("/")) name = name.substring(1);
-            if (name.equals(path)) return e.getName();
-        }
-        return path;
-    }
-
     private static String safeName(String n) {
         String s = n.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_").trim();
         if (s.isEmpty() || s.equals(".") || s.equals("..")) s = "file";
         return s;
-    }
-
-    private interface Progress {
-        void add(long bytes);
-    }
-
-    private static long copyEntry(ZipFile z, ZipEntry e, File out, long limit) throws IOException {
-        return copyEntry(z, e, out, limit, null);
-    }
-
-    private static long copyEntry(ZipFile z, ZipEntry e, File out, long limit, Progress pr) throws IOException {
-        long total = 0;
-        try (InputStream in = new BufferedInputStream(z.getInputStream(e));
-             OutputStream os = new BufferedOutputStream(new FileOutputStream(out))) {
-            byte[] buf = new byte[64 * 1024];
-            int r;
-            while ((r = in.read(buf)) != -1) {
-                total += r;
-                if (total > limit) throw new IOException("too large");
-                os.write(buf, 0, r);
-                if (pr != null) pr.add(r);
-            }
-        }
-        return total;
     }
 
     // ------------------------------------------------------------------ extraction
@@ -649,59 +587,65 @@ public class ZipBrowseActivity extends BaseActivity {
             int count = 0;
             int err = 0;
             String errText = null;
-            try (ZipFile z = openZip()) {
+            final int[] counter = {0};
+            try {
                 if (!dest.exists() && !dest.mkdirs()) throw new IOException(getString(R.string.fm_err_mkdir, dest.getName()));
                 final String root = dest.getCanonicalPath() + File.separator;
                 // size of what will be written, so the dialog can show a real percentage
-                Enumeration<? extends ZipEntry> pre = z.entries();
-                while (pre.hasMoreElements()) {
-                    ZipEntry pe = pre.nextElement();
-                    String pn = pe.getName().replace('\\', '/');
-                    while (pn.startsWith("/")) pn = pn.substring(1);
-                    if (pn.isEmpty() || pe.isDirectory() || pn.endsWith("/") || !wanted(pn, sel)) continue;
+                for (Arc.Item pe : arc.items) {
+                    if (pe.dir || !wanted(pe.name, sel)) continue;
                     files[0]++;
-                    if (pe.getSize() > 0) totalBytes[0] += pe.getSize();
+                    if (pe.size > 0) totalBytes[0] += pe.size;
                 }
-                long room = Math.max(0L, dest.getUsableSpace() - 64L * 1024 * 1024);
-                long written = 0;
-                Enumeration<? extends ZipEntry> en = z.entries();
-                while (en.hasMoreElements()) {
-                    if (cancel[0]) throw new IOException("cancelled");
-                    ZipEntry e = en.nextElement();
-                    String name = e.getName().replace('\\', '/');
-                    while (name.startsWith("/")) name = name.substring(1);
-                    if (name.isEmpty() || !wanted(name, sel)) continue;
-                    if (count > MAX_ENTRIES) throw new IOException(getString(R.string.fm_err_zip_unsafe));
-                    if (flat) {   // a single file copied out: just its own name, never overwrite
-                        if (e.isDirectory() || name.endsWith("/")) continue;
-                        name = safeName(name.substring(name.lastIndexOf('/') + 1));
+                final long room = Math.max(0L, dest.getUsableSpace() - 64L * 1024 * 1024);
+                if (totalBytes[0] > room) throw new IOException(getString(R.string.zip_no_space, Fmt.size(totalBytes[0]), Fmt.size(room)));
+                final long[] written = {0};
+                final ZipWriter.Sink sink = new ZipWriter.Sink() {
+                    @Override
+                    public void bytes(long b) {
+                        done[0] += b;
+                        report.run();
                     }
+
+                    @Override
+                    public boolean cancelled() {
+                        return cancel[0];
+                    }
+                };
+                arc.walk(it -> wanted(it.name, sel), (it, in) -> {
+                    if (cancel[0]) throw new IOException("cancelled");
+                    String name = it.name;
+                    if (flat) name = safeName(name.substring(name.lastIndexOf('/') + 1));
                     File out = flat ? uniqueFile(dest, name) : new File(dest, name);
                     if (!out.getCanonicalPath().startsWith(root)) throw new IOException(getString(R.string.fm_err_zip_unsafe));
-                    if (e.isDirectory() || name.endsWith("/")) {
-                        out.mkdirs();
-                        continue;
-                    }
                     File p = out.getParentFile();
                     if (p != null) p.mkdirs();
                     cur[0] = out.getName();
                     report.run();
-                    written += copyEntry(z, e, out, Math.max(0, room - written), n -> {
-                        done[0] += n;
-                        report.run();
-                    });
+                    written[0] += Arc.copy(in, out, Math.max(0, room - written[0]), sink);
+                    if (it.time > 0) //noinspection ResultOfMethodCallIgnored
+                        out.setLastModified(it.time);
                     filesDone[0]++;
-                    count++;
+                    counter[0]++;
+                });
+                if (!flat) {   // folders (also the empty ones) as they were in the archive
+                    for (Arc.Item di : arc.items) {
+                        if (!di.dir || !wanted(di.name, sel)) continue;
+                        File d = new File(dest, di.name);
+                        if (d.getCanonicalPath().startsWith(root)) //noinspection ResultOfMethodCallIgnored
+                            d.mkdirs();
+                    }
                 }
-            } catch (ZipException e) {
-                err = R.string.zip_encrypted;
+                count = counter[0];
+            } catch (Arc.Unsupported e) {
+                err = e.encrypted ? R.string.zip_encrypted : R.string.zip_unsupported;
             } catch (IOException e) {
                 if (cancel[0]) err = R.string.fm_cancelled;
                 else errText = e.getMessage() == null ? getString(R.string.zip_failed) : e.getMessage();
             } catch (RuntimeException e) {
                 err = R.string.zip_failed;
             }
-            final int fc = count;
+            final int fc = counter[0];
             final int ferr = err;
             final String ftext = errText;
             ui.post(() -> {
@@ -770,6 +714,10 @@ public class ZipBrowseActivity extends BaseActivity {
         ui.removeCallbacksAndMessages(null);
         io.shutdownNow();
         hideBusy();
+        try {
+            if (arc != null) arc.close();
+        } catch (IOException ignored) {
+        }
         if (pickDialog != null) {
             try {
                 pickDialog.dismiss();

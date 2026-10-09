@@ -28,6 +28,7 @@ import android.view.ViewGroup;
 import android.webkit.MimeTypeMap;
 import android.widget.BaseAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -158,12 +159,12 @@ public class FileManagerActivity extends BaseActivity {
 
     private ListView listView;
     private FileAdapter adapter;
-    private TextView titleView, subtitleView, statusView, emptyView, selCount, pasteText, storageText;
-    private ImageButton btnA1, btnA2, btnRefresh;
-    private View loadingBar, selBar, pasteBar, permBanner, storageCard, crumbScroll;
+    private TextView titleView, subtitleView, statusView, emptyView, selCount, pasteText, usedPill;
+    private ImageButton btnA1, btnA2, btnRefresh, btnSearch;
+    private View loadingBar, selBar, pasteBar, permBanner, crumbScroll;
     private EditText searchView;
-    private LinearLayout placesRow, crumbRow;
-    private android.widget.FrameLayout storageBarHolder;
+    private LinearLayout crumbRow;
+    private boolean searchOpen;
 
     private AlertDialog busy;
     private TextView busyText;
@@ -206,8 +207,8 @@ public class FileManagerActivity extends BaseActivity {
         emptyView = findViewById(R.id.empty);
         selCount = findViewById(R.id.selCount);
         pasteText = findViewById(R.id.pasteText);
-        storageText = findViewById(R.id.storageText);
-        storageBarHolder = findViewById(R.id.storageBarHolder);
+        usedPill = findViewById(R.id.usedPill);
+        btnSearch = findViewById(R.id.btnSearch);
         btnA1 = findViewById(R.id.btnA1);
         btnA2 = findViewById(R.id.btnA2);
         btnRefresh = findViewById(R.id.btnRefresh);
@@ -215,10 +216,8 @@ public class FileManagerActivity extends BaseActivity {
         selBar = findViewById(R.id.selBar);
         pasteBar = findViewById(R.id.pasteBar);
         permBanner = findViewById(R.id.permBanner);
-        storageCard = findViewById(R.id.storageCard);
         crumbScroll = findViewById(R.id.crumbScroll);
         searchView = findViewById(R.id.search);
-        placesRow = findViewById(R.id.placesRow);
         crumbRow = findViewById(R.id.crumbRow);
         listView = findViewById(R.id.list);
         if (loadingBar instanceof ProgressBar) Ui.tint(this, (ProgressBar) loadingBar);
@@ -231,10 +230,12 @@ public class FileManagerActivity extends BaseActivity {
             return true;
         });
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
+        findViewById(R.id.btnBack).setOnClickListener(v -> placesMenu());
         action(btnA1, R.drawable.ic_sort, R.string.fm_sort, v -> sortMenu());
-        action(btnA2, R.drawable.ic_add, R.string.fm_new, v -> newMenu());
-        btnRefresh.setOnClickListener(v -> refresh());
+        btnA1.setVisibility(View.VISIBLE);
+        btnSearch.setOnClickListener(v -> setSearchOpen(!searchOpen, true));
+        btnRefresh.setOnClickListener(v -> overflowMenu());
+        usedPill.setOnClickListener(v -> startActivity(new Intent(this, StorageActivity.class)));
 
         findViewById(R.id.selClose).setOnClickListener(v -> clearSelection());
         findViewById(R.id.selAll).setOnClickListener(v -> selectAll());
@@ -338,14 +339,7 @@ public class FileManagerActivity extends BaseActivity {
         searchView.setOnFocusChangeListener((v, focus) -> {
             if (navBar != null) navBar.setVisibility(focus ? View.GONE : View.VISIBLE);
         });
-        if (getIntent().getBooleanExtra("search", false)) {
-            searchView.requestFocus();
-            ui.postDelayed(() -> {
-                android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager)
-                        getSystemService(Context.INPUT_METHOD_SERVICE);
-                if (imm != null) imm.showSoftInput(searchView, 0);
-            }, 250);
-        }
+        if (getIntent().getBooleanExtra("search", false)) setSearchOpen(true, true);
     }
 
     @Override
@@ -446,7 +440,29 @@ public class FileManagerActivity extends BaseActivity {
         refresh();
     }
 
+    /** The search field stays out of the way until the toolbar's search button is pressed. */
+    private void setSearchOpen(boolean open, boolean focus) {
+        searchOpen = open;
+        searchView.setVisibility(open && selected.isEmpty() ? View.VISIBLE : View.GONE);
+        android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager)
+                getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (open && focus) {
+            searchView.requestFocus();
+            ui.postDelayed(() -> {
+                if (imm != null) imm.showSoftInput(searchView, 0);
+            }, 150);
+        } else if (!open) {
+            if (imm != null) imm.hideSoftInputFromWindow(searchView.getWindowToken(), 0);
+            searchView.clearFocus();
+            if (!searchView.getText().toString().isEmpty()) searchView.setText("");
+        }
+    }
+
     private void onBack() {
+        if (searchOpen && selected.isEmpty()) {
+            setSearchOpen(false, false);
+            return;
+        }
         if (searchView.hasFocus()) {
             android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager)
                     getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -505,7 +521,6 @@ public class FileManagerActivity extends BaseActivity {
                 load();
                 break;
         }
-        buildPlaces();
         updateChrome();
     }
 
@@ -745,12 +760,12 @@ public class FileManagerActivity extends BaseActivity {
                 break;
             default:
                 titleView.setText(folderLabel(cur));
-                setSubtitle(cur.getAbsolutePath());
+                setSubtitle(null);
                 break;
         }
         boolean dirMode = mode == M_DIR;
         crumbScroll.setVisibility(dirMode ? View.VISIBLE : View.GONE);
-        storageCard.setVisibility(dirMode ? View.VISIBLE : View.GONE);
+        usedPill.setVisibility(dirMode ? View.VISIBLE : View.GONE);
         if (dirMode) {
             String key = cur.getAbsolutePath();
             if (!key.equals(crumbKey)) {
@@ -767,7 +782,7 @@ public class FileManagerActivity extends BaseActivity {
         boolean sel = !selected.isEmpty();
         if (fab != null) fab.setVisibility(mode == M_DIR && !sel ? View.VISIBLE : View.GONE);
         selBar.setVisibility(sel ? View.VISIBLE : View.GONE);
-        searchView.setVisibility(sel ? View.GONE : View.VISIBLE);
+        searchView.setVisibility(!sel && searchOpen ? View.VISIBLE : View.GONE);
         if (sel) selCount.setText(getString(R.string.fm_selected_n, selected.size()));
         updatePermBanner();
         updatePasteBar();
@@ -797,6 +812,26 @@ public class FileManagerActivity extends BaseActivity {
         }
     }
 
+    private ImageView crumbIcon(int res, View.OnClickListener l) {
+        ImageView v = new ImageView(this);
+        v.setImageResource(res);
+        v.setImageTintList(ColorStateList.valueOf(Ui.color(this, R.color.accent_text)));
+        v.setScaleType(ImageView.ScaleType.CENTER);
+        v.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40)));
+        if (l != null) v.setOnClickListener(l);
+        return v;
+    }
+
+    private TextView crumbSep() {
+        TextView sep = new TextView(this);
+        sep.setText("›");
+        sep.setTextColor(Ui.color(this, R.color.text_hint));
+        sep.setTextSize(16);
+        sep.setPadding(Ui.dp(this, 2), 0, Ui.dp(this, 2), 0);
+        return sep;
+    }
+
+    /** home > drive > folders, like a classic file manager path bar. */
     private void buildCrumbs() {
         crumbRow.removeAllViews();
         File internal = Environment.getExternalStorageDirectory();
@@ -807,100 +842,114 @@ public class FileManagerActivity extends BaseActivity {
             if (f.equals(internal)) break;
             f = f.getParentFile();
         }
+        crumbRow.addView(crumbIcon(R.drawable.ic_home, v -> {
+            Intent h = new Intent(this, HomeActivity.class);
+            h.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(h);
+        }));
         for (int i = 0; i < chain.size(); i++) {
             final File target = chain.get(i);
-            if (i > 0) {
-                TextView sep = new TextView(this);
-                sep.setText("›");
-                sep.setTextColor(Ui.color(this, R.color.text_hint));
-                sep.setTextSize(16);
-                sep.setPadding(Ui.dp(this, 4), 0, Ui.dp(this, 4), 0);
-                crumbRow.addView(sep);
+            boolean last = i == chain.size() - 1;
+            crumbRow.addView(crumbSep());
+            if (target.equals(internal)) {
+                ImageView d = crumbIcon(R.drawable.ic_drive, last ? null : v -> navigate(target));
+                d.setContentDescription(getString(R.string.fm_internal));
+                crumbRow.addView(d);
+                continue;
             }
             TextView c = new TextView(this);
-            String label = target.equals(internal) ? getString(R.string.fm_internal)
-                    : (target.getName().isEmpty() ? "/" : target.getName());
-            c.setText(label);
+            c.setText(target.getName().isEmpty() ? "/" : target.getName());
             c.setSingleLine(true);
-            c.setTextSize(13);
-            boolean last = i == chain.size() - 1;
+            c.setTextSize(14);
             c.setTextColor(Ui.color(this, last ? R.color.text_primary : R.color.accent_text));
-            c.setPadding(Ui.dp(this, 8), Ui.dp(this, 6), Ui.dp(this, 8), Ui.dp(this, 6));
+            c.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
             if (!last) c.setOnClickListener(v -> navigate(target));
             crumbRow.addView(c);
         }
         crumbScroll.post(() -> ((HorizontalScrollView) crumbScroll).fullScroll(View.FOCUS_RIGHT));
     }
 
+    /** The "NN% used" pill next to the path; it opens the storage analysis. */
     private void updateStorage() {
-        storageBarHolder.removeAllViews();
         try {
             File probe = cur.exists() ? cur : Environment.getExternalStorageDirectory();
             StatFs st = new StatFs(probe.getAbsolutePath());
             long total = st.getTotalBytes();
-            long free = st.getAvailableBytes();
-            long used = Math.max(0, total - free);
             if (total <= 0) throw new IllegalStateException();
-            double pct = used * 100.0 / total;
-            storageText.setText(getString(R.string.fm_storage_line, Fmt.size(used), Fmt.size(total), Fmt.size(free)));
-            storageBarHolder.addView(Ui.bar(this, pct, pct > 90 ? R.color.bad : R.color.accent));
-            storageCard.setVisibility(View.VISIBLE);
+            long used = Math.max(0, total - st.getAvailableBytes());
+            usedPill.setText(getString(R.string.home_used_pct, Math.round(used * 100.0 / total)));
+            usedPill.setVisibility(mode == M_DIR ? View.VISIBLE : View.GONE);
         } catch (Exception e) {
-            storageCard.setVisibility(View.GONE);
+            usedPill.setVisibility(View.GONE);
         }
     }
 
-    private void buildPlaces() {
-        placesRow.removeAllViews();
-        addPlace(getString(R.string.fm_internal), Environment.getExternalStorageDirectory());
-        addPlace(getString(R.string.fm_downloads), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
-        addPlace(getString(R.string.fm_dcim), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM));
-        addPlace(getString(R.string.fm_pictures), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
-        addPlace(getString(R.string.fm_documents), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS));
-        addPlace(getString(R.string.fm_music), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC));
-        addPlace(getString(R.string.fm_movies), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES));
+    // ------------------------------------------------------------------ menus: places, more
+
+    private interface Go {
+        void run();
+    }
+
+    /** Everything the old chip row offered (places, categories, favorites, largest) as one list behind the menu button. */
+    private void placesMenu() {
+        final List<String> labels = new ArrayList<>();
+        final List<Go> acts = new ArrayList<>();
+        placeItem(labels, acts, getString(R.string.fm_internal), Environment.getExternalStorageDirectory());
         int n = 1;
         for (File sd : sdRoots()) {
-            addPlace(getString(R.string.fm_sdcard) + (n > 1 ? " " + n : ""), sd);
+            placeItem(labels, acts, getString(R.string.fm_sdcard) + (n > 1 ? " " + n : ""), sd);
             n++;
         }
-        addPlace(getString(R.string.fm_app_folder), appDir());
-
+        placeItem(labels, acts, getString(R.string.fm_downloads), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
+        placeItem(labels, acts, getString(R.string.fm_dcim), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM));
+        placeItem(labels, acts, getString(R.string.fm_pictures), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
+        placeItem(labels, acts, getString(R.string.fm_documents), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS));
+        placeItem(labels, acts, getString(R.string.fm_music), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC));
+        placeItem(labels, acts, getString(R.string.fm_movies), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES));
+        placeItem(labels, acts, getString(R.string.fm_app_folder), appDir());
         String[] cats = {Cats.RECENT, Cats.IMG, Cats.VID, Cats.AUD, Cats.DOC, Cats.APK, Cats.ARC};
         for (final String k : cats) {
-            TextView cc = Ui.chip(this, getString(Cats.titleOf(k)), mode == M_CAT && catKey.equals(k));
-            cc.setOnClickListener(v -> {
+            labels.add(getString(Cats.titleOf(k)));
+            acts.add(() -> {
                 clearSelectionQuiet();
                 mode = M_CAT;
                 catKey = k;
                 cur = defaultRoot();
                 refresh();
             });
-            placesRow.addView(cc);
         }
-
-        TextView fav = Ui.chip(this, getString(R.string.fm_favorites), mode == M_FAV);
-        fav.setOnClickListener(v -> {
+        labels.add(getString(R.string.fm_favorites));
+        acts.add(() -> {
             clearSelectionQuiet();
             mode = M_FAV;
             refresh();
         });
-        placesRow.addView(fav);
-
-        TextView big = Ui.chip(this, getString(R.string.fm_largest), mode == M_LARGEST);
-        big.setOnClickListener(v -> {
+        labels.add(getString(R.string.fm_largest));
+        acts.add(() -> {
             clearSelectionQuiet();
             mode = M_LARGEST;
             refresh();
         });
-        placesRow.addView(big);
+        labels.add(getString(R.string.home_analysis));
+        acts.add(() -> startActivity(new Intent(this, StorageActivity.class)));
+        new Dlg(this).setTitle(R.string.fm_places).setItems(labels.toArray(new String[0]), (d, which) -> acts.get(which).run()).show();
     }
 
-    private void addPlace(String label, final File dir) {
+    private void placeItem(List<String> labels, List<Go> acts, String label, final File dir) {
         if (dir == null || !dir.exists()) return;
-        TextView c = Ui.chip(this, label, mode == M_DIR && cur.equals(dir));
-        c.setOnClickListener(v -> navigate(dir));
-        placesRow.addView(c);
+        labels.add(label);
+        acts.add(() -> navigate(dir));
+    }
+
+    private void overflowMenu() {
+        String[] items = {getString(R.string.refresh), getString(R.string.fm_new), getString(R.string.fm_select_all),
+                getString(R.string.home_analysis)};
+        new Dlg(this).setTitle(R.string.more).setItems(items, (d, which) -> {
+            if (which == 0) refresh();
+            else if (which == 1) newMenu();
+            else if (which == 2) selectAll();
+            else startActivity(new Intent(this, StorageActivity.class));
+        }).show();
     }
 
     // ------------------------------------------------------------------ types / icons
@@ -998,17 +1047,15 @@ public class FileManagerActivity extends BaseActivity {
             } else {
                 sub.append(Fmt.size(e.size));
             }
-            if (mode == M_DIR) {
-                sub.append(" · ").append(dateFmt.format(new Date(e.mod)));
-            } else {
+            if (mode != M_DIR) {
                 File p = e.f.getParentFile();
                 if (p != null) sub.append(" · ").append(p.getAbsolutePath());
             }
             ((TextView) v.findViewById(R.id.sub)).setText(sub.toString());
+            ((TextView) v.findViewById(R.id.date)).setText(dateFmt.format(new Date(e.mod)));
 
             v.findViewById(R.id.fav).setVisibility(favSet().contains(path) ? View.VISIBLE : View.GONE);
             v.findViewById(R.id.check).setVisibility(sel ? View.VISIBLE : View.GONE);
-            v.findViewById(R.id.chevron).setVisibility(!sel && e.dir ? View.VISIBLE : View.GONE);
             Ui.shapeRow(FileManagerActivity.this, v, pos == 0, pos == shown.size() - 1,
                     sel ? R.color.accent_soft : R.color.surface);
             return v;
@@ -1162,7 +1209,7 @@ public class FileManagerActivity extends BaseActivity {
             }
             return;
         }
-        if (e.ext.equals("zip") || e.ext.equals("jar") || e.ext.equals("cbz")) {
+        if (Arc.browsable(e.f.getName())) {
             Intent zi = new Intent(this, ZipBrowseActivity.class);
             zi.putExtra("path", e.f.getAbsolutePath());
             startActivity(zi);
@@ -1191,18 +1238,19 @@ public class FileManagerActivity extends BaseActivity {
         io.execute(() -> {
             final StringBuilder sb = new StringBuilder();
             String err = null;
-            try (ZipFile zf = new ZipFile(zip)) {
-                Enumeration<? extends ZipEntry> en = zf.entries();
+            try (Arc arc = Arc.open(zip)) {
                 int n = 0;
-                int total = zf.size();
-                while (en.hasMoreElements() && n < 300) {
-                    ZipEntry ze = en.nextElement();
-                    sb.append(ze.isDirectory() ? "▸ " : "• ").append(ze.getName());
-                    if (!ze.isDirectory() && ze.getSize() >= 0) sb.append("  (").append(Fmt.size(ze.getSize())).append(")");
+                int total = arc.items.size();
+                for (Arc.Item ze : arc.items) {
+                    if (n >= 300) break;
+                    sb.append(ze.dir ? "▸ " : "• ").append(ze.name);
+                    if (!ze.dir && ze.size >= 0) sb.append("  (").append(Fmt.size(ze.size)).append(")");
                     sb.append('\n');
                     n++;
                 }
                 if (total > n) sb.append("…  +").append(total - n);
+            } catch (Arc.Unsupported ex) {
+                err = getString(ex.encrypted ? R.string.zip_encrypted : R.string.zip_unsupported);
             } catch (Exception ex) {
                 err = String.valueOf(ex.getMessage());
             }
@@ -1319,7 +1367,7 @@ public class FileManagerActivity extends BaseActivity {
         if (files.isEmpty()) return;
         final boolean single = files.size() == 1;
         final File one = files.get(0);
-        final boolean isZip = single && !one.isDirectory() && (extOf(one.getName()).equals("zip"));
+        final boolean isZip = single && !one.isDirectory() && Arc.browsable(one.getName());
         final boolean anyFile = hasFile(files);
         final boolean allFav = favs().containsAll(paths(files));
 
@@ -1607,6 +1655,8 @@ public class FileManagerActivity extends BaseActivity {
         LinearLayout box = Ui.box(this);
         final EditText name = Ui.edit(this, getString(R.string.fm_name_hint), def + ".zip");
         box.addView(name);
+        final CheckBox fast = Ui.check(this, R.string.fm_zip_fast, false);
+        box.addView(fast);
         new Dlg(this).setTitle(R.string.fm_compress).setView(box)
                 .setPositiveButton(R.string.create, (d, w) -> {
                     String n = name.getText().toString().trim();
@@ -1617,106 +1667,160 @@ public class FileManagerActivity extends BaseActivity {
                     if (!n.toLowerCase(Locale.ROOT).endsWith(".zip")) n = n + ".zip";
                     File parent = files.get(0).getParentFile();
                     if (parent == null) parent = cur;
-                    doCompress(files, unique(parent, n));
+                    doCompress(files, unique(parent, n), fast.isChecked());
                 })
                 .setNegativeButton(R.string.cancel, null).show();
     }
 
-    private void doCompress(final List<File> files, final File out) {
+    /** Adds up the size of everything that will be packed, so the dialog can show a real percentage. */
+    private static long treeBytes(File f, File skip, int[] budget) {
+        if (f.equals(skip) || budget[0]-- <= 0) return 0;
+        if (!f.isDirectory()) return f.length();
+        if (isLink(f)) return 0;
+        long t = 0;
+        File[] kids = f.listFiles();
+        if (kids != null) for (File k : kids) t += treeBytes(k, skip, budget);
+        return t;
+    }
+
+    private void doCompress(final List<File> files, final File out, final boolean fast) {
         selected.clear();
         runTask(getString(R.string.fm_compressing), () -> {
+            long sum = 1;
+            for (File f : files) sum += treeBytes(f, out, new int[]{200000});
+            final long total = sum;
+            final long[] done = {0};
+            final int[] last = {-1};
+            final ZipWriter.Sink sink = new ZipWriter.Sink() {
+                @Override
+                public void bytes(long n) {
+                    done[0] += n;
+                    int pct = (int) Math.min(99, done[0] * 100 / total);
+                    if (pct != last[0]) {
+                        last[0] = pct;
+                        setBusyPercent(pct);
+                    }
+                }
+
+                @Override
+                public boolean cancelled() {
+                    return cancelled;
+                }
+            };
             boolean ok = false;
-            try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(out)))) {
-                for (File f : files) addToZip(zos, f, f.getName(), out);
+            ZipWriter zw = new ZipWriter(out, sink);
+            try {
+                zw.setLevel(fast ? 1 : java.util.zip.Deflater.DEFAULT_COMPRESSION);
+                for (File f : files) addToZip(zw, f, f.getName(), out);
+                zw.close();
                 ok = true;
+            } catch (ZipWriter.Cancelled c) {
+                throw new Cancel();
             } finally {
-                if (!ok) out.delete();
+                if (!ok) {
+                    try {
+                        zw.close();
+                    } catch (IOException ignored) {
+                    }
+                    //noinspection ResultOfMethodCallIgnored
+                    out.delete();
+                }
             }
             return getString(R.string.fm_created_name, out.getName());
         });
     }
 
-    private void addToZip(ZipOutputStream zos, File f, String entry, File outFile) throws IOException {
+    private void addToZip(ZipWriter zw, File f, String entry, File outFile) throws IOException {
         if (cancelled) throw new Cancel();
         if (f.equals(outFile)) return;
+        if (isLink(f)) return;                       // never follow links out of the folder being packed
         if (f.isDirectory()) {
-            zos.putNextEntry(new ZipEntry(entry + "/"));
-            zos.closeEntry();
+            zw.addDirectory(entry, f.lastModified());
             File[] kids = f.listFiles();
-            if (kids != null) for (File k : kids) addToZip(zos, k, entry + "/" + k.getName(), outFile);
-        } else {
+            if (kids != null) for (File k : kids) addToZip(zw, k, entry + "/" + k.getName(), outFile);
+        } else if (f.canRead()) {
             setBusy(f.getName());
-            zos.putNextEntry(new ZipEntry(entry));
-            try (InputStream in = new FileInputStream(f)) {
-                byte[] buf = new byte[64 * 1024];
-                int n;
-                while ((n = in.read(buf)) != -1) {
-                    if (cancelled) throw new Cancel();
-                    zos.write(buf, 0, n);
-                }
-            }
-            zos.closeEntry();
+            zw.addFile(entry, f);
         }
+    }
+
+    /** Name of an archive without its extension; knows the double ones (.tar.gz, .tar.bz2, .tar.xz). */
+    private static String archiveBase(String n) {
+        String l = n.toLowerCase(Locale.ROOT);
+        for (String d : new String[]{".tar.gz", ".tar.bz2", ".tar.xz"}) {
+            if (l.endsWith(d) && n.length() > d.length()) return n.substring(0, n.length() - d.length());
+        }
+        for (String d : new String[]{".tgz", ".tbz2", ".txz"}) {
+            if (l.endsWith(d) && n.length() > d.length()) return n.substring(0, n.length() - d.length());
+        }
+        return stripExt(n);
     }
 
     private void extract(final File zip, final boolean intoFolder) {
         selected.clear();
         File parent = zip.getParentFile();
         if (parent == null) parent = cur;
-        final File dest = intoFolder ? unique(parent, stripExt(zip.getName())) : parent;
+        final File dest = intoFolder ? unique(parent, archiveBase(zip.getName())) : parent;
         runTask(getString(R.string.fm_extracting), () -> {
             if (!dest.exists() && !dest.mkdirs()) throw new IOException(getString(R.string.fm_err_mkdir, dest.getName()));
-            String root = dest.getCanonicalPath() + File.separator;
-            int count = 0;
-            long written = 0;
-            long total = 0;
-            int lastPct = -1;
-            try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(zip)) {   // for the percentage
-                java.util.Enumeration<? extends ZipEntry> en = zf.entries();
-                while (en.hasMoreElements()) {
-                    long sz = en.nextElement().getSize();
-                    if (sz > 0) total += sz;
-                }
-            } catch (Exception ignored) {
-            }
-            final long room = Math.max(0L, dest.getUsableSpace() - 64L * 1024 * 1024);
-            try (ZipInputStream zin = new ZipInputStream(new BufferedInputStream(new FileInputStream(zip)))) {
-                ZipEntry e;
-                byte[] buf = new byte[64 * 1024];
-                while ((e = zin.getNextEntry()) != null) {
-                    if (cancelled) throw new Cancel();
-                    if (count > 100000) throw new IOException(getString(R.string.fm_err_zip_unsafe));
-                    File out = new File(dest, e.getName());
-                    if (!out.getCanonicalPath().startsWith(root)) {
-                        throw new IOException(getString(R.string.fm_err_zip_unsafe));
-                    }
-                    if (e.isDirectory()) {
-                        out.mkdirs();
-                        continue;
-                    }
-                    File p = out.getParentFile();
-                    if (p != null) p.mkdirs();
-                    setBusy(e.getName());
-                    try (OutputStream os = new BufferedOutputStream(new FileOutputStream(out))) {
-                        int r;
-                        while ((r = zin.read(buf)) != -1) {
-                            if (cancelled) throw new Cancel();
-                            written += r;
-                            if (written > room) throw new IOException(getString(R.string.fm_err_zip_unsafe));
-                            os.write(buf, 0, r);
-                            if (total > 0) {
-                                int pct = (int) Math.min(99, written * 100 / total);
-                                if (pct != lastPct) {
-                                    lastPct = pct;
-                                    setBusyPercent(pct);
+            final String root = dest.getCanonicalPath() + File.separator;
+            final int[] count = {0};
+            final long[] written = {0};
+            final int[] lastPct = {-1};
+            try (Arc arc = Arc.open(zip)) {
+                long total = 0;
+                for (Arc.Item it : arc.items) if (!it.dir && it.size > 0) total += it.size;
+                final long fTotal = total;
+                final long room = Math.max(0L, dest.getUsableSpace() - 64L * 1024 * 1024);
+                if (total > room) throw new IOException(getString(R.string.zip_no_space, Fmt.size(total), Fmt.size(room)));
+                try {
+                    arc.walk(it -> true, (it, in) -> {
+                        if (cancelled) throw new Cancel();
+                        if (count[0] > Arc.MAX_ENTRIES) throw new IOException(getString(R.string.fm_err_zip_unsafe));
+                        File out = new File(dest, it.name);
+                        if (!out.getCanonicalPath().startsWith(root)) throw new IOException(getString(R.string.fm_err_zip_unsafe));
+                        File p = out.getParentFile();
+                        if (p != null) p.mkdirs();
+                        setBusy(it.name);
+                        final long base = written[0];
+                        long t = Arc.copy(in, out, Math.max(0, room - base), new ZipWriter.Sink() {
+                            long mine;
+
+                            @Override
+                            public void bytes(long n) {
+                                mine += n;
+                                if (fTotal > 0) {
+                                    int pct = (int) Math.min(99, (base + mine) * 100 / fTotal);
+                                    if (pct != lastPct[0]) {
+                                        lastPct[0] = pct;
+                                        setBusyPercent(pct);
+                                    }
                                 }
                             }
-                        }
-                    }
-                    count++;
+
+                            @Override
+                            public boolean cancelled() {
+                                return cancelled;
+                            }
+                        });
+                        written[0] = base + t;
+                        if (it.time > 0) //noinspection ResultOfMethodCallIgnored
+                            out.setLastModified(it.time);
+                        count[0]++;
+                    });
+                } catch (Arc.Unsupported u) {
+                    throw new IOException(getString(u.encrypted ? R.string.zip_encrypted : R.string.zip_unsupported));
+                } catch (ZipWriter.Cancelled c) {
+                    throw new Cancel();
+                }
+                for (Arc.Item di : arc.items) {   // empty folders too
+                    if (!di.dir) continue;
+                    File d = new File(dest, di.name);
+                    if (d.getCanonicalPath().startsWith(root)) //noinspection ResultOfMethodCallIgnored
+                        d.mkdirs();
                 }
             }
-            return getString(R.string.fm_extracted_n, count);
+            return getString(R.string.fm_extracted_n, count[0]);
         });
     }
 

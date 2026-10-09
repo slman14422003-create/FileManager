@@ -24,14 +24,11 @@ import java.io.OutputStream;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 /**
  * Package installer engine (beta 2): reads an APK or a split bundle (APKS / XAPK / APKM), reports what
@@ -94,8 +91,8 @@ final class PkgInstaller {
 
     /** A single APK has AndroidManifest.xml at the top of the archive; bundles hold other APKs instead. */
     static boolean looksLikeApk(File f) {
-        try (ZipFile z = new ZipFile(f)) {
-            return z.getEntry("AndroidManifest.xml") != null;
+        try (ZipReader z = ZipReader.open(f)) {
+            return z.find("AndroidManifest.xml") != null;
         } catch (IOException e) {
             return false;
         }
@@ -154,10 +151,10 @@ final class PkgInstaller {
             //noinspection ResultOfMethodCallIgnored
             dir.mkdirs();
             apk = new File(dir, "base.apk");
-            try (ZipFile z = new ZipFile(f)) {
-                ZipEntry ze = z.getEntry(pickBase(in.entries));
+            try (ZipReader z = ZipReader.open(f)) {
+                ZipReader.Entry ze = z.find(pickBase(in.entries));
                 if (ze == null) throw new IOException("base missing");
-                copy(z.getInputStream(ze), new FileOutputStream(apk), null);
+                copy(z.open(ze), new FileOutputStream(apk), null);
             }
         }
         PackageManager pm = c.getPackageManager();
@@ -362,10 +359,10 @@ final class PkgInstaller {
         }
         in.entries.addAll(keep);
         long total = 0;
-        try (ZipFile z = new ZipFile(in.source)) {
+        try (ZipReader z = ZipReader.open(in.source)) {
             for (String name : in.entries) {
-                ZipEntry ze = z.getEntry(name);
-                if (ze != null && ze.getSize() > 0) total += ze.getSize();
+                ZipReader.Entry ze = z.find(name);
+                if (ze != null && ze.size > 0) total += ze.size;
             }
         } catch (IOException ignored) {
         }
@@ -376,11 +373,11 @@ final class PkgInstaller {
     /** Native-code architectures a package ships: lib/<abi>/ folders of the base APK and architecture splits. */
     private static List<String> abisOf(File apk, Info in) {
         Set<String> out = new LinkedHashSet<>();
-        try (ZipFile z = new ZipFile(apk)) {
-            Enumeration<? extends ZipEntry> en = z.entries();
+        try (ZipReader z = ZipReader.open(apk)) {
             int n = 0;
-            while (en.hasMoreElements() && n++ < 6000) {
-                String name = en.nextElement().getName();
+            for (ZipReader.Entry ent : z.entries()) {
+                if (n++ >= 6000) break;
+                String name = ent.name;
                 if (name.startsWith("lib/")) {
                     int e = name.indexOf('/', 4);
                     if (e > 4) out.add(norm(name.substring(4, e)));
@@ -461,6 +458,10 @@ final class PkgInstaller {
             out.add(new Issue(Perms.hasAllFiles(c) ? LV_INFO : LV_WARN, false,
                     c.getString(Perms.hasAllFiles(c) ? R.string.pk_issue_obb : R.string.pk_issue_obb_perm, in.obbEntries.size())));
         }
+        // bundle without a base package
+        if (!hasBase(in)) {
+            out.add(new Issue(LV_WARN, false, c.getString(R.string.pk_issue_nobase)));
+        }
         // smart selection
         if (in.bundle && in.smart) {
             out.add(new Issue(LV_INFO, false, c.getString(R.string.pk_issue_smart, in.entries.size(), in.allEntries.size())));
@@ -538,21 +539,21 @@ final class PkgInstaller {
         if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("cannot create " + dir);
         long total = 0;
         int copied = 0;
-        try (ZipFile z = new ZipFile(in.source)) {
+        try (ZipReader z = ZipReader.open(in.source)) {
             for (String name : in.obbEntries) {
-                ZipEntry ze = z.getEntry(name);
-                if (ze != null && ze.getSize() > 0) total += ze.getSize();
+                ZipReader.Entry ze = z.find(name);
+                if (ze != null && ze.size > 0) total += ze.size;
             }
             final long fTotal = Math.max(1, total);
             final long[] done = {0};
             for (String name : in.obbEntries) {
-                ZipEntry ze = z.getEntry(name);
+                ZipReader.Entry ze = z.find(name);
                 if (ze == null) continue;
                 String leaf = name.substring(name.lastIndexOf('/') + 1);
                 if (leaf.isEmpty() || leaf.contains("..")) continue;
                 File out = new File(dir, leaf);
                 File part = new File(dir, leaf + ".part");
-                try (InputStream is = z.getInputStream(ze); OutputStream os = new FileOutputStream(part)) {
+                try (InputStream is = z.open(ze); OutputStream os = new FileOutputStream(part)) {
                     byte[] buf = new byte[1 << 16];
                     int r;
                     long last = 0;
@@ -572,6 +573,71 @@ final class PkgInstaller {
             if (pr != null) pr.on(fTotal, fTotal);
         }
         return copied;
+    }
+
+    // ------------------------------------------------------------------ beta 3: integrity and fingerprint checks
+
+    /**
+     * Reads everything that will be installed (the chosen splits of a bundle, or every entry of a single APK) and
+     * checks each entry's CRC-32, so a truncated or corrupt download is reported before the install session starts
+     * instead of failing half way with a vague system error. Call off the UI thread.
+     */
+    static void verify(Info in, Progress pr) throws IOException {
+        try (ZipReader z = ZipReader.open(in.source)) {
+            List<ZipReader.Entry> todo = new ArrayList<>();
+            long total = 0;
+            if (in.bundle) {
+                for (String name : in.entries) {
+                    ZipReader.Entry e = z.find(name);
+                    if (e != null) todo.add(e);
+                }
+            } else {
+                for (ZipReader.Entry e : z.entries()) if (!e.dir) todo.add(e);
+            }
+            for (ZipReader.Entry e : todo) total += Math.max(0, e.size);
+            final long fTotal = Math.max(1, total);
+            long done = 0, last = 0;
+            byte[] buf = new byte[1 << 16];
+            for (ZipReader.Entry e : todo) {
+                try (InputStream is = z.open(e)) {
+                    int r;
+                    while ((r = is.read(buf)) > 0) {
+                        done += r;
+                        if (pr != null && done - last > (512 << 10)) {
+                            last = done;
+                            pr.on(done, fTotal);
+                        }
+                    }
+                }
+            }
+            if (pr != null) pr.on(fTotal, fTotal);
+        }
+    }
+
+    /** 1: the clipboard holds a SHA-256 equal to this file's, -1: it holds a different one, 0: no hash on the clipboard. */
+    static int hashVsClipboard(Context c, String sha) {
+        try {
+            android.content.ClipboardManager cm = (android.content.ClipboardManager) c.getSystemService(Context.CLIPBOARD_SERVICE);
+            if (cm == null || !cm.hasPrimaryClip() || cm.getPrimaryClip() == null || cm.getPrimaryClip().getItemCount() == 0) return 0;
+            CharSequence t = cm.getPrimaryClip().getItemAt(0).coerceToText(c);
+            if (t == null) return 0;
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?i)\\b[0-9a-f]{64}\\b").matcher(t);
+            if (!m.find()) return 0;
+            return m.group().equalsIgnoreCase(sha) ? 1 : -1;
+        } catch (Throwable ignored) {
+            return 0;
+        }
+    }
+
+    /** A bundle must carry a base package; without one the system answers with an unhelpful "missing split". */
+    static boolean hasBase(Info in) {
+        if (!in.bundle) return true;
+        for (String n : in.allEntries) {
+            String l = n.toLowerCase(Locale.ROOT);
+            String t = configToken(n);
+            if (l.endsWith("/base.apk") || l.equals("base.apk") || l.contains("base-master") || t.isEmpty() || t.equals("master")) return true;
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------ history
@@ -627,13 +693,12 @@ final class PkgInstaller {
         List<String> splits = new ArrayList<>();
         List<String> root = new ArrayList<>();
         List<String> standalone = new ArrayList<>();
-        try (ZipFile z = new ZipFile(f)) {
-            Enumeration<? extends ZipEntry> en = z.entries();
+        try (ZipReader z = ZipReader.open(f)) {
             int n = 0;
-            while (en.hasMoreElements() && n++ < 3000) {
-                ZipEntry e = en.nextElement();
-                if (e.isDirectory()) continue;
-                String name = e.getName();
+            for (ZipReader.Entry e : z.entries()) {
+                if (n++ >= 3000) break;
+                if (e.dir) continue;
+                String name = e.name;
                 if (name.contains("..")) continue;   // never trust relative parts
                 String low = name.toLowerCase(Locale.ROOT);
                 if (low.endsWith(".obb")) {
@@ -737,10 +802,10 @@ final class PkgInstaller {
             if (!in.bundle) {
                 total = in.source.length();
             } else {
-                try (ZipFile z = new ZipFile(in.source)) {
+                try (ZipReader z = ZipReader.open(in.source)) {
                     for (String name : in.entries) {
-                        ZipEntry ze = z.getEntry(name);
-                        if (ze != null && ze.getSize() > 0) total += ze.getSize();
+                        ZipReader.Entry ze = z.find(name);
+                        if (ze != null && ze.size > 0) total += ze.size;
                     }
                 }
             }
@@ -753,12 +818,12 @@ final class PkgInstaller {
             if (!in.bundle) {
                 writeEntry(s, "base.apk", new FileInputStream(in.source), in.source.length(), done, step);
             } else {
-                try (ZipFile z = new ZipFile(in.source)) {
+                try (ZipReader z = ZipReader.open(in.source)) {
                     for (String name : in.entries) {
-                        ZipEntry ze = z.getEntry(name);
+                        ZipReader.Entry ze = z.find(name);
                         if (ze == null) continue;
                         String safe = name.replace('/', '_').replaceAll("[^A-Za-z0-9._-]", "_");
-                        writeEntry(s, safe, z.getInputStream(ze), ze.getSize(), done, step);
+                        writeEntry(s, safe, z.open(ze), ze.size, done, step);
                     }
                 }
             }

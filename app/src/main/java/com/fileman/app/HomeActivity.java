@@ -290,7 +290,7 @@ public class HomeActivity extends BaseActivity {
     /** Storage analysis tile: a small pie of the used space, opens the advanced tools. */
     private View analysisTile(File root) {
         View v = homeTile(R.drawable.ic_chart, R.color.accent_text, getString(R.string.home_analysis), "",
-                x -> startActivity(new Intent(this, ToolsActivity.class)));
+                x -> startActivity(new Intent(this, StorageActivity.class)));
         try {
             StatFs st = new StatFs(root.getAbsolutePath());
             long total = st.getTotalBytes();

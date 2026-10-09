@@ -59,7 +59,7 @@ public final class Opener {
 
     /** Extensions the built-in archive browser can read. */
     public static boolean isArchiveExt(String ext) {
-        return ext.equals("zip") || ext.equals("jar") || ext.equals("cbz") || ext.equals("war");
+        return Arc.browsable("x." + ext);
     }
 
     /** Opens the archive browser for a zip-like file (whatever its name is). */

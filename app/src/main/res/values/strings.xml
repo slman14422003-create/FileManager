@@ -230,7 +230,10 @@
     <string name="zip_folder_empty">هذا المجلد فارغ</string>
     <string name="zip_encrypted">تعذّر قراءة الملف: الأرشيف محمي بكلمة مرور أو مضغوط بطريقة غير مدعومة</string>
     <string name="zip_failed">تعذّر قراءة الأرشيف (الملف تالف أو الصيغة غير مدعومة)</string>
-    <string name="zip_too_big">الملف كبير جدًا للمعاينة (أكثر من 256 ميغابايت). استخرجه أولًا.</string>
+    <string name="zip_unsupported">صيغة الأرشيف أو طريقة ضغطه غير مدعومة في هذا الإصدار</string>
+    <string name="zip_no_space">المساحة غير كافية: يحتاج الاستخراج إلى %1$s والمتاح %2$s</string>
+    <string name="fm_zip_fast">ضغط سريع (حجم أكبر قليلًا، أسرع للملفات الكبيرة)</string>
+    <string name="zip_too_big">لا توجد مساحة كافية لمعاينة هذا الملف. استخرجه إلى مجلد آخر أولًا.</string>
     <string name="zip_extracted_to">تم استخراج %1$d ملف إلى «%2$s»</string>
     <string name="zip_select_all">تحديد الكل</string>
     <string name="zip_info">معلومات الأرشيف</string>
@@ -239,8 +242,8 @@
     <!-- package installer (beta) and advanced tools -->
     <string name="pk_title">مثبّت الحزم</string>
     <string name="pk_beta">بيتا</string>
-    <string name="pk_subtitle">بيتا 2 · تثبيت APK والحزم المقسّمة وإدارة التطبيقات</string>
-    <string name="pk_beta_note">نسخة تجريبية (بيتا 2): تثبّت APK وAPKS وXAPK وAPKM عبر مثبّت النظام الرسمي، وتفحص الحزمة قبل التثبيت (إصدار أندرويد والمعالج والمساحة والتوقيع والرجوع لإصدار أقدم)، وتختار تلقائيًا الحزم المناسبة لجهازك، وتنسخ ملفات OBB، وتحتفظ بسجل للنتائج. التثبيت الصامت دون موافقة غير متاح لأي تطبيق عادي، لذلك قد يطلب النظام تأكيدك.</string>
+    <string name="pk_subtitle">بيتا 3 · تثبيت APK والحزم المقسّمة (حتى الضخمة) مع فحص السلامة وإدارة التطبيقات</string>
+    <string name="pk_beta_note">نسخة تجريبية (بيتا 3): تثبّت APK وAPKS وXAPK وAPKM عبر مثبّت النظام الرسمي، وتقرأ الحزم الضخمة (ZIP64) وأسماءها العربية، وتفحص سلامة الحزمة (CRC) قبل التثبيت، وتتحقق من الإصدار والمعالج والمساحة والتوقيع، وتختار تلقائيًا الحزم المناسبة لجهازك، وتقارن بصمة SHA-256 بما في الحافظة، وتنسخ ملفات OBB، وتحتفظ بسجل للنتائج. التثبيت الصامت دون موافقة غير متاح لأي تطبيق عادي، لذلك قد يطلب النظام تأكيدك.</string>
     <string name="pk_tools">الأدوات</string>
     <string name="pk_found">حزم على الجهاز</string>
     <string name="pk_found_sub">ابحث عن APK وAPKS وXAPK وAPKM في التخزين</string>
@@ -454,7 +457,7 @@
     <string name="pal_graphite">رمادي</string>
     <string name="pal_mono">محايد</string>
     <string name="pal_amoled">أسود AMOLED</string>
-    <string name="pk_beta2">بيتا 2</string>
+    <string name="pk_beta2">بيتا 3</string>
     <string name="pk_chip_blocked">لا يمكن التثبيت</string>
     <string name="pk_d_abi">المعمارية</string>
     <string name="pk_d_abi_none">بدون مكتبات أصلية: تعمل على كل المعمارات</string>
@@ -518,4 +521,27 @@
     <string name="home_analysis">تحليل المساحة</string>
     <string name="home_by_size">حسب الحجم</string>
     <string name="home_installer">مثبّت الحزم</string>
+    <string name="fm_places">الأماكن</string>
+    <string name="sa_free">%s متاح</string>
+    <string name="sa_others">أخرى</string>
+    <string name="sa_more">المزيد</string>
+    <string name="sa_apps">التطبيقات</string>
+    <string name="sa_apps_need">اسمح بالوصول إلى بيانات الاستخدام لمعرفة المساحة التي تستهلكها التطبيقات.</string>
+    <string name="sa_permit">السماح بالوصول</string>
+    <string name="sa_none">لا بيانات</string>
+    <string name="sa_large">الملفات الكبيرة</string>
+    <string name="sa_large_hint">الملفات الأكبر من 10 ميغابايت</string>
+    <string name="sa_cache">الملفات المؤقتة</string>
+    <string name="sa_cache_apps">مجموع ذاكرة التخزين المؤقت لكل التطبيقات</string>
+    <string name="sa_cache_own">ذاكرة هذا التطبيق المؤقتة (اسمح بالوصول لبيانات الاستخدام لرؤية التطبيقات الأخرى)</string>
+    <string name="sa_clean_own">تنظيف مؤقتات هذا التطبيق</string>
+    <string name="sa_cleaned">تم تحرير %s</string>
+    <string name="sa_folders">محلل المجلدات</string>
+    <string name="pk_verifying">جارٍ فحص سلامة الحزمة…</string>
+    <string name="pk_fail_corrupt">الحزمة تالفة أو ناقصة (فشل فحص التحقق). أعد تنزيلها ثم حاول مجددًا.</string>
+    <string name="pk_opt_verify">فحص سلامة الحزمة قبل التثبيت</string>
+    <string name="pk_opt_verify_sub">يقرأ الملف ويتحقق من CRC لاكتشاف التنزيل التالف قبل البدء</string>
+    <string name="pk_hash_match">✓ يطابق البصمة في الحافظة</string>
+    <string name="pk_hash_differs">✗ يختلف عن البصمة في الحافظة</string>
+    <string name="pk_issue_nobase">لم يُعثر على APK أساسي داخل الحزمة؛ قد يرفض النظام التثبيت.</string>
 </resources>
