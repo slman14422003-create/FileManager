@@ -141,7 +141,7 @@ public final class ArcExtra {
 
         private static Arc.Item item(FileHeader h) {
             Arc.Item it = new Arc.Item();
-            String n = h.getFileName() == null ? "" : h.getFileName().replace('\\', '/');
+            String n = headerName(h).replace('\\', '/');
             it.dir = h.isDirectory();
             it.name = it.dir && !n.endsWith("/") ? n + "/" : n;
             it.size = h.getFullUnpackSize();
@@ -153,10 +153,24 @@ public final class ArcExtra {
             return it;
         }
 
+        /** Name of an entry; the accessor was renamed between junrar versions, so both spellings are tried. */
+        private static String headerName(FileHeader h) {
+            for (String m : new String[]{"getFileName", "getFileNameString"}) {
+                try {
+                    Object v = h.getClass().getMethod(m).invoke(h);
+                    if (v != null) return v.toString();
+                } catch (Exception ignored) {
+                }
+            }
+            return "";
+        }
+
         private Archive openArchive() throws IOException {
             try {
                 return new Archive(f);
-            } catch (com.github.junrar.exception.RarException e) {
+            } catch (IOException e) {
+                throw e;
+            } catch (Exception e) {          // junrar's own RarException (RAR5, damaged, ...)
                 String m = String.valueOf(e.getMessage()).toLowerCase(java.util.Locale.ROOT);
                 throw new Arc.Unsupported(m, m.contains("password") || m.contains("encrypt"));
             }
@@ -187,7 +201,9 @@ public final class ArcExtra {
                     if (h.isEncrypted()) throw new Arc.Unsupported("password", true);
                     try (InputStream in = a.getInputStream(h)) {
                         v.file(it, in);
-                    } catch (com.github.junrar.exception.RarException e) {
+                    } catch (IOException e) {
+                        throw e;
+                    } catch (Exception e) {
                         throw new IOException(String.valueOf(e.getMessage()));
                     }
                 }

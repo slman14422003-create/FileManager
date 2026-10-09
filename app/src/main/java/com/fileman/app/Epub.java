@@ -61,10 +61,7 @@ final class Epub {
         if (h >= 0) href = href.substring(0, h);
         int q = href.indexOf('?');
         if (q >= 0) href = href.substring(0, q);
-        try {
-            href = java.net.URLDecoder.decode(href.replace("+", "%2B"), "UTF-8");
-        } catch (Exception ignored) {
-        }
+        href = percentDecode(href);
         String p = href.startsWith("/") ? href.substring(1) : base + href;
         List<String> parts = new ArrayList<>();
         for (String s : p.split("/")) {
@@ -73,6 +70,25 @@ final class Epub {
             } else if (!s.equals(".") && !s.isEmpty()) parts.add(s);
         }
         return String.join("/", parts);
+    }
+
+    /** Decodes %XX sequences (UTF-8) in a path inside the epub; no network classes involved. */
+    private static String percentDecode(String s) {
+        if (s.indexOf('%') < 0) return s;
+        ByteArrayOutputStream bo = new ByteArrayOutputStream(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '%' && i + 2 < s.length() && Character.digit(s.charAt(i + 1), 16) >= 0 && Character.digit(s.charAt(i + 2), 16) >= 0) {
+                bo.write(Character.digit(s.charAt(i + 1), 16) * 16 + Character.digit(s.charAt(i + 2), 16));
+                i += 2;
+            } else {
+                int cp = s.codePointAt(i);
+                byte[] b = new String(Character.toChars(cp)).getBytes(StandardCharsets.UTF_8);
+                bo.write(b, 0, b.length);
+                i += Character.charCount(cp) - 1;
+            }
+        }
+        return new String(bo.toByteArray(), StandardCharsets.UTF_8);
     }
 
     static String html(File f) throws IOException {
