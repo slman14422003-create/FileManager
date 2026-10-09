@@ -208,7 +208,7 @@ public class FileManagerActivity extends BaseActivity {
         selCount = findViewById(R.id.selCount);
         pasteText = findViewById(R.id.pasteText);
         usedPill = findViewById(R.id.usedPill);
-        btnSearch = findViewById(R.id.btnSearch);
+        btnSearch = findViewById(R.id.btnA1);
         btnA1 = findViewById(R.id.btnA1);
         btnA2 = findViewById(R.id.btnA2);
         btnRefresh = findViewById(R.id.btnRefresh);
@@ -231,9 +231,12 @@ public class FileManagerActivity extends BaseActivity {
         });
 
         findViewById(R.id.btnBack).setOnClickListener(v -> placesMenu());
-        action(btnA1, R.drawable.ic_sort, R.string.fm_sort, v -> sortMenu());
-        btnA1.setVisibility(View.VISIBLE);
-        btnSearch.setOnClickListener(v -> setSearchOpen(!searchOpen, true));
+        ((ImageButton) findViewById(R.id.btnBack)).setImageResource(R.drawable.ic_menu);
+        findViewById(R.id.btnBack).setContentDescription(getString(R.string.fm_places));
+        action(btnSearch, R.drawable.ic_search, R.string.fm_search, v -> setSearchOpen(!searchOpen, true));
+        action(btnA2, R.drawable.ic_sort, R.string.fm_sort, v -> sortMenu());
+        btnRefresh.setImageResource(R.drawable.ic_more);
+        btnRefresh.setContentDescription(getString(R.string.more));
         btnRefresh.setOnClickListener(v -> overflowMenu());
         usedPill.setOnClickListener(v -> startActivity(new Intent(this, StorageActivity.class)));
 

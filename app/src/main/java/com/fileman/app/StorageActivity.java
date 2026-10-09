@@ -19,6 +19,7 @@ import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -77,6 +78,7 @@ public class StorageActivity extends BaseActivity {
         ImageButton refresh = findViewById(R.id.btnRefresh);
         refresh.setOnClickListener(v -> load());
         content = findViewById(R.id.content);
+        Ui.autoGroup(this, content);
         loading = findViewById(R.id.loading);
     }
 
@@ -194,57 +196,9 @@ public class StorageActivity extends BaseActivity {
         return t;
     }
 
-    // ------------------------------------------------------------------ cards
+    // ------------------------------------------------------------------ cards (same blocks as Settings: titles, grouped rows, cards)
 
-    private LinearLayout card() {
-        LinearLayout c = new LinearLayout(this);
-        c.setOrientation(LinearLayout.VERTICAL);
-        c.setBackgroundResource(R.drawable.bg_card);
-        c.setPadding(Ui.dp(this, 18), Ui.dp(this, 16), Ui.dp(this, 18), Ui.dp(this, 8));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(Ui.dp(this, 14), Ui.dp(this, 6), Ui.dp(this, 14), Ui.dp(this, 6));
-        content.addView(c, lp);
-        return c;
-    }
-
-    private LinearLayout titleRow(LinearLayout card, String title, String value) {
-        LinearLayout r = new LinearLayout(this);
-        r.setOrientation(LinearLayout.HORIZONTAL);
-        r.setGravity(Gravity.CENTER_VERTICAL);
-        TextView t = new TextView(this);
-        t.setText(title);
-        t.setTextSize(22);
-        t.setTypeface(android.graphics.Typeface.SERIF);
-        t.setTextColor(Ui.color(this, R.color.text_primary));
-        r.addView(t);
-        if (value != null) {
-            TextView v = new TextView(this);
-            v.setText(value);
-            v.setTextSize(18);
-            v.setTextColor(Ui.color(this, R.color.accent_text));
-            v.setPaddingRelative(Ui.dp(this, 12), 0, 0, 0);
-            r.addView(v);
-        }
-        card.addView(r);
-        return r;
-    }
-
-    private void moreButton(LinearLayout card, int textRes, View.OnClickListener l) {
-        TextView m = new TextView(this);
-        m.setText(textRes);
-        m.setAllCaps(true);
-        m.setGravity(Gravity.CENTER);
-        m.setTextSize(14);
-        m.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        m.setTextColor(Ui.color(this, R.color.accent_text));
-        m.setMinHeight(Ui.dp(this, 48));
-        m.setOnClickListener(l);
-        Ui.press(this, m);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = Ui.dp(this, 10);
-        card.addView(m, lp);
-    }
-
+    /** One "icon  name  size" cell of the category grid inside the storage card. */
     private void kv(LinearLayout row, int icon, int color, String name, long bytes) {
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.HORIZONTAL);
@@ -252,144 +206,23 @@ public class StorageActivity extends BaseActivity {
         android.widget.ImageView i = new android.widget.ImageView(this);
         i.setImageResource(icon);
         i.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, color)));
-        c.addView(i, new LinearLayout.LayoutParams(Ui.dp(this, 26), Ui.dp(this, 26)));
+        c.addView(i, new LinearLayout.LayoutParams(Ui.dp(this, 24), Ui.dp(this, 24)));
+        LinearLayout t = new LinearLayout(this);
+        t.setOrientation(LinearLayout.VERTICAL);
+        t.setPaddingRelative(Ui.dp(this, 10), 0, Ui.dp(this, 6), 0);
         TextView n = new TextView(this);
         n.setText(name);
         n.setTextSize(15);
         n.setSingleLine(true);
         n.setTextColor(Ui.color(this, R.color.text_primary));
-        n.setPaddingRelative(Ui.dp(this, 10), 0, Ui.dp(this, 6), 0);
-        c.addView(n, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        t.addView(n);
         TextView s = new TextView(this);
         s.setText(Fmt.size(bytes));
         s.setTextSize(13);
         s.setTextColor(Ui.color(this, R.color.text_secondary));
-        c.addView(s);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        lp.setMarginEnd(Ui.dp(this, 8));
-        row.addView(c, lp);
-    }
-
-    private void render(long total, long free, Cats.Stats st, List<Big> bigs, long bigTotal, boolean usage,
-                        List<AppSize> apps, long cacheTotal) {
-        content.removeAllViews();
-
-        // 1) main storage
-        LinearLayout c1 = card();
-        titleRow(c1, getString(R.string.fm_internal), getString(R.string.sa_free, Fmt.size(free)));
-        double pct = total > 0 ? (total - free) * 100.0 / total : 0;
-        TextView big = new TextView(this);
-        big.setText(Math.round(pct) + "%");
-        big.setTextSize(38);
-        big.setGravity(Gravity.CENTER);
-        big.setTextColor(Ui.color(this, R.color.text_primary));
-        big.setPadding(0, Ui.dp(this, 14), 0, Ui.dp(this, 10));
-        c1.addView(big);
-        c1.addView(Ui.bar(this, pct, pct > 90 ? R.color.bad : R.color.accent, 0, 14));
-
-        long img = st.size[Cats.T_IMG], vid = st.size[Cats.T_VID], aud = st.size[Cats.T_AUD];
-        long doc = st.size[Cats.T_PDF] + st.size[Cats.T_DOC], arc = st.size[Cats.T_ARC];
-        long others = 0;
-        for (int t = 0; t < st.size.length; t++) {
-            if (t == Cats.T_DIR || t == Cats.T_IMG || t == Cats.T_VID || t == Cats.T_AUD || t == Cats.T_PDF
-                    || t == Cats.T_DOC || t == Cats.T_ARC) continue;
-            others += st.size[t];
-        }
-        LinearLayout r1 = gridRow(c1), r2 = gridRow(c1), r3 = gridRow(c1);
-        kv(r1, Cats.iconFor(Cats.T_IMG), Cats.colorFor(Cats.T_IMG), getString(Cats.titleOf(Cats.IMG)), img);
-        kv(r1, Cats.iconFor(Cats.T_AUD), Cats.colorFor(Cats.T_AUD), getString(Cats.titleOf(Cats.AUD)), aud);
-        kv(r2, Cats.iconFor(Cats.T_VID), Cats.colorFor(Cats.T_VID), getString(Cats.titleOf(Cats.VID)), vid);
-        kv(r2, Cats.iconFor(Cats.T_DOC), Cats.colorFor(Cats.T_DOC), getString(Cats.titleOf(Cats.DOC)), doc);
-        kv(r3, Cats.iconFor(Cats.T_ARC), Cats.colorFor(Cats.T_ARC), getString(Cats.titleOf(Cats.ARC)), arc);
-        kv(r3, Cats.iconFor(Cats.T_OTHER), Cats.colorFor(Cats.T_OTHER), getString(R.string.sa_others), others);
-        moreButton(c1, R.string.sa_more, v -> categoryMenu());
-
-        // 2) apps
-        LinearLayout c2 = card();
-        titleRow(c2, getString(R.string.sa_apps), null);
-        if (!usage) {
-            TextView t = Ui.body(this, getString(R.string.sa_apps_need), 15, R.color.text_secondary);
-            t.setPadding(0, Ui.dp(this, 10), 0, 0);
-            c2.addView(t);
-            moreButton(c2, R.string.sa_permit, v -> {
-                try {
-                    startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
-                } catch (Exception e) {
-                    startActivity(new Intent(Settings.ACTION_SETTINGS));
-                }
-            });
-        } else {
-            for (int i = 0; i < apps.size() && i < 5; i++) {
-                LinearLayout row = gridRow(c2);
-                kv(row, R.drawable.ic_package, R.color.accent_text, apps.get(i).label, apps.get(i).bytes);
-            }
-            if (apps.isEmpty()) c2.addView(Ui.body(this, getString(R.string.sa_none), 15, R.color.text_secondary));
-        }
-
-        // 3) large files
-        LinearLayout c3 = card();
-        titleRow(c3, getString(R.string.sa_large), Fmt.size(bigTotal));
-        TextView hint = Ui.body(this, getString(R.string.sa_large_hint), 13, R.color.text_secondary);
-        hint.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 4));
-        c3.addView(hint);
-        for (int i = 0; i < bigs.size() && i < 2; i++) {
-            final Big bf = bigs.get(i);
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.VERTICAL);
-            row.setPadding(0, Ui.dp(this, 8), 0, Ui.dp(this, 8));
-            LinearLayout line = new LinearLayout(this);
-            line.setGravity(Gravity.CENTER_VERTICAL);
-            TextView n = new TextView(this);
-            n.setText(bf.f.getName());
-            n.setSingleLine(true);
-            n.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
-            n.setTextSize(15);
-            n.setTextColor(Ui.color(this, R.color.text_primary));
-            line.addView(n, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            TextView sz = new TextView(this);
-            sz.setText(Fmt.size(bf.size));
-            sz.setTextSize(15);
-            sz.setTextColor(Ui.color(this, R.color.accent_text));
-            line.addView(sz);
-            row.addView(line);
-            TextView p = new TextView(this);
-            File par = bf.f.getParentFile();
-            p.setText(par == null ? "" : par.getAbsolutePath());
-            p.setSingleLine(true);
-            p.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
-            p.setTextSize(12);
-            p.setTextColor(Ui.color(this, R.color.text_secondary));
-            row.addView(p);
-            row.setOnClickListener(v -> {
-                Intent it = new Intent(this, FileManagerActivity.class);
-                if (bf.f.getParentFile() != null) it.putExtra("path", bf.f.getParentFile().getAbsolutePath());
-                startActivity(it);
-            });
-            c3.addView(row);
-        }
-        moreButton(c3, R.string.sa_more, v -> {
-            Intent it = new Intent(this, FileManagerActivity.class);
-            it.putExtra("cat", Cats.LARGE);
-            startActivity(it);
-        });
-
-        // 4) cache
-        LinearLayout c4 = card();
-        titleRow(c4, getString(R.string.sa_cache), Fmt.size(cacheTotal));
-        TextView ch = Ui.body(this, getString(usage ? R.string.sa_cache_apps : R.string.sa_cache_own), 13, R.color.text_secondary);
-        ch.setPadding(0, Ui.dp(this, 6), 0, 0);
-        c4.addView(ch);
-        moreButton(c4, R.string.sa_clean_own, v -> {
-            long before = dirSize(getCacheDir()) + dirSize(getExternalCacheDir());
-            deleteContents(getCacheDir());
-            deleteContents(getExternalCacheDir());
-            android.widget.Toast.makeText(this, getString(R.string.sa_cleaned, Fmt.size(before)), android.widget.Toast.LENGTH_SHORT).show();
-            load();
-        });
-
-        // the old folder-by-folder analyzer stays one tap away
-        LinearLayout c5 = card();
-        moreButton(c5, R.string.sa_folders, v -> startActivity(new Intent(this, ToolsActivity.class)));
+        t.addView(s);
+        c.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(c, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
     }
 
     private LinearLayout gridRow(LinearLayout parent) {
@@ -398,6 +231,104 @@ public class StorageActivity extends BaseActivity {
         r.setPadding(0, Ui.dp(this, 8), 0, Ui.dp(this, 8));
         parent.addView(r);
         return r;
+    }
+
+    private void addRow(Row row, View.OnClickListener click) {
+        content.addView(Ui.rowView(this, content, row, click));
+    }
+
+    private void render(long total, long free, Cats.Stats st, List<Big> bigs, long bigTotal, boolean usage,
+                        List<AppSize> apps, long cacheTotal) {
+        content.removeAllViews();
+
+        // main storage: one card with the percentage, the bar and the size of every kind of file
+        content.addView(Ui.sectionTitle(this, getString(R.string.fm_internal) + " · " + getString(R.string.sa_free, Fmt.size(free))));
+        LinearLayout card = Ui.formCard(this);
+        card.setPaddingRelative(Ui.dp(this, 18), Ui.dp(this, 14), Ui.dp(this, 18), Ui.dp(this, 10));
+        double pct = total > 0 ? (total - free) * 100.0 / total : 0;
+        TextView big = new TextView(this);
+        big.setText(getString(R.string.home_used_pct, Math.round(pct)));
+        big.setTextSize(22);
+        big.setTypeface(android.graphics.Typeface.SERIF);
+        big.setTextColor(Ui.color(this, R.color.text_primary));
+        big.setPadding(0, 0, 0, Ui.dp(this, 4));
+        card.addView(big);
+        card.addView(Ui.bar(this, pct, pct > 90 ? R.color.bad : R.color.accent, 0, 10));
+        long img = st.size[Cats.T_IMG], vid = st.size[Cats.T_VID], aud = st.size[Cats.T_AUD];
+        long doc = st.size[Cats.T_PDF] + st.size[Cats.T_DOC], arc = st.size[Cats.T_ARC];
+        long others = 0;
+        for (int t = 0; t < st.size.length; t++) {
+            if (t == Cats.T_DIR || t == Cats.T_IMG || t == Cats.T_VID || t == Cats.T_AUD || t == Cats.T_PDF
+                    || t == Cats.T_DOC || t == Cats.T_ARC) continue;
+            others += st.size[t];
+        }
+        LinearLayout r1 = gridRow(card), r2 = gridRow(card), r3 = gridRow(card);
+        kv(r1, Cats.iconFor(Cats.T_IMG), Cats.colorFor(Cats.T_IMG), getString(Cats.titleOf(Cats.IMG)), img);
+        kv(r1, Cats.iconFor(Cats.T_AUD), Cats.colorFor(Cats.T_AUD), getString(Cats.titleOf(Cats.AUD)), aud);
+        kv(r2, Cats.iconFor(Cats.T_VID), Cats.colorFor(Cats.T_VID), getString(Cats.titleOf(Cats.VID)), vid);
+        kv(r2, Cats.iconFor(Cats.T_DOC), Cats.colorFor(Cats.T_DOC), getString(Cats.titleOf(Cats.DOC)), doc);
+        kv(r3, Cats.iconFor(Cats.T_ARC), Cats.colorFor(Cats.T_ARC), getString(Cats.titleOf(Cats.ARC)), arc);
+        kv(r3, Cats.iconFor(Cats.T_OTHER), Cats.colorFor(Cats.T_OTHER), getString(R.string.sa_others), others);
+        content.addView(card);
+        addRow(new Row(R.drawable.ic_folder, false, getString(R.string.sa_more), null, false, true), v -> categoryMenu());
+
+        // apps
+        content.addView(Ui.sectionTitle(this, getString(R.string.sa_apps)));
+        if (!usage) {
+            TextView note = Ui.noteCard(this, getString(R.string.sa_apps_need), R.color.text_secondary);
+            content.addView(Ui.block(this, note));
+            Button permit = Ui.button(this, R.string.sa_permit, false);
+            content.addView(Ui.block(this, permit));
+            permit.setOnClickListener(v -> {
+                try {
+                    startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
+                } catch (Exception e) {
+                    startActivity(new Intent(Settings.ACTION_SETTINGS));
+                }
+            });
+        } else if (apps.isEmpty()) {
+            content.addView(Ui.block(this, Ui.noteCard(this, getString(R.string.sa_none), R.color.text_secondary)));
+        } else {
+            for (int i = 0; i < apps.size() && i < 5; i++) {
+                AppSize a = apps.get(i);
+                addRow(new Row(R.drawable.ic_package, false, a.label, Fmt.size(a.bytes), false, false), null);
+            }
+        }
+
+        // large files
+        content.addView(Ui.sectionTitle(this, getString(R.string.sa_large) + " · " + Fmt.size(bigTotal)));
+        for (int i = 0; i < bigs.size() && i < 3; i++) {
+            final Big bf = bigs.get(i);
+            int t = Cats.typeOfExt(Cats.extOf(bf.f.getName()));
+            File par = bf.f.getParentFile();
+            addRow(new Row(Cats.iconFor(t), false, bf.f.getName(), par == null ? "" : par.getAbsolutePath(), false, false)
+                    .badge(Fmt.size(bf.size), Ui.color(this, R.color.accent_text)).tint(Ui.color(this, Cats.colorFor(t))), v -> {
+                Intent it = new Intent(this, FileManagerActivity.class);
+                if (bf.f.getParentFile() != null) it.putExtra("path", bf.f.getParentFile().getAbsolutePath());
+                startActivity(it);
+            });
+        }
+        addRow(new Row(R.drawable.ic_sort, false, getString(R.string.sa_more), getString(R.string.sa_large_hint), false, true), v -> {
+            Intent it = new Intent(this, FileManagerActivity.class);
+            it.putExtra("cat", Cats.LARGE);
+            startActivity(it);
+        });
+
+        // cache
+        content.addView(Ui.sectionTitle(this, getString(R.string.sa_cache) + " · " + Fmt.size(cacheTotal)));
+        addRow(new Row(R.drawable.ic_delete, false, getString(R.string.sa_clean_own),
+                getString(usage ? R.string.sa_cache_apps : R.string.sa_cache_own), false, false), v -> {
+            long before = dirSize(getCacheDir()) + dirSize(getExternalCacheDir());
+            deleteContents(getCacheDir());
+            deleteContents(getExternalCacheDir());
+            android.widget.Toast.makeText(this, getString(R.string.sa_cleaned, Fmt.size(before)), android.widget.Toast.LENGTH_SHORT).show();
+            load();
+        });
+
+        // the folder-by-folder analyzer stays one tap away
+        content.addView(Ui.sectionTitle(this, getString(R.string.home_analysis)));
+        addRow(new Row(R.drawable.ic_chart, false, getString(R.string.sa_folders), null, false, true),
+                v -> startActivity(new Intent(this, ToolsActivity.class)));
     }
 
     private void categoryMenu() {

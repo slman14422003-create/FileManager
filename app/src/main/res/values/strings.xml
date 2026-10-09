@@ -544,4 +544,9 @@
     <string name="pk_hash_match">✓ يطابق البصمة في الحافظة</string>
     <string name="pk_hash_differs">✗ يختلف عن البصمة في الحافظة</string>
     <string name="pk_issue_nobase">لم يُعثر على APK أساسي داخل الحزمة؛ قد يرفض النظام التثبيت.</string>
+    <string name="v_print">طباعة / حفظ كملف PDF</string>
+    <string name="v_edit_text">تعديل كنص</string>
+    <string name="v_pdf_password">كلمة مرور ملف PDF</string>
+    <string name="v_pdf_wrong_password">كلمة المرور غير صحيحة</string>
+    <string name="v_pdf_need_new_android">ملف PDF محمي بكلمة مرور، والعرض المحمي يحتاج أندرويد 15 أو أحدث</string>
 </resources>

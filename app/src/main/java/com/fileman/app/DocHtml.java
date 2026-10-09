@@ -59,15 +59,37 @@ final class DocHtml {
             case "docx":
             case "docm":
             case "dotx":
+            case "dotm":
                 return docx(f);
             case "xlsx":
             case "xlsm":
             case "xltx":
+            case "xltm":
                 return xlsx(f);
             case "pptx":
             case "pptm":
             case "ppsx":
+            case "potx":
                 return pptx(f);
+            case "doc":
+            case "dot":
+                return page(LegacyDoc.html(f));
+            case "xls":
+            case "xlt":
+                return xls(f);
+            case "ppt":
+            case "pps":
+            case "pot":
+                return page(LegacyPpt.html(f));
+            case "epub":
+                return page(Epub.html(f));
+            case "md":
+            case "markdown":
+                return page(Markdown.html(new String(readAll(f, 3L * 1024 * 1024), StandardCharsets.UTF_8)));
+            case "pages":
+            case "numbers":
+            case "key":
+                return iwork(f);
             case "odt":
             case "ods":
             case "odp":
@@ -99,13 +121,24 @@ final class DocHtml {
     private static final String CSS_HEAD = "html{background:%CANVAS%}"
             + "body{margin:0;padding:12px 10px 28px;background:%CANVAS%;font-family:sans-serif;font-size:16px;"
             + "line-height:1.55;word-wrap:break-word;-webkit-text-size-adjust:100%}"
-            + ".paper{max-width:900px;margin:0 auto;background:#fff;color:#1b1b1b;border-radius:16px;"
+            + ".paper{max-width:900px;margin:0 auto;background:#fff;color:#1b1b1b;border-radius:24px;"
             + "padding:20px 18px;box-shadow:0 0 0 1px %RING%;overflow:hidden}"
             + "p{margin:0 0 .6em;white-space:pre-wrap}h1,h2,h3,h4,h5,h6{margin:.8em 0 .4em;line-height:1.3;color:#111}"
             + "h3{font-family:serif;font-size:19px;margin:1.1em 0 .5em}"
             + "table{border-collapse:collapse;margin:10px 0}td,th{border:1px solid #d6d9de;padding:5px 9px;vertical-align:top}"
             + "img{max-width:100%;height:auto;border-radius:6px}"
-            + ".sheet{overflow:auto;max-width:100%;border-radius:10px;border:1px solid #d6d9de;margin:8px 0}"
+            + ".sheet{overflow:auto;max-width:100%;max-height:78vh;border-radius:16px;border:1px solid #d6d9de;margin:8px 0}"
+            + ".sheet tr:first-child>th.rh{position:sticky;top:0;z-index:2;border-bottom:2px solid #c9d0dc}"
+            + ".sheet tr>th.rh:first-child{position:sticky;left:0;z-index:1;min-width:34px}"
+            + ".sheet tr:first-child>th.rh:first-child{z-index:3}"
+            + ".sheet td{max-width:360px;overflow:hidden;text-overflow:ellipsis}"
+            + "pre{background:#f3f5f8;border-radius:16px;padding:12px 14px;overflow:auto;font-size:13px;line-height:1.5;white-space:pre}"
+            + "code{background:#f0f2f6;border-radius:4px;padding:1px 5px;font-size:.92em}pre code{background:none;padding:0}"
+            + "blockquote{margin:.8em 0;padding:.2em 14px;border-inline-start:4px solid #c9d3f0;color:#4a5262;background:#f7f8fc;border-radius:0 8px 8px 0}"
+            + "hr{border:0;border-top:1px solid #e1e4ea;margin:1.2em 0}a.lk{color:#2447c9;text-decoration:underline}"
+            + "ul,ol{margin:.3em 0 .8em;padding-inline-start:1.6em}li{margin:.15em 0}"
+            + ".ch{margin:0 0 1.6em;padding-bottom:.4em}.ch+.ch{border-top:1px dashed #d6d9de;padding-top:1.2em}.bt{font-family:serif;text-align:center}"
+            + "thead th{background:#eef1f6;text-align:start}"
             + ".sheet table{font-size:13px;white-space:nowrap;margin:0;width:100%}"
             + ".sheet td,.sheet th{border-color:#e6e8ec}"
             + ".sheet tr:nth-child(even) td{background-color:#f8f9fb}"
@@ -113,7 +146,7 @@ final class DocHtml {
             + ".nav{margin:0 0 10px;padding-bottom:2px;overflow-x:auto;white-space:nowrap}"
             + ".nav a{display:inline-block;margin:0 6px 6px 0;padding:6px 14px;border-radius:16px;background:#e8eeff;"
             + "color:#2447c9;text-decoration:none;font-size:14px;font-weight:600}"
-            + ".slide{border:1px solid #e1e4ea;border-radius:14px;padding:16px;margin:14px 0;background:#fafbfc}"
+            + ".slide{border:1px solid #e1e4ea;border-radius:20px;padding:16px;margin:14px 0;background:#fafbfc}"
             + ".sn{color:#7a8290;font-size:12px;margin-bottom:8px;font-weight:600;letter-spacing:.3px}"
             + ".note{color:#7a8290;font-size:13px;margin:8px 0}";
 
@@ -821,6 +854,11 @@ final class DocHtml {
             if (!empty) break;
             rows.remove(rows.size() - 1);
         }
+        emitSheet(rows, truncated, colsCut, html);
+    }
+
+    /** The table of one sheet: column letters on top, row numbers on the left, both kept in view while scrolling. */
+    private static void emitSheet(List<List<String>> rows, boolean truncated, boolean colsCut, StringBuilder html) {
         int cols = 0;
         for (List<String> r : rows) cols = Math.max(cols, r.size());
         if (rows.isEmpty() || cols == 0) {
@@ -845,6 +883,62 @@ final class DocHtml {
                     ? "تم عرض أول " + MAX_ROWS + " صف و" + MAX_COLS + " عمودًا فقط."
                     : "Showing only the first " + MAX_ROWS + " rows and " + MAX_COLS + " columns.").append("</p>");
         }
+    }
+
+
+    // ------------------------------------------------------------------ XLS (binary), iWork previews
+
+    static String xls(File f) throws Exception {
+        try (Ole2 o = new Ole2(f)) {
+            byte[] wb = o.stream("Workbook");
+            if (wb == null) wb = o.stream("Book");
+            if (wb == null) throw new IOException("no workbook stream");
+            List<LegacyXls.Sheet> sheets = LegacyXls.read(wb);
+            StringBuilder html = new StringBuilder();
+            if (sheets.size() > 1) {
+                html.append("<div class=\"nav\">");
+                for (int i = 0; i < sheets.size(); i++) {
+                    html.append("<a href=\"#s").append(i).append("\">").append(esc(sheets.get(i).name)).append("</a>");
+                }
+                html.append("</div>");
+            }
+            for (int i = 0; i < sheets.size(); i++) {
+                LegacyXls.Sheet sh = sheets.get(i);
+                html.append("<h3 id=\"s").append(i).append("\">").append(esc(sh.name)).append("</h3>");
+                List<List<String>> rows = new ArrayList<>();
+                for (String[] r : sh.rows) {
+                    List<String> row = new ArrayList<>(r.length);
+                    for (String c : r) row.add(c == null ? "" : c);
+                    rows.add(row);
+                }
+                while (!rows.isEmpty()) {          // trailing empty rows
+                    boolean empty = true;
+                    for (String c : rows.get(rows.size() - 1)) if (!c.isEmpty()) empty = false;
+                    if (!empty) break;
+                    rows.remove(rows.size() - 1);
+                }
+                emitSheet(rows, sh.truncated, sh.truncated, html);
+            }
+            return page(html.toString());
+        }
+    }
+
+    /** Pages / Numbers / Keynote packages carry a preview image; that is what can be shown without the apps. */
+    static String iwork(File f) throws Exception {
+        try (ZipReader z = ZipReader.open(f)) {
+            String[] names = {"preview.jpg", "QuickLook/Thumbnail.jpg", "QuickLook/Preview.jpg", "preview.png", "QuickLook/Thumbnail.png"};
+            for (String n : names) {
+                ZipReader.Entry e = z.find(n);
+                if (e == null || e.size > 8L * 1024 * 1024) continue;
+                byte[] data = readStream(z.open(e), 8L * 1024 * 1024);
+                String mime = n.endsWith(".png") ? "image/png" : "image/jpeg";
+                return page("<img src=\"data:" + mime + ";base64," + android.util.Base64.encodeToString(data, android.util.Base64.NO_WRAP)
+                        + "\"><p class=\"note\">" + (Lang.isAr()
+                        ? "معاينة مضمّنة في الملف؛ المحتوى الكامل يحتاج تطبيق Apple الأصلي أو تصديره إلى PDF."
+                        : "Preview image stored in the file; open it in the Apple app or export it as PDF for the full content.") + "</p>");
+            }
+        }
+        throw new IOException("no preview in package");
     }
 
     // ------------------------------------------------------------------ PPTX

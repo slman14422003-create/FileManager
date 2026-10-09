@@ -179,8 +179,8 @@ public final class Cats {
         if (t == T_VID || t == T_AUD) return V_MEDIA;
         if (t == T_PDF) return V_PDF;
         if (in(ext, "docx", "docm", "dotx", "xlsx", "xlsm", "xltx", "pptx", "pptm", "ppsx", "odt", "ods", "odp",
-                "csv", "tsv", "rtf", "html", "htm", "xhtml", "svg")) return V_DOC;
-        if (in(ext, "doc", "dot", "xls", "ppt", "pps")) return V_LEGACY;
+                "csv", "tsv", "rtf", "html", "htm", "xhtml", "svg", "doc", "dot", "dotm", "xls", "xlt", "xltm", "ppt", "pps",
+                "pot", "potx", "epub", "md", "markdown", "pages", "numbers", "key")) return V_DOC;
         if (t == T_TXT) return V_TEXT;
         return V_NONE;
     }

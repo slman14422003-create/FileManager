@@ -544,4 +544,9 @@
     <string name="pk_hash_match">✓ matches the hash on the clipboard</string>
     <string name="pk_hash_differs">✗ differs from the hash on the clipboard</string>
     <string name="pk_issue_nobase">No base APK found inside the package; the system may refuse to install it.</string>
+    <string name="v_print">Print / save as PDF</string>
+    <string name="v_edit_text">Edit as text</string>
+    <string name="v_pdf_password">PDF password</string>
+    <string name="v_pdf_wrong_password">Wrong password</string>
+    <string name="v_pdf_need_new_android">This PDF is password protected; opening protected files needs Android 15 or newer</string>
 </resources>

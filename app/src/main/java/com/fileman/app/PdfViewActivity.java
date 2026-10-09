@@ -1,5 +1,6 @@
 package com.fileman.app;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.ColorMatrix;
@@ -96,8 +97,9 @@ public class PdfViewActivity extends BaseActivity {
         more.setContentDescription(getString(R.string.more));
         more.setVisibility(View.VISIBLE);
         more.setOnClickListener(v -> Opener.moreMenu(this, file,
-                new String[]{getString(R.string.rd_night) + (night ? "  ✓" : ""), getString(R.string.rd_page_jump)},
-                new Runnable[]{this::toggleNight, this::askPage}));
+                new String[]{getString(R.string.rd_night) + (night ? "  ✓" : ""), getString(R.string.rd_page_jump),
+                        getString(R.string.v_print)},
+                new Runnable[]{this::toggleNight, this::askPage, this::printPdf}));
         night = Store.intPref(this, "pdf_night", 0) == 1;
 
         long budget = Math.max(16L * 1024 * 1024, Math.min(64L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 6));
@@ -113,11 +115,42 @@ public class PdfViewActivity extends BaseActivity {
     }
 
     private void openDocument() {
+        openDocument(null);
+    }
+
+    /** Android 15+ can open password protected files: the constructor with LoadParams is reached by reflection. */
+    private PdfRenderer newRenderer(ParcelFileDescriptor fd, String pwd) throws IOException {
+        if (pwd == null) return new PdfRenderer(fd);
+        try {
+            Class<?> bc = Class.forName("android.graphics.pdf.LoadParams$Builder");
+            Object builder = bc.getConstructor().newInstance();
+            bc.getMethod("setPassword", String.class).invoke(builder, pwd);
+            Object params = bc.getMethod("build").invoke(builder);
+            return PdfRenderer.class.getConstructor(ParcelFileDescriptor.class, Class.forName("android.graphics.pdf.LoadParams"))
+                    .newInstance(fd, params);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            Throwable t = e.getCause();
+            if (t instanceof IOException) throw (IOException) t;
+            if (t instanceof SecurityException) throw (SecurityException) t;
+            throw new IOException(String.valueOf(t));
+        } catch (ReflectiveOperationException e) {
+            throw new IOException("password support missing");
+        }
+    }
+
+    private void openDocument(final String pwd) {
         int errorRes = 0;
+        boolean needPassword = false;
         try {
             synchronized (lock) {
+                try {
+                    if (renderer != null) renderer.close();
+                    if (pfd != null) pfd.close();
+                } catch (Exception ignored) {
+                }
+                renderer = null;
                 pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY);
-                renderer = new PdfRenderer(pfd);
+                renderer = newRenderer(pfd, pwd);
                 pageCount = renderer.getPageCount();
                 if (pageCount > 0) {
                     PdfRenderer.Page p = renderer.openPage(0);
@@ -129,14 +162,20 @@ public class PdfViewActivity extends BaseActivity {
                 }
             }
         } catch (SecurityException e) {
-            errorRes = R.string.v_pdf_protected;
+            if (android.os.Build.VERSION.SDK_INT >= 35) needPassword = true;
+            else errorRes = R.string.v_pdf_need_new_android;
         } catch (IOException | RuntimeException e) {
             errorRes = R.string.v_pdf_failed;
         }
         final int err = errorRes;
+        final boolean ask = needPassword;
         ui.post(() -> {
             if (destroyed || isFinishing()) return;
             loading.setVisibility(View.INVISIBLE);
+            if (ask) {
+                askPassword(pwd != null);
+                return;
+            }
             if (err != 0 || pageCount == 0) {
                 Toast.makeText(this, err != 0 ? err : R.string.v_empty_doc, Toast.LENGTH_LONG).show();
                 finish();
@@ -145,6 +184,62 @@ public class PdfViewActivity extends BaseActivity {
             ratios = new float[pageCount];
             buildList();
         });
+    }
+
+    private void askPassword(boolean wrong) {
+        final android.widget.EditText e = Ui.edit(this, getString(R.string.v_pdf_password), "");
+        e.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        Dlg d = new Dlg(this).setTitle(wrong ? getString(R.string.v_pdf_wrong_password) : getString(R.string.v_pdf_password)).setView(e)
+                .setPositiveButton(android.R.string.ok, (dd, w) -> {
+                    final String pw = e.getText().toString();
+                    loading.setVisibility(View.VISIBLE);
+                    io.execute(() -> openDocument(pw));
+                })
+                .setNegativeButton(R.string.cancel, (dd, w) -> finish());
+        d.show();
+    }
+
+    /** Hands the original file to the system print service (also "save as PDF"). */
+    private void printPdf() {
+        try {
+            android.print.PrintManager pm = (android.print.PrintManager) getSystemService(Context.PRINT_SERVICE);
+            final String name = file.getName();
+            pm.print(name, new android.print.PrintDocumentAdapter() {
+                @Override
+                public void onLayout(android.print.PrintAttributes o, android.print.PrintAttributes n,
+                                     android.os.CancellationSignal c, LayoutResultCallback cb, Bundle extras) {
+                    if (c.isCanceled()) {
+                        cb.onLayoutCancelled();
+                        return;
+                    }
+                    cb.onLayoutFinished(new android.print.PrintDocumentInfo.Builder(name)
+                            .setContentType(android.print.PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
+                            .setPageCount(pageCount > 0 ? pageCount : android.print.PrintDocumentInfo.PAGE_COUNT_UNKNOWN).build(), true);
+                }
+
+                @Override
+                public void onWrite(android.print.PageRange[] pages, ParcelFileDescriptor dest,
+                                    android.os.CancellationSignal c, WriteResultCallback cb) {
+                    try (java.io.InputStream in = new java.io.FileInputStream(file);
+                         java.io.OutputStream out = new java.io.FileOutputStream(dest.getFileDescriptor())) {
+                        byte[] buf = new byte[1 << 16];
+                        int r;
+                        while ((r = in.read(buf)) > 0) {
+                            if (c.isCanceled()) {
+                                cb.onWriteCancelled();
+                                return;
+                            }
+                            out.write(buf, 0, r);
+                        }
+                        cb.onWriteFinished(new android.print.PageRange[]{android.print.PageRange.ALL_PAGES});
+                    } catch (IOException e) {
+                        cb.onWriteFailed(String.valueOf(e.getMessage()));
+                    }
+                }
+            }, null);
+        } catch (Exception e) {
+            Toast.makeText(this, R.string.v_pdf_failed, Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void buildList() {

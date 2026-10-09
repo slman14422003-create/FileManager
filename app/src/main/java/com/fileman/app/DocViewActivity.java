@@ -1,6 +1,7 @@
 package com.fileman.app;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Handler;
@@ -75,10 +76,25 @@ public class DocViewActivity extends BaseActivity {
         more.setVisibility(View.VISIBLE);
         night = Store.intPref(this, "doc_night", 0) == 1;
         zoom = Store.intPref(this, "doc_zoom", 100);
-        more.setOnClickListener(v -> Opener.moreMenu(this, file,
-                new String[]{getString(R.string.rd_night) + (night ? "  ✓" : ""),
-                        getString(R.string.rd_text_size) + " +", getString(R.string.rd_text_size) + " −"},
-                new Runnable[]{this::toggleNight, () -> changeZoom(20), () -> changeZoom(-20)}));
+        more.setOnClickListener(v -> {
+            final boolean editable = EDITABLE.contains(ext);
+            String[] names = new String[editable ? 5 : 4];
+            Runnable[] acts = new Runnable[names.length];
+            names[0] = getString(R.string.rd_night) + (night ? "  ✓" : "");
+            acts[0] = this::toggleNight;
+            names[1] = getString(R.string.rd_text_size) + " +";
+            acts[1] = () -> changeZoom(20);
+            names[2] = getString(R.string.rd_text_size) + " −";
+            acts[2] = () -> changeZoom(-20);
+            names[3] = getString(R.string.v_print);
+            acts[3] = this::printPage;
+            if (editable) {
+                names[4] = getString(R.string.v_edit_text);
+                acts[4] = () -> startActivity(new android.content.Intent(this, FileEditActivity.class)
+                        .putExtra("path", file.getAbsolutePath()));
+            }
+            Opener.moreMenu(this, file, names, acts);
+        });
         // find / text size / night mode live in a floating bar over the page (set up after the WebView exists)
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
             @Override
@@ -197,6 +213,21 @@ public class DocViewActivity extends BaseActivity {
         String h = EXTRA_CSS + (night ? NIGHT_CSS : "") + baseHtml;
         web.setBackgroundColor(night ? 0xFF121212 : Ui.color(this, R.color.bg));
         web.loadDataWithBaseURL(BASE, h, "text/html", "utf-8", null);
+    }
+
+    /** Plain-text based formats that can also be opened in the text editor from the viewer. */
+    private static final java.util.Set<String> EDITABLE = new java.util.HashSet<>(java.util.Arrays.asList(
+            "csv", "tsv", "html", "htm", "xhtml", "svg", "md", "markdown"));
+
+    /** Prints the document or saves it as PDF through the system print service. */
+    private void printPage() {
+        try {
+            android.print.PrintManager pm = (android.print.PrintManager) getSystemService(Context.PRINT_SERVICE);
+            String name = file.getName();
+            pm.print(name, web.createPrintDocumentAdapter(name), new android.print.PrintAttributes.Builder().build());
+        } catch (Exception e) {
+            Toast.makeText(this, R.string.v_doc_failed, Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void toggleNight() {
