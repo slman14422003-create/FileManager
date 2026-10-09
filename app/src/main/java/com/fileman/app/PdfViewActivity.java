@@ -189,13 +189,15 @@ public class PdfViewActivity extends BaseActivity {
     private void askPassword(boolean wrong) {
         final android.widget.EditText e = Ui.edit(this, getString(R.string.v_pdf_password), "");
         e.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        Dlg d = new Dlg(this).setTitle(wrong ? getString(R.string.v_pdf_wrong_password) : getString(R.string.v_pdf_password)).setView(e)
-                .setPositiveButton(android.R.string.ok, (dd, w) -> {
-                    final String pw = e.getText().toString();
-                    loading.setVisibility(View.VISIBLE);
-                    io.execute(() -> openDocument(pw));
-                })
-                .setNegativeButton(R.string.cancel, (dd, w) -> finish());
+        Dlg d = new Dlg(this);
+        d.setTitle(wrong ? getString(R.string.v_pdf_wrong_password) : getString(R.string.v_pdf_password));
+        d.setView(e);
+        d.setPositiveButton(android.R.string.ok, (dd, w) -> {
+            final String pw = e.getText().toString();
+            loading.setVisibility(View.VISIBLE);
+            io.execute(() -> openDocument(pw));
+        });
+        d.setNegativeButton(R.string.cancel, (dd, w) -> finish());
         d.show();
     }
 
