@@ -85,6 +85,32 @@ public final class Store {
         sp(c).edit().putStringSet("fav", new LinkedHashSet<>(s)).apply();
     }
 
+    // ------------------------------------------------------------------ places drawer: recently visited folders
+
+    private static final int MAX_RECENT_PLACES = 20;
+
+    /** Folder paths most recently browsed to, newest first. */
+    public static java.util.List<String> recentPlaces(Context c) {
+        String raw = sp(c).getString("recent_places", "");
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (raw.isEmpty()) return out;
+        for (String p : raw.split("\n")) if (!p.isEmpty()) out.add(p);
+        return out;
+    }
+
+    /** Moves the path to the front, dropping any older duplicate and trimming the tail. */
+    public static void addRecentPlace(Context c, String path) {
+        java.util.List<String> cur = recentPlaces(c);
+        cur.remove(path);
+        cur.add(0, path);
+        while (cur.size() > MAX_RECENT_PLACES) cur.remove(cur.size() - 1);
+        sp(c).edit().putString("recent_places", android.text.TextUtils.join("\n", cur)).apply();
+    }
+
+    public static void clearRecentPlaces(Context c) {
+        sp(c).edit().remove("recent_places").apply();
+    }
+
     // ------------------------------------------------------------------ one-time flags
 
     public static boolean flag(Context c, String key) {

@@ -174,6 +174,15 @@ public class FileManagerActivity extends BaseActivity {
     private String catKey = Cats.IMG;
     private boolean fromCat = false;
 
+    private androidx.drawerlayout.widget.DrawerLayout drawerRoot;
+    private View placesPanel;
+    private View tabFolders, tabFav, tabHistory;
+    private ImageView iconTabFolders, iconTabFav, iconTabHistory;
+    private View indFolders, indFav, indHistory;
+    private LinearLayout listFolders, listFav, listHistory;
+    private View scrollFolders, tabFavContent, tabHistoryContent;
+    private int placesTab = 0;
+
     private ActivityResultLauncher<String> importLauncher;
     private final Runnable searchRun = () -> {
         if (query.isEmpty()) return;
@@ -230,7 +239,56 @@ public class FileManagerActivity extends BaseActivity {
             return true;
         });
 
-        findViewById(R.id.btnBack).setOnClickListener(v -> placesMenu());
+        drawerRoot = findViewById(R.id.drawerRoot);
+        placesPanel = findViewById(R.id.placesPanel);
+        tabFolders = findViewById(R.id.tabFolders);
+        tabFav = findViewById(R.id.tabFav);
+        tabHistory = findViewById(R.id.tabHistory);
+        iconTabFolders = findViewById(R.id.iconTabFolders);
+        iconTabFav = findViewById(R.id.iconTabFav);
+        iconTabHistory = findViewById(R.id.iconTabHistory);
+        indFolders = findViewById(R.id.indFolders);
+        indFav = findViewById(R.id.indFav);
+        indHistory = findViewById(R.id.indHistory);
+        listFolders = findViewById(R.id.listFolders);
+        listFav = findViewById(R.id.listFav);
+        listHistory = findViewById(R.id.listHistory);
+        scrollFolders = findViewById(R.id.scrollFolders);
+        tabFavContent = findViewById(R.id.tabFavContent);
+        tabHistoryContent = findViewById(R.id.tabHistoryContent);
+        tabFolders.setOnClickListener(v -> selectPlacesTab(0));
+        tabFav.setOnClickListener(v -> selectPlacesTab(1));
+        tabHistory.setOnClickListener(v -> selectPlacesTab(2));
+        findViewById(R.id.favEdit).setOnClickListener(v -> {
+            drawerRoot.closeDrawer(placesPanel);
+            clearSelectionQuiet();
+            mode = M_FAV;
+            refresh();
+        });
+        findViewById(R.id.historyClear).setOnClickListener(v -> {
+            Store.clearRecentPlaces(this);
+            buildHistoryTab();
+        });
+        drawerRoot.addDrawerListener(new androidx.drawerlayout.widget.DrawerLayout.DrawerListener() {
+            @Override
+            public void onDrawerSlide(View v, float slideOffset) {
+            }
+
+            @Override
+            public void onDrawerOpened(View v) {
+                refreshPlacesDrawer();
+            }
+
+            @Override
+            public void onDrawerClosed(View v) {
+            }
+
+            @Override
+            public void onDrawerStateChanged(int newState) {
+            }
+        });
+
+        findViewById(R.id.btnBack).setOnClickListener(v -> drawerRoot.openDrawer(placesPanel));
         ((ImageButton) findViewById(R.id.btnBack)).setImageResource(R.drawable.ic_menu);
         findViewById(R.id.btnBack).setContentDescription(getString(R.string.fm_places));
         action(btnSearch, R.drawable.ic_search, R.string.fm_search, v -> setSearchOpen(!searchOpen, true));
@@ -440,6 +498,7 @@ public class FileManagerActivity extends BaseActivity {
         mode = M_DIR;
         cur = dir;
         prefs.edit().putString("last", dir.getAbsolutePath()).apply();
+        if (!isVolumeRoot(dir)) Store.addRecentPlace(this, dir.getAbsolutePath());
         refresh();
     }
 
@@ -462,6 +521,10 @@ public class FileManagerActivity extends BaseActivity {
     }
 
     private void onBack() {
+        if (drawerRoot.isDrawerOpen(placesPanel)) {
+            drawerRoot.closeDrawer(placesPanel);
+            return;
+        }
         if (searchOpen && selected.isEmpty()) {
             setSearchOpen(false, false);
             return;
@@ -887,62 +950,165 @@ public class FileManagerActivity extends BaseActivity {
         }
     }
 
-    // ------------------------------------------------------------------ menus: places, more
+    // ------------------------------------------------------------------ places drawer
 
-    private interface Go {
-        void run();
+    /** Switches the drawer's visible tab and restyles the 3 tab buttons (icon tint + indicator). */
+    private void selectPlacesTab(int tab) {
+        placesTab = tab;
+        scrollFolders.setVisibility(tab == 0 ? View.VISIBLE : View.GONE);
+        tabFavContent.setVisibility(tab == 1 ? View.VISIBLE : View.GONE);
+        tabHistoryContent.setVisibility(tab == 2 ? View.VISIBLE : View.GONE);
+        int on = Ui.color(this, R.color.accent_text);
+        int off = Ui.color(this, R.color.text_hint);
+        iconTabFolders.setImageTintList(ColorStateList.valueOf(tab == 0 ? on : off));
+        iconTabFav.setImageTintList(ColorStateList.valueOf(tab == 1 ? on : off));
+        iconTabHistory.setImageTintList(ColorStateList.valueOf(tab == 2 ? on : off));
+        indFolders.setVisibility(tab == 0 ? View.VISIBLE : View.INVISIBLE);
+        indFav.setVisibility(tab == 1 ? View.VISIBLE : View.INVISIBLE);
+        indHistory.setVisibility(tab == 2 ? View.VISIBLE : View.INVISIBLE);
     }
 
-    /** Everything the old chip row offered (places, categories, favorites, largest) as one list behind the menu button. */
-    private void placesMenu() {
-        final List<String> labels = new ArrayList<>();
-        final List<Go> acts = new ArrayList<>();
-        placeItem(labels, acts, getString(R.string.fm_internal), Environment.getExternalStorageDirectory());
+    /** Rebuilds every tab; called each time the drawer is opened so usage %, favorites and history stay current. */
+    private void refreshPlacesDrawer() {
+        selectPlacesTab(placesTab);
+        buildFoldersTab();
+        buildFavTab();
+        buildHistoryTab();
+    }
+
+    private void drawerGo(File dir) {
+        drawerRoot.closeDrawer(placesPanel);
+        navigate(dir);
+    }
+
+    /** Home, every storage volume (with its usage badge), pinned shortcuts, then the categories. */
+    private void buildFoldersTab() {
+        listFolders.removeAllViews();
+        listFolders.addView(Ui.rowView(this, listFolders, new Row(R.drawable.ic_home, false,
+                getString(R.string.places_home), null, false, false),
+                v -> {
+                    drawerRoot.closeDrawer(placesPanel);
+                    startActivity(new Intent(this, HomeActivity.class)
+                            .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP));
+                    finish();
+                }));
+        volumeRow(Environment.getExternalStorageDirectory(), getString(R.string.fm_internal));
         int n = 1;
         for (File sd : sdRoots()) {
-            placeItem(labels, acts, getString(R.string.fm_sdcard) + (n > 1 ? " " + n : ""), sd);
+            volumeRow(sd, getString(R.string.fm_sdcard) + (n > 1 ? " " + n : ""));
             n++;
         }
-        placeItem(labels, acts, getString(R.string.fm_downloads), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
-        placeItem(labels, acts, getString(R.string.fm_dcim), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM));
-        placeItem(labels, acts, getString(R.string.fm_pictures), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
-        placeItem(labels, acts, getString(R.string.fm_documents), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS));
-        placeItem(labels, acts, getString(R.string.fm_music), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC));
-        placeItem(labels, acts, getString(R.string.fm_movies), Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES));
-        placeItem(labels, acts, getString(R.string.fm_app_folder), appDir());
+
+        listFolders.addView(Ui.sectionTitle(this, getString(R.string.places_shortcuts)));
+        shortcutRow(R.drawable.ic_download, getString(R.string.fm_downloads),
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
+        shortcutRow(R.drawable.ic_image, getString(R.string.fm_dcim),
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM));
+        shortcutRow(R.drawable.ic_image, getString(R.string.fm_pictures),
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
+        shortcutRow(R.drawable.ic_file_text, getString(R.string.fm_documents),
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS));
+        shortcutRow(R.drawable.ic_music, getString(R.string.fm_music),
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC));
+        shortcutRow(R.drawable.ic_video, getString(R.string.fm_movies),
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES));
+        shortcutRow(R.drawable.ic_folder, getString(R.string.fm_app_folder), appDir());
+
+        listFolders.addView(Ui.sectionTitle(this, getString(R.string.places_categories)));
         String[] cats = {Cats.RECENT, Cats.IMG, Cats.VID, Cats.AUD, Cats.DOC, Cats.APK, Cats.ARC};
-        for (final String k : cats) {
-            labels.add(getString(Cats.titleOf(k)));
-            acts.add(() -> {
-                clearSelectionQuiet();
-                mode = M_CAT;
-                catKey = k;
-                cur = defaultRoot();
-                refresh();
-            });
+        int[] icons = {R.drawable.ic_clock, R.drawable.ic_image, R.drawable.ic_video,
+                R.drawable.ic_music, R.drawable.ic_file_text, R.drawable.ic_package, R.drawable.ic_archive};
+        for (int i = 0; i < cats.length; i++) {
+            final String k = cats[i];
+            listFolders.addView(Ui.rowView(this, listFolders,
+                    new Row(icons[i], false, getString(Cats.titleOf(k)), null, false, false),
+                    v -> {
+                        drawerRoot.closeDrawer(placesPanel);
+                        clearSelectionQuiet();
+                        mode = M_CAT;
+                        catKey = k;
+                        cur = defaultRoot();
+                        refresh();
+                    }));
         }
-        labels.add(getString(R.string.fm_favorites));
-        acts.add(() -> {
-            clearSelectionQuiet();
-            mode = M_FAV;
-            refresh();
-        });
-        labels.add(getString(R.string.fm_largest));
-        acts.add(() -> {
-            clearSelectionQuiet();
-            mode = M_LARGEST;
-            refresh();
-        });
-        labels.add(getString(R.string.home_analysis));
-        acts.add(() -> startActivity(new Intent(this, StorageActivity.class)));
-        new Dlg(this).setTitle(R.string.fm_places).setItems(labels.toArray(new String[0]), (d, which) -> acts.get(which).run()).show();
+        listFolders.addView(Ui.rowView(this, listFolders,
+                new Row(R.drawable.ic_chart, false, getString(R.string.fm_largest), null, false, false),
+                v -> {
+                    drawerRoot.closeDrawer(placesPanel);
+                    clearSelectionQuiet();
+                    mode = M_LARGEST;
+                    refresh();
+                }));
+        listFolders.addView(Ui.rowView(this, listFolders,
+                new Row(R.drawable.ic_chart, false, getString(R.string.home_analysis), null, false, false),
+                v -> {
+                    drawerRoot.closeDrawer(placesPanel);
+                    startActivity(new Intent(this, StorageActivity.class));
+                }));
+        Ui.group(this, listFolders);
     }
 
-    private void placeItem(List<String> labels, List<Go> acts, String label, final File dir) {
-        if (dir == null || !dir.exists()) return;
-        labels.add(label);
-        acts.add(() -> navigate(dir));
+    /** One storage volume with its live "NN% used" badge (same wording as the path pill and the home tiles). */
+    private void volumeRow(final File root, String label) {
+        Row r = new Row(R.drawable.ic_drive, false, label, null, false, false);
+        try {
+            StatFs st = new StatFs(root.getAbsolutePath());
+            long total = st.getTotalBytes();
+            long used = Math.max(0, total - st.getAvailableBytes());
+            if (total <= 0) throw new IllegalStateException();
+            int pct = (int) Math.round(used * 100.0 / total);
+            r.badge(getString(R.string.home_used_pct, pct), Ui.color(this, pct > 90 ? R.color.bad : R.color.accent_text));
+        } catch (Exception ignored) {
+        }
+        listFolders.addView(Ui.rowView(this, listFolders, r, v -> drawerGo(root)));
     }
+
+    private void shortcutRow(int icon, String label, final File dir) {
+        if (dir == null || !dir.exists()) return;
+        listFolders.addView(Ui.rowView(this, listFolders, new Row(icon, false, label, null, false, false),
+                v -> drawerGo(dir)));
+    }
+
+    /** Starred files/folders, each a direct shortcut; "Edit" drops into the full favorites view to add/remove. */
+    private void buildFavTab() {
+        listFav.removeAllViews();
+        List<File> favs = new ArrayList<>();
+        for (String p : Store.favorites(this)) {
+            File f = new File(p);
+            if (f.exists()) favs.add(f);
+        }
+        if (favs.isEmpty()) {
+            listFav.addView(Ui.body(this, getString(R.string.places_no_favs), 14, R.color.text_hint));
+            return;
+        }
+        for (final File f : favs) {
+            int t = typeOf(new Entry(f));
+            listFav.addView(Ui.rowView(this, listFav,
+                    new Row(iconFor(t), false, f.getName(), f.getParent(), false, false).tint(Ui.color(this, colorFor(t))),
+                    v -> drawerGo(f.isDirectory() ? f : f.getParentFile())));
+        }
+        Ui.group(this, listFav);
+    }
+
+    /** Recently visited folders (newest first); "Clear" empties the stored list. */
+    private void buildHistoryTab() {
+        listHistory.removeAllViews();
+        List<String> recent = Store.recentPlaces(this);
+        if (recent.isEmpty()) {
+            listHistory.addView(Ui.body(this, getString(R.string.places_no_history), 14, R.color.text_hint));
+            return;
+        }
+        for (final String p : recent) {
+            File f = new File(p);
+            if (!f.isDirectory()) continue;
+            listHistory.addView(Ui.rowView(this, listHistory,
+                    new Row(R.drawable.ic_folder, false, f.getName(), f.getParent(), false, false),
+                    v -> drawerGo(f)));
+        }
+        Ui.group(this, listHistory);
+    }
+
+    // ------------------------------------------------------------------ menus: more
 
     private void overflowMenu() {
         String[] items = {getString(R.string.refresh), getString(R.string.fm_new), getString(R.string.fm_select_all),

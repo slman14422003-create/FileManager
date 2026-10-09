@@ -549,4 +549,14 @@
     <string name="v_pdf_password">كلمة مرور ملف PDF</string>
     <string name="v_pdf_wrong_password">كلمة المرور غير صحيحة</string>
     <string name="v_pdf_need_new_android">ملف PDF محمي بكلمة مرور، والعرض المحمي يحتاج أندرويد 15 أو أحدث</string>
+    <string name="places_home">الرئيسية</string>
+    <string name="places_tab_folders">المجلدات</string>
+    <string name="places_tab_favorites">المفضلة</string>
+    <string name="places_tab_history">السجل</string>
+    <string name="places_shortcuts">اختصارات</string>
+    <string name="places_categories">الفئات</string>
+    <string name="places_edit">تحرير</string>
+    <string name="places_clear">مسح</string>
+    <string name="places_no_favs">لا توجد عناصر في المفضلة بعد</string>
+    <string name="places_no_history">لا يوجد سجل تصفح بعد</string>
 </resources>

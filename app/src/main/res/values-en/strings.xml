@@ -549,4 +549,14 @@
     <string name="v_pdf_password">PDF password</string>
     <string name="v_pdf_wrong_password">Wrong password</string>
     <string name="v_pdf_need_new_android">This PDF is password protected; opening protected files needs Android 15 or newer</string>
+    <string name="places_home">Home</string>
+    <string name="places_tab_folders">Folders</string>
+    <string name="places_tab_favorites">Favorites</string>
+    <string name="places_tab_history">History</string>
+    <string name="places_shortcuts">Shortcuts</string>
+    <string name="places_categories">Categories</string>
+    <string name="places_edit">Edit</string>
+    <string name="places_clear">Clear</string>
+    <string name="places_no_favs">No favorites yet</string>
+    <string name="places_no_history">No browsing history yet</string>
 </resources>
