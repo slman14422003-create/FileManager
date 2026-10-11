@@ -17,6 +17,7 @@ public class PermissionsActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
+        useGroupedBackground();
         ((TextView) findViewById(R.id.title)).setText(R.string.perm_title);
         ((TextView) findViewById(R.id.subtitle)).setText(R.string.perm_subtitle);
         findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());

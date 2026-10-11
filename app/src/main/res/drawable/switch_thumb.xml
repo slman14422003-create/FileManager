@@ -5,7 +5,7 @@
     android:insetRight="2dp"
     android:insetBottom="2dp">
     <shape android:shape="oval">
-        <solid android:color="#FFFFFF" />
-        <size android:width="31dp" android:height="31dp" />
+        <solid android:color="#FFFFFFFF" />
+        <size android:width="27dp" android:height="27dp" />
     </shape>
 </inset>

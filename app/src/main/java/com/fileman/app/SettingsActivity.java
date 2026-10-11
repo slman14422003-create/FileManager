@@ -16,6 +16,7 @@ public class SettingsActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
+        useGroupedBackground();
         ((TextView) findViewById(R.id.title)).setText(R.string.settings);
         ((TextView) findViewById(R.id.subtitle)).setText(R.string.settings_sub);
         findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
@@ -39,6 +40,8 @@ public class SettingsActivity extends BaseActivity {
 
     private void render() {
         content.removeAllViews();
+        content.addView(Ui.hero(this, getString(R.string.app_name),
+                getString(R.string.set_version, BuildConfig.VERSION_NAME)));
 
         content.addView(Ui.sectionTitle(this, getString(R.string.theme_title)));
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_palette, true,

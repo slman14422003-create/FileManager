@@ -94,6 +94,7 @@ public class InstallerActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
+        useGroupedBackground();
         titleView = findViewById(R.id.title);
         subtitleView = findViewById(R.id.subtitle);
         loading = findViewById(R.id.loading);

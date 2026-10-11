@@ -2,10 +2,8 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingStart="14dp"
-    android:paddingTop="0.5dp"
-    android:paddingEnd="14dp"
-    android:paddingBottom="0.5dp">
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp">
 
     <LinearLayout
         android:id="@+id/card"
@@ -14,12 +12,21 @@
         android:background="@drawable/bg_card_ripple"
         android:duplicateParentState="true"
         android:gravity="center_vertical"
-        android:minHeight="64dp"
+        android:minHeight="52dp"
         android:orientation="horizontal"
-        android:paddingStart="18dp"
-        android:paddingTop="12dp"
+        android:paddingStart="16dp"
+        android:paddingTop="9dp"
         android:paddingEnd="16dp"
-        android:paddingBottom="12dp">
+        android:paddingBottom="9dp">
+
+        <ImageView
+            android:id="@+id/icon"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_marginEnd="12dp"
+            android:importantForAccessibility="no"
+            android:padding="6dp"
+            android:visibility="gone" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -34,13 +41,13 @@
                 android:layout_height="wrap_content"
                 android:textAlignment="viewStart"
                 android:textColor="?attr/cTextPrimary"
-                android:textSize="16sp" />
+                android:textSize="17sp" />
 
             <TextView
                 android:id="@+id/sub"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
+                android:layout_marginTop="2dp"
                 android:lineSpacingMultiplier="1.1"
                 android:textAlignment="viewStart"
                 android:textColor="?attr/cTextSecondary"

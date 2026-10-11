@@ -15,6 +15,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
@@ -48,6 +49,10 @@ public final class Ui {
                 .start();
     }
 
+    public static float dpf(Context c, float v) {
+        return v * c.getResources().getDisplayMetrics().density;
+    }
+
     public static int dp(Context c, int v) {
         return (int) (v * c.getResources().getDisplayMetrics().density);
     }
@@ -65,6 +70,7 @@ public final class Ui {
         else if (res == R.color.brand_mid) attr = R.attr.cBrandMid;
         else if (res == R.color.brand_end) attr = R.attr.cBrandEnd;
         else if (res == R.color.bg) attr = R.attr.cBg;
+        else if (res == R.color.bg_group) attr = R.attr.cGroupBg;
         else if (res == R.color.surface) attr = R.attr.cSurface;
         else if (res == R.color.surface_high) attr = R.attr.cSurfaceHigh;
         else if (res == R.color.field) attr = R.attr.cField;
@@ -175,10 +181,11 @@ public final class Ui {
     public static TextView chip(Context c, CharSequence text, boolean selected) {
         TextView t = new TextView(c);
         t.setText(text);
-        t.setTextSize(13);
+        t.setTextSize(14);
         t.setSingleLine(true);
-        int ph = dp(c, 14);
-        int pv = dp(c, 7);
+        t.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        int ph = dp(c, 16);
+        int pv = dp(c, 8);
         t.setPadding(ph, pv, ph, pv);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -204,7 +211,7 @@ public final class Ui {
         t.setTextSize(13);
         t.setAllCaps(false);
         t.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-        t.setPaddingRelative(dp(c, 32), dp(c, 24), dp(c, 32), dp(c, 6));
+        t.setPaddingRelative(dp(c, 32), dp(c, 24), dp(c, 32), dp(c, 7));
         return t;
     }
 
@@ -227,9 +234,9 @@ public final class Ui {
         b.setAllCaps(false);
         b.setBackgroundResource(primary ? R.drawable.btn_primary : R.drawable.btn_secondary);
         b.setTextColor(color(c, primary ? R.color.on_accent : R.color.text_primary));
-        b.setTextSize(17);
-        b.setTypeface(Typeface.DEFAULT_BOLD);
-        b.setMinHeight(dp(c, 50));
+        b.setTextSize(16);
+        b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        b.setMinHeight(dp(c, 52));
         press(c, b);
         return b;
     }
@@ -295,8 +302,23 @@ public final class Ui {
         GradientDrawable mask = new GradientDrawable();
         mask.setColor(0xFFFFFFFF);
         mask.setCornerRadii(radii);
+        android.graphics.drawable.Drawable base = fill;
+        if (!last) {
+            GradientDrawable line = new GradientDrawable();
+            line.setColor(color(c, R.color.stroke));
+            android.graphics.drawable.LayerDrawable ld = new android.graphics.drawable.LayerDrawable(
+                    new android.graphics.drawable.Drawable[]{fill, line});
+            ld.setLayerGravity(1, Gravity.BOTTOM | Gravity.FILL_HORIZONTAL);
+            ld.setLayerHeight(1, Math.max(1, Math.round(c.getResources().getDisplayMetrics().density * 0.5f)));
+            View ic = card.findViewById(R.id.icon);
+            int inset = 16;
+            if (card.findViewById(R.id.thumb) != null) inset = 68;
+            else if (ic != null && ic.getVisibility() == View.VISIBLE) inset = 58;
+            ld.setLayerInsetStart(1, dp(c, inset));
+            base = ld;
+        }
         card.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(color(c, R.color.ripple)), fill, mask));
+                ColorStateList.valueOf(color(c, R.color.ripple)), base, mask));
     }
 
     /** Groups every run of consecutive row cards inside a container. */
@@ -402,6 +424,65 @@ public final class Ui {
         public void onChange(CompoundButton.OnCheckedChangeListener l) {
             sw.setOnCheckedChangeListener(l);
         }
+    }
+
+    public static View hero(Context c, CharSequence name, CharSequence sub) {
+        LinearLayout box = new LinearLayout(c);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER_HORIZONTAL);
+        box.setPadding(dp(c, 16), dp(c, 12), dp(c, 16), dp(c, 6));
+        ImageView icon = new ImageView(c);
+        icon.setImageResource(R.drawable.ic_brand_mark);
+        icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0xFFFFFFFF, 0xFFEAF3FF});
+        g.setCornerRadius(dp(c, 20));
+        g.setStroke(1, 0x14000000);
+        icon.setBackground(g);
+        icon.setClipToOutline(true);
+        box.addView(icon, new LinearLayout.LayoutParams(dp(c, 84), dp(c, 84)));
+        TextView n = new TextView(c);
+        n.setText(name);
+        n.setTextColor(color(c, R.color.text_primary));
+        n.setTextSize(22);
+        n.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        n.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams np = new LinearLayout.LayoutParams(-2, -2);
+        np.topMargin = dp(c, 12);
+        box.addView(n, np);
+        TextView v = new TextView(c);
+        v.setText(sub);
+        v.setTextColor(color(c, R.color.text_secondary));
+        v.setTextSize(13);
+        v.setGravity(Gravity.CENTER);
+        box.addView(v, new LinearLayout.LayoutParams(-2, -2));
+        return box;
+    }
+
+    public static TextView footer(Context c, CharSequence text) {
+        TextView t = new TextView(c);
+        t.setText(text);
+        t.setTextColor(color(c, R.color.text_secondary));
+        t.setTextSize(13);
+        t.setLineSpacing(0, 1.15f);
+        t.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        t.setPaddingRelative(dp(c, 32), dp(c, 8), dp(c, 32), dp(c, 4));
+        return t;
+    }
+
+    public static Toggle toggle(Context c, ViewGroup parent, int titleRes, int subRes, boolean checked, int iconRes, int iconColor) {
+        Toggle t = toggle(c, parent, titleRes, subRes, checked);
+        ImageView icon = t.view.findViewById(R.id.icon);
+        if (icon != null) {
+            icon.setImageResource(iconRes);
+            icon.setImageTintList(ColorStateList.valueOf(0xFFFFFFFF));
+            GradientDrawable g = new GradientDrawable();
+            g.setCornerRadius(dp(c, 8));
+            g.setColor(0xFF000000 | (iconColor & 0x00FFFFFF));
+            icon.setBackground(g);
+            icon.setVisibility(View.VISIBLE);
+        }
+        return t;
     }
 
     /** Inflates a switch row. Add {@code result.view} to a container; consecutive rows group into one card. */

@@ -150,6 +150,13 @@ public class FileManagerActivity extends BaseActivity {
     private String query = "";
     private boolean suppressSearch = false;
     private volatile long gen = 0;
+    private LiveSync live;
+    private volatile boolean quiet;
+    private boolean shownDenied;
+    private int shownMode = -1;
+    private boolean resumedOnce;
+    private final Set<String> fresh = new java.util.HashSet<>();
+    private final Runnable clearFresh = fresh::clear;
     private volatile boolean cancelled = false;
 
     private final List<Entry> shown = new ArrayList<>();
@@ -413,11 +420,60 @@ public class FileManagerActivity extends BaseActivity {
             navigate(target);
         }
         updatePermBanner();
+        if (live == null) live = new LiveSync(this, this::liveRefresh);
+        if (resumedOnce && (mode == M_DIR || mode == M_CAT || mode == M_FAV)) refresh(true);
+        resumedOnce = true;
+        updateLive();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (live != null) live.stop();
+    }
+
+    private void liveRefresh() {
+        if (isFinishing() || isDestroyed()) return;
+        if (busy != null && busy.isShowing()) return;
+        refresh(true);
+    }
+
+    private void updateLive() {
+        if (live == null) return;
+        List<File> dirs = new ArrayList<>();
+        boolean media = false;
+        switch (mode) {
+            case M_DIR:
+                if (cur != null) dirs.add(cur);
+                break;
+            case M_FAV:
+                for (String fp : Store.favorites(this)) {
+                    File par = new File(fp).getParentFile();
+                    if (par != null) dirs.add(par);
+                    if (dirs.size() >= 40) break;
+                }
+                break;
+            case M_CAT:
+                media = true;
+                if (cur != null) dirs.add(cur);
+                dirs.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
+                dirs.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM));
+                dirs.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES));
+                dirs.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES));
+                dirs.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC));
+                dirs.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS));
+                break;
+            default:
+                live.stop();
+                return;
+        }
+        live.watch(dirs, media);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (live != null) live.stop();
         ui.removeCallbacksAndMessages(null);
         io.shutdownNow();
         thumbIo.shutdownNow();
@@ -445,6 +501,7 @@ public class FileManagerActivity extends BaseActivity {
     }
 
     private void loading(boolean on) {
+        if (on && quiet) return;
         loadingBar.setVisibility(on ? View.VISIBLE : View.INVISIBLE);
     }
 
@@ -569,6 +626,11 @@ public class FileManagerActivity extends BaseActivity {
     private long storageAt = 0;
 
     private void refresh() {
+        refresh(false);
+    }
+
+    private void refresh(boolean silent) {
+        quiet = silent;
         storageAt = 0;   // file operations end in a refresh: re-read free space
         switch (mode) {
             case M_SEARCH:
@@ -588,6 +650,7 @@ public class FileManagerActivity extends BaseActivity {
                 break;
         }
         updateChrome();
+        if (!silent) updateLive();
     }
 
     private Comparator<Entry> comparator() {
@@ -777,7 +840,33 @@ public class FileManagerActivity extends BaseActivity {
         }
     }
 
+    private boolean sameList(List<Entry> a, List<Entry> b) {
+        if (a.size() != b.size()) return false;
+        for (int i = 0; i < a.size(); i++) {
+            Entry x = a.get(i);
+            Entry y = b.get(i);
+            if (!x.f.equals(y.f) || x.mod != y.mod || x.size != y.size || x.kids != y.kids || x.dir != y.dir) return false;
+        }
+        return true;
+    }
+
     private void setShown(List<Entry> list) {
+        int prevMode = shownMode;
+        boolean same = sameList(shown, list) && shownDenied == listDenied && prevMode == mode;
+        shownDenied = listDenied;
+        shownMode = mode;
+        if (quiet && same) return;
+        fresh.clear();
+        if (quiet && prevMode == mode) {
+            Set<String> old = new java.util.HashSet<>();
+            for (Entry e : shown) old.add(e.f.getAbsolutePath());
+            for (Entry e : list) {
+                String fp = e.f.getAbsolutePath();
+                if (!old.contains(fp) && fresh.size() < 12) fresh.add(fp);
+            }
+            ui.removeCallbacks(clearFresh);
+            ui.postDelayed(clearFresh, 700);
+        }
         shown.clear();
         shown.addAll(list);
         // drop selections that no longer exist
@@ -1191,11 +1280,11 @@ public class FileManagerActivity extends BaseActivity {
             ImageView icon = v.findViewById(R.id.icon);
             ImageView thumb = v.findViewById(R.id.thumb);
             icon.setImageResource(iconFor(type));
-            icon.setImageTintList(ColorStateList.valueOf(color));
+            icon.setImageTintList(ColorStateList.valueOf(0xFFFFFFFF));
             GradientDrawable g = new GradientDrawable();
-            g.setCornerRadius(Ui.dp(FileManagerActivity.this, 8));
-            g.setColor((color & 0x00FFFFFF) | 0x26000000);
-            icon.setBackground(null);   // iOS Files: a plain coloured glyph, no tinted square
+            g.setCornerRadius(Ui.dp(FileManagerActivity.this, 10));
+            g.setColor(0xFF000000 | (color & 0x00FFFFFF));
+            icon.setBackground(g);
             thumb.setBackground(g.getConstantState().newDrawable().mutate());
             thumb.setClipToOutline(true);
             thumb.setTag(path);
@@ -1228,6 +1317,13 @@ public class FileManagerActivity extends BaseActivity {
             v.findViewById(R.id.check).setVisibility(sel ? View.VISIBLE : View.GONE);
             Ui.shapeRow(FileManagerActivity.this, v, pos == 0, pos == shown.size() - 1,
                     sel ? R.color.accent_soft : R.color.surface);
+            v.animate().cancel();
+            if (fresh.contains(path)) {
+                Ui.enter(v, 0);
+            } else {
+                v.setAlpha(1f);
+                v.setTranslationY(0f);
+            }
             return v;
         }
     }

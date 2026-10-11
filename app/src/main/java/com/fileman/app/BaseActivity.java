@@ -35,6 +35,13 @@ public abstract class BaseActivity extends AppCompatActivity {
         Layout.constrain(this, constrainContent());
     }
 
+    protected void useGroupedBackground() {
+        int g = Ui.color(this, R.color.bg_group);
+        getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(g));
+        getWindow().setStatusBarColor(g);
+        getWindow().setNavigationBarColor(g);
+    }
+
     /** Screens that must use the whole window (media, PDF, spreadsheets, editors) return false. */
     protected boolean constrainContent() {
         return true;

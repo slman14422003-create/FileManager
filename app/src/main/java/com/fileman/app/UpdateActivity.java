@@ -43,6 +43,7 @@ public class UpdateActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
+        useGroupedBackground();
         ((TextView) findViewById(R.id.title)).setText(R.string.upd_title);
         updateSubtitle();
         findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());

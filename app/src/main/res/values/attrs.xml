@@ -10,6 +10,7 @@
 
     <!-- Neutral family: surfaces, strokes and text. Defaults come from colors.xml (day / night); the neutral and AMOLED colour themes override them. -->
     <attr name="cBg" format="color" />
+    <attr name="cGroupBg" format="color" />
     <attr name="cSurface" format="color" />
     <attr name="cSurfaceHigh" format="color" />
     <attr name="cField" format="color" />

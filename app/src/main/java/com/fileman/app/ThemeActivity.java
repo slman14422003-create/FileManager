@@ -19,6 +19,7 @@ public class ThemeActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
+        useGroupedBackground();
         ((TextView) findViewById(R.id.title)).setText(R.string.theme_title);
         ((TextView) findViewById(R.id.subtitle)).setText(R.string.theme_sub);
         findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());

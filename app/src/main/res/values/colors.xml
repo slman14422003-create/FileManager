@@ -1,23 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- DAY palette (the default). The dark counterpart lives in values-night/colors.xml with the same names.
-         accent / accent_text / accent_soft / brand_* are the defaults of the "Ocean" colour theme; the other
-         colour themes override them through the cAccent... attributes (see palettes.xml). -->
-    <color name="bg">#F2F2F7</color>
+    <!-- DAY palette: iOS system colours (white, grouped grey #F2F2F7, iOS blue). Night counterpart: values-night/colors.xml (pure AMOLED black). -->
+    <color name="bg">#FFFFFF</color>
+    <color name="bg_group">#F2F2F7</color>
     <color name="surface">#FFFFFF</color>
-    <color name="surface_high">#FFFFFF</color>
-    <color name="field">#E9E9EE</color>
+    <color name="surface_high">#E5E5EA</color>
+    <color name="field">#F2F2F7</color>
     <color name="stroke">#C6C6C8</color>
     <color name="stroke_soft">#E5E5EA</color>
     <color name="text_primary">#000000</color>
-    <color name="text_secondary">#5F5F66</color>
-    <color name="text_hint">#8E8E93</color>
+    <color name="text_secondary">#6C6C70</color>
+    <color name="text_hint">#AEAEB2</color>
     <color name="accent">#007AFF</color>
     <color name="accent_text">#007AFF</color>
-    <color name="accent_soft">#E4F0FF</color>
-    <color name="neutral_soft">#E9E9EE</color>
+    <color name="accent_soft">#E5F1FF</color>
+    <color name="neutral_soft">#E9E9EB</color>
     <color name="on_accent">#FFFFFF</color>
-    <color name="ripple">#1A000000</color>
+    <color name="ripple">#12000000</color>
     <color name="ripple_on_accent">#22000000</color>
     <color name="brand_start">#007AFF</color>
     <color name="brand_mid">#007AFF</color>
@@ -28,5 +27,5 @@
     <color name="info">#007AFF</color>
     <color name="violet">#AF52DE</color>
     <color name="lime">#FFCC00</color>
-    <color name="ic_launcher_bg">#060A1E</color>
+    <color name="ic_launcher_bg">#FFFFFF</color>
 </resources>

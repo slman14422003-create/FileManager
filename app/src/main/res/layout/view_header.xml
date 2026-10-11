@@ -4,37 +4,36 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
-    android:background="@drawable/bg_header"
-    android:minHeight="56dp"
+    android:minHeight="64dp"
     android:orientation="horizontal"
-    android:paddingStart="6dp"
-    android:paddingTop="4dp"
-    android:paddingEnd="6dp"
-    android:paddingBottom="4dp">
+    android:paddingStart="16dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="6dp">
 
     <ImageButton
         android:id="@+id/btnBack"
         style="@style/IconButton"
-        android:tint="?attr/cAccent"
+        android:layout_marginEnd="8dp"
         android:contentDescription="@string/back"
-        android:src="@drawable/ic_back" />
+        android:src="@drawable/ic_back"
+        android:tint="?attr/cAccent" />
 
     <ImageView
         android:id="@+id/headerIcon"
-        android:layout_width="42dp"
-        android:layout_height="42dp"
-        android:layout_marginStart="6dp"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:layout_marginEnd="10dp"
         android:importantForAccessibility="no"
-        android:padding="9dp"
+        android:padding="8dp"
         android:visibility="gone" />
 
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:gravity="center_horizontal"
+        android:gravity="start"
         android:orientation="vertical"
-        android:paddingStart="10dp"
         android:paddingEnd="8dp">
 
         <TextView
@@ -42,14 +41,15 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:gravity="center"
+            android:fontFamily="sans-serif"
+            android:gravity="start"
             android:maxLines="1"
-            android:textAlignment="center"
+            android:textAlignment="viewStart"
             android:textColor="?attr/cTextPrimary"
-            android:textSize="17sp"
+            android:textSize="30sp"
             android:textStyle="bold"
-            app:autoSizeMaxTextSize="17sp"
-            app:autoSizeMinTextSize="12sp"
+            app:autoSizeMaxTextSize="30sp"
+            app:autoSizeMinTextSize="16sp"
             app:autoSizeStepGranularity="1sp"
             app:autoSizeTextType="uniform" />
 
@@ -57,33 +57,33 @@
             android:id="@+id/subtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
             android:ellipsize="middle"
-            android:gravity="center"
+            android:gravity="start"
             android:singleLine="true"
-            android:textAlignment="center"
+            android:textAlignment="viewStart"
             android:textColor="?attr/cTextSecondary"
-            android:textSize="12sp" />
+            android:textSize="13sp" />
     </LinearLayout>
 
     <ImageButton
         android:id="@+id/btnA1"
         style="@style/IconButton"
+        android:layout_marginStart="8dp"
         android:tint="?attr/cAccent"
-        android:layout_marginEnd="0dp"
         android:visibility="gone" />
 
     <ImageButton
         android:id="@+id/btnA2"
         style="@style/IconButton"
+        android:layout_marginStart="8dp"
         android:tint="?attr/cAccent"
-        android:layout_marginEnd="0dp"
         android:visibility="gone" />
 
     <ImageButton
         android:id="@+id/btnRefresh"
         style="@style/IconButton"
-        android:tint="?attr/cAccent"
+        android:layout_marginStart="8dp"
         android:contentDescription="@string/refresh"
-        android:src="@drawable/ic_refresh" />
+        android:src="@drawable/ic_refresh"
+        android:tint="?attr/cAccent" />
 </LinearLayout>

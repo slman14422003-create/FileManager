@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.os.StatFs;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -48,12 +49,24 @@ public class HomeActivity extends BaseActivity {
     private boolean hadAccess = false;
     private volatile int dlCount = -1;
     private volatile long dlSize = 0;
+    private LiveSync live;
+    private boolean rescanQueued;
+    private long lastScanStart;
+    private final Runnable rescan = () -> {
+        if (isFinishing() || isDestroyed() || !Perms.hasAllFiles(this)) return;
+        if (scanning) {
+            rescanQueued = true;
+            return;
+        }
+        startScan();
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
+        useGroupedBackground();
         content = findViewById(R.id.content);
         findViewById(R.id.btnSearch).setOnClickListener(v -> {
             Intent i = new Intent(this, FileManagerActivity.class);
@@ -80,6 +93,33 @@ public class HomeActivity extends BaseActivity {
         if (!access) Perms.promptFirstRun(this);
         else Updater.autoCheck(this, io, ui);
         if (access && (stats == null || System.currentTimeMillis() - statsAt > SCAN_MAX_AGE_MS)) startScan();
+        if (live == null) live = new LiveSync(this, this::liveRescan);
+        if (access) startWatch();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (live != null) live.stop();
+        ui.removeCallbacks(rescan);
+    }
+
+    private void liveRescan() {
+        long wait = Math.max(0, lastScanStart + 3000 - SystemClock.uptimeMillis());
+        ui.removeCallbacks(rescan);
+        ui.postDelayed(rescan, wait);
+    }
+
+    private void startWatch() {
+        File root = Environment.getExternalStorageDirectory();
+        List<File> dirs = new ArrayList<>();
+        dirs.add(root);
+        String[] names = {Environment.DIRECTORY_DOWNLOADS, Environment.DIRECTORY_DCIM, Environment.DIRECTORY_PICTURES,
+                Environment.DIRECTORY_MOVIES, Environment.DIRECTORY_MUSIC, Environment.DIRECTORY_DOCUMENTS};
+        for (String n : names) dirs.add(Environment.getExternalStoragePublicDirectory(n));
+        dirs.add(new File(root, "DCIM/Camera"));
+        dirs.add(new File(root, "Pictures/Screenshots"));
+        live.watch(dirs, true);
     }
 
     @Override
@@ -90,6 +130,7 @@ public class HomeActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (live != null) live.stop();
         stop.set(true);
         ui.removeCallbacksAndMessages(null);
         io.shutdownNow();
@@ -100,6 +141,7 @@ public class HomeActivity extends BaseActivity {
     private void startScan() {
         if (scanning) return;
         scanning = true;
+        lastScanStart = SystemClock.uptimeMillis();
         stop.set(false);
         final boolean hidden = Store.showHidden(this);
         io.execute(() -> {
@@ -124,6 +166,10 @@ public class HomeActivity extends BaseActivity {
                 stats = res;
                 statsAt = System.currentTimeMillis();
                 render();
+                if (rescanQueued) {
+                    rescanQueued = false;
+                    liveRescan();
+                }
             });
         });
     }

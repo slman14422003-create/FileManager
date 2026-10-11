@@ -72,6 +72,7 @@ public class InstallActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_install);
+        useGroupedBackground();
         icon = findViewById(R.id.appIcon);
         name = findViewById(R.id.appName);
         pkgView = findViewById(R.id.appPkg);

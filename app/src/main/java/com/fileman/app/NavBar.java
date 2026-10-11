@@ -3,14 +3,17 @@ package com.fileman.app;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.res.ColorStateList;
+import android.graphics.Typeface;
 import android.view.Gravity;
+import android.view.HapticFeedbackConstants;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.PathInterpolator;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-/** Floating iOS-style tab bar (thumb reach): Home, Files, Search, Settings. Added to the screen's root column. */
+/** Floating capsule tab bar: Home, Files, Search, Settings. Added to the screen's root column. */
 final class NavBar {
     static final int HOME = 0, FILES = 1, SEARCH = 2, SETTINGS = 3;
 
@@ -25,47 +28,63 @@ final class NavBar {
         LinearLayout bar = new LinearLayout(a);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setBackgroundResource(R.drawable.bg_tabbar_float);   // floating capsule
-        bar.setElevation(Ui.dp(a, 10));
-        bar.setPadding(Ui.dp(a, 8), Ui.dp(a, 6), Ui.dp(a, 8), Ui.dp(a, 6));
-        int[] icons = {R.drawable.ic_home, R.drawable.ic_folder, R.drawable.ic_search, R.drawable.ic_settings};
-        int[] labels = {R.string.nav_home, R.string.nav_files, R.string.nav_search, R.string.nav_settings};
+        bar.setBackgroundResource(R.drawable.bg_nav_float);
+        bar.setPadding(Ui.dp(a, 5), Ui.dp(a, 5), Ui.dp(a, 5), Ui.dp(a, 5));
+        bar.setElevation(Ui.dp(a, 8));
+        int[] iconRes = {R.drawable.ic_home, R.drawable.ic_folder, R.drawable.ic_search, R.drawable.ic_settings};
+        int[] labelRes = {R.string.nav_home, R.string.nav_files, R.string.nav_search, R.string.nav_settings};
+        int on = Ui.color(a, R.color.accent);
+        int off = Ui.color(a, R.color.text_secondary);
         for (int i = 0; i < 4; i++) {
             final int idx = i;
-            boolean on = i == selected;
-            int tint = Ui.color(a, on ? R.color.accent : R.color.text_hint);
+            boolean sel = i == selected;
+            int tint = sel ? on : off;
             LinearLayout item = new LinearLayout(a);
             item.setOrientation(LinearLayout.VERTICAL);
             item.setGravity(Gravity.CENTER);
-            item.setContentDescription(a.getString(labels[i]));
-            item.setPadding(0, Ui.dp(a, 5), 0, Ui.dp(a, 4));
-            if (on) item.setBackgroundResource(R.drawable.bg_nav_active);
+            item.setContentDescription(a.getString(labelRes[i]));
+            item.setBackgroundResource(R.drawable.bg_nav_pill);
+            item.setSelected(sel);
+            android.graphics.drawable.Drawable pill = item.getBackground().mutate();
+            pill.setAlpha(sel ? 255 : 0);
 
             ImageView icon = new ImageView(a);
-            icon.setImageResource(icons[i]);
+            icon.setImageResource(iconRes[i]);
             icon.setImageTintList(ColorStateList.valueOf(tint));
-            icon.setScaleType(ImageView.ScaleType.CENTER);
-            item.addView(icon, new LinearLayout.LayoutParams(Ui.dp(a, 28), Ui.dp(a, 28)));
+            icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            item.addView(icon, new LinearLayout.LayoutParams(Ui.dp(a, 24), Ui.dp(a, 24)));
 
             TextView t = new TextView(a);
-            t.setText(labels[i]);
+            t.setText(labelRes[i]);
             t.setTextSize(10.5f);
             t.setSingleLine(true);
-            t.setTypeface(on ? android.graphics.Typeface.DEFAULT_BOLD : android.graphics.Typeface.DEFAULT);
+            t.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
             t.setTextColor(tint);
             t.setGravity(Gravity.CENTER);
-            item.addView(t);
+            LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            tp.topMargin = Ui.dp(a, 2);
+            item.addView(t, tp);
 
             Ui.press(a, item);
-            item.setOnClickListener(v -> go(a, idx, selected));
-            bar.addView(item, new LinearLayout.LayoutParams(0, Ui.dp(a, 52), 1f));
+            item.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+                go(a, idx, selected);
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Ui.dp(a, 54), 1f);
+            lp.setMargins(Ui.dp(a, 2), 0, Ui.dp(a, 2), 0);
+            bar.addView(item, lp);
         }
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        blp.setMargins(Ui.dp(a, 16), Ui.dp(a, 6), Ui.dp(a, 16), Ui.dp(a, 12));
+        blp.setMargins(Ui.dp(a, 20), Ui.dp(a, 6), Ui.dp(a, 20), Ui.dp(a, 10));
         ((LinearLayout) root).addView(bar, blp);
         Layout.markNav(bar);
         Layout.refreshNav(a);
+        bar.setAlpha(0f);
+        bar.setTranslationY(Ui.dp(a, 16));
+        bar.animate().alpha(1f).translationY(0f).setDuration(260)
+                .setInterpolator(new PathInterpolator(0.4f, 0f, 0.2f, 1f)).start();
         return bar;
     }
 

@@ -72,6 +72,7 @@ public class StorageActivity extends BaseActivity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         setContentView(R.layout.activity_detail);
+        useGroupedBackground();
         ((TextView) findViewById(R.id.title)).setText(R.string.home_analysis);
         findViewById(R.id.subtitle).setVisibility(View.GONE);
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
