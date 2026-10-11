@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- NIGHT palette: iOS dark system colours on true AMOLED black. -->
-    <color name="bg">#1C1C1F</color>
-    <color name="bg_group">#1C1C1F</color>
-    <color name="surface">#2A2A2E</color>
-    <color name="surface_high">#37373C</color>
-    <color name="field">#2A2A2E</color>
-    <color name="stroke">#46464C</color>
-    <color name="stroke_soft">#37373C</color>
+    <color name="bg">#141416</color>
+    <color name="bg_group">#141416</color>
+    <color name="surface">#222226</color>
+    <color name="surface_high">#2D2D32</color>
+    <color name="field">#222226</color>
+    <color name="stroke">#3B3B41</color>
+    <color name="stroke_soft">#2D2D32</color>
     <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#A8A8B0</color>
-    <color name="text_hint">#7E7E88</color>
+    <color name="text_secondary">#A6A6AE</color>
+    <color name="text_hint">#7B7B85</color>
     <color name="accent">#0A84FF</color>
     <color name="accent_text">#0A84FF</color>
-    <color name="accent_soft">#1E3350</color>
-    <color name="neutral_soft">#37373C</color>
+    <color name="accent_soft">#1A2D47</color>
+    <color name="neutral_soft">#2D2D32</color>
     <color name="on_accent">#FFFFFF</color>
     <color name="ripple">#22FFFFFF</color>
     <color name="ripple_on_accent">#22000000</color>
@@ -27,5 +27,5 @@
     <color name="info">#0A84FF</color>
     <color name="violet">#BF5AF2</color>
     <color name="lime">#FFD60A</color>
-    <color name="ic_launcher_bg">#1C1C1F</color>
+    <color name="ic_launcher_bg">#141416</color>
 </resources>

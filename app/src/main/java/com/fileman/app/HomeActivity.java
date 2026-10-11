@@ -39,6 +39,7 @@ public class HomeActivity extends BaseActivity {
     private static final int PINNED_ON_HOME = 4;
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService fast = Executors.newSingleThreadExecutor();
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final AtomicBoolean stop = new AtomicBoolean(false);
 
@@ -79,6 +80,41 @@ public class HomeActivity extends BaseActivity {
         findViewById(R.id.btnSearch).setVisibility(View.GONE);
         findViewById(R.id.btnSettings).setVisibility(View.GONE);
         NavBar.attach(this, NavBar.HOME);
+        loadCache();
+    }
+
+    /** Shows the numbers of the last visit at once; a fresh scan replaces them a moment later. */
+    private void loadCache() {
+        if (!Perms.hasAllFiles(this)) return;
+        try {
+            String[] p = Store.homeCache(this).split("\\|", -1);
+            if (p.length < 6) return;
+            Cats.Stats s = new Cats.Stats();
+            String[] cn = p[0].split(",", -1), sz = p[1].split(",", -1);
+            if (cn.length != s.count.length || sz.length != s.size.length) return;
+            for (int i = 0; i < cn.length; i++) {
+                s.count[i] = Integer.parseInt(cn[i]);
+                s.size[i] = Long.parseLong(sz[i]);
+            }
+            s.newCount = Integer.parseInt(p[2]);
+            s.newSize = Long.parseLong(p[3]);
+            dlCount = Integer.parseInt(p[4]);
+            dlSize = Long.parseLong(p[5]);
+            stats = s;
+            statsAt = 0;
+            hadAccess = true;
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void saveCache(Cats.Stats s) {
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < s.count.length; i++) b.append(i == 0 ? "" : ",").append(s.count[i]);
+        b.append('|');
+        for (int i = 0; i < s.size.length; i++) b.append(i == 0 ? "" : ",").append(s.size[i]);
+        b.append('|').append(s.newCount).append('|').append(s.newSize)
+                .append('|').append(dlCount).append('|').append(dlSize);
+        Store.setHomeCache(this, b.toString());
     }
 
     @Override
@@ -134,6 +170,7 @@ public class HomeActivity extends BaseActivity {
         stop.set(true);
         ui.removeCallbacksAndMessages(null);
         io.shutdownNow();
+        fast.shutdownNow();
     }
 
     // ------------------------------------------------------------------ scan
@@ -144,12 +181,8 @@ public class HomeActivity extends BaseActivity {
         lastScanStart = SystemClock.uptimeMillis();
         stop.set(false);
         final boolean hidden = Store.showHidden(this);
-        io.execute(() -> {
-            Cats.Stats s = null;
-            try {
-                s = Cats.scan(Environment.getExternalStorageDirectory(), hidden, RECENT_ON_HOME, stop);
-            } catch (Throwable ignored) {
-            }
+        // the downloads tile does not wait for the full scan
+        fast.execute(() -> {
             final int[] dlc = {0};
             final long[] dls = {0};
             try {
@@ -157,13 +190,25 @@ public class HomeActivity extends BaseActivity {
                         dlc, dls, new int[]{30000}, 0);
             } catch (Throwable ignored) {
             }
+            if (stop.get()) return;
             dlCount = dlc[0];
             dlSize = dls[0];
+            ui.post(() -> {
+                if (!isFinishing() && !isDestroyed()) render();
+            });
+        });
+        io.execute(() -> {
+            Cats.Stats s = null;
+            try {
+                s = Cats.scan(Environment.getExternalStorageDirectory(), hidden, RECENT_ON_HOME, stop);
+            } catch (Throwable ignored) {
+            }
             final Cats.Stats res = s;
             ui.post(() -> {
                 scanning = false;
                 if (isFinishing() || isDestroyed() || res == null || stop.get()) return;
                 stats = res;
+                saveCache(res);
                 statsAt = System.currentTimeMillis();
                 render();
                 if (rescanQueued) {

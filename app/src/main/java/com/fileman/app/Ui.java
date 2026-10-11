@@ -56,8 +56,8 @@ public final class Ui {
     public static android.graphics.drawable.Drawable outlineBox(Context c, float radiusPx) {
         android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
         g.setCornerRadius(radiusPx);
-        g.setColor(0xFF2A2A2F);
-        g.setStroke(Math.max(1, dp(c, 1)), 0x40FFFFFF);
+        g.setColor(0xFF1C1C20);
+        g.setStroke(Math.max(1, dp(c, 1)), 0x38FFFFFF);
         return g;
     }
 

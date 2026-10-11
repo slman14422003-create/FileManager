@@ -249,17 +249,91 @@ public final class Cats {
     /** Safety limit so a huge phone never makes the home screen scan forever. */
     private static final int SCAN_BUDGET = 150000;
 
-    /** Walks a volume once and fills the counters shown on the home tiles. Call off the UI thread. */
+    /**
+     * Walks a volume and fills the counters shown on the home tiles. The top-level folders are walked in
+     * parallel, so a big phone finishes in a fraction of the time. Call off the UI thread.
+     */
     public static Stats scan(File root, boolean showHidden, int keepRecent, java.util.concurrent.atomic.AtomicBoolean stop) {
         Stats st = new Stats();
         PriorityQueue<Hit> heap = new PriorityQueue<>(keepRecent + 1, HIT_OLDEST);
-        int[] budget = {SCAN_BUDGET};
-        walk(root, showHidden, st, heap, keepRecent, budget, stop, 0);
-        st.complete = budget[0] > 0 && !stop.get();
+        File[] top = root.listFiles();
+        boolean complete = true;
+        if (top != null) {
+            final List<File> dirs = new ArrayList<>();
+            for (File f : top) {
+                String n = f.getName();
+                if (!showHidden && n.startsWith(".")) continue;
+                if (n.equals("Android")) continue;   // other apps' private data
+                if (f.isDirectory()) {
+                    if (!isLink(f)) dirs.add(f);
+                } else {
+                    addFile(f, n, st, heap, keepRecent);
+                }
+            }
+            if (!dirs.isEmpty()) {
+                int threads = Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors()));
+                java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(threads);
+                List<java.util.concurrent.Future<Object[]>> parts = new ArrayList<>();
+                final boolean hidden = showHidden;
+                final int keep = keepRecent;
+                for (final File d : dirs) {
+                    parts.add(pool.submit(() -> {
+                        Stats ps = new Stats();
+                        PriorityQueue<Hit> ph = new PriorityQueue<>(keep + 1, HIT_OLDEST);
+                        int[] budget = {SCAN_BUDGET / 2};
+                        walk(d, hidden, ps, ph, keep, budget, stop, 1);
+                        return new Object[]{ps, ph, budget[0] > 0};
+                    }));
+                }
+                for (java.util.concurrent.Future<Object[]> fu : parts) {
+                    try {
+                        Object[] r = fu.get();
+                        Stats ps = (Stats) r[0];
+                        @SuppressWarnings("unchecked") PriorityQueue<Hit> ph = (PriorityQueue<Hit>) r[1];
+                        for (int i = 0; i < st.count.length; i++) {
+                            st.count[i] += ps.count[i];
+                            st.size[i] += ps.size[i];
+                        }
+                        st.newCount += ps.newCount;
+                        st.newSize += ps.newSize;
+                        for (Hit h : ph) {
+                            if (heap.size() < keepRecent || h.mod > heap.peek().mod) {
+                                heap.add(h);
+                                if (heap.size() > keepRecent) heap.poll();
+                            }
+                        }
+                        if (!(Boolean) r[2]) complete = false;
+                    } catch (Throwable e) {
+                        complete = false;
+                    }
+                }
+                pool.shutdown();
+            }
+        }
+        st.complete = complete && !stop.get();
         List<Hit> sorted = new ArrayList<>(heap);
         Collections.sort(sorted, HIT_NEWEST);
         for (Hit h : sorted) st.recent.add(h.f);
         return st;
+    }
+
+    private static void addFile(File f, String n, Stats st, PriorityQueue<Hit> heap, int keep) {
+        String ext = extOf(n);
+        long len = f.length();
+        int t = typeOfExt(ext);
+        st.count[t]++;
+        st.size[t] += len;
+        if (t != T_OTHER || len > 0) {
+            long mod = f.lastModified();
+            if (mod >= st.newSince) {
+                st.newCount++;
+                st.newSize += len;
+            }
+            if (heap.size() < keep || mod > heap.peek().mod) {
+                heap.add(new Hit(f));
+                if (heap.size() > keep) heap.poll();
+            }
+        }
     }
 
     private static void walk(File dir, boolean hidden, Stats st, PriorityQueue<Hit> heap, int keep,
@@ -271,29 +345,12 @@ public final class Cats {
             if (stop.get() || budget[0] <= 0) return;
             String n = f.getName();
             if (!hidden && n.startsWith(".")) continue;
-            // other apps' private data: huge, mostly unreadable and not "your files"
-            if (depth == 0 && n.equals("Android")) continue;
             budget[0]--;
             if (f.isDirectory()) {
                 if (!isLink(f)) walk(f, hidden, st, heap, keep, budget, stop, depth + 1);
                 continue;
             }
-            String ext = extOf(n);
-            long len = f.length();
-            int t = typeOfExt(ext);
-            st.count[t]++;
-            st.size[t] += len;
-            if (t != T_OTHER || len > 0) {
-                long mod = f.lastModified();
-                if (mod >= st.newSince) {
-                    st.newCount++;
-                    st.newSize += len;
-                }
-                if (heap.size() < keep || mod > heap.peek().mod) {
-                    heap.add(new Hit(f));
-                    if (heap.size() > keep) heap.poll();
-                }
-            }
+            addFile(f, n, st, heap, keep);
         }
     }
 

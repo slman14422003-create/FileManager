@@ -65,6 +65,16 @@ public final class Store {
         sp(c).edit().putString("inst_history", v == null ? "" : v).apply();
     }
 
+    // ------------------------------------------------------------------ home: last known numbers (shown instantly)
+
+    public static String homeCache(Context c) {
+        return sp(c).getString("home_cache", "");
+    }
+
+    public static void setHomeCache(Context c, String v) {
+        sp(c).edit().putString("home_cache", v == null ? "" : v).apply();
+    }
+
     // ------------------------------------------------------------------ browsing options
 
     public static boolean showHidden(Context c) {
