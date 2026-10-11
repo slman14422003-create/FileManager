@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The app has a single iOS-style palette; light / AMOLED dark come from colors.xml and values-night. -->
+    <style name="Palette" />
+    <style name="Palette.Ios" />
+</resources>

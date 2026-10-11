@@ -1,0 +1,94 @@
+import java.util.Properties
+
+plugins {
+    id 'com.android.application'
+}
+
+// Release signing: CI passes SIGNING_* environment variables; locally keystore.properties is used.
+// Without a key the release build is signed with the debug key so the APK is still installable locally.
+// CI never publishes such a build (the debug key differs on every runner, so updates would be rejected).
+def keystoreProps = new Properties()
+def keystoreFile = rootProject.file('keystore.properties')
+if (keystoreFile.exists()) {
+    keystoreFile.withInputStream { keystoreProps.load(it) }
+}
+def signStore = System.getenv('SIGNING_STORE_FILE') ?: keystoreProps.getProperty('storeFile')
+def signStorePass = System.getenv('SIGNING_STORE_PASSWORD') ?: keystoreProps.getProperty('storePassword')
+def signAlias = System.getenv('SIGNING_KEY_ALIAS') ?: keystoreProps.getProperty('keyAlias')
+def signKeyPass = System.getenv('SIGNING_KEY_PASSWORD') ?: keystoreProps.getProperty('keyPassword')
+def hasSigning = signStore && signStorePass && signAlias && signKeyPass
+
+android {
+    namespace = 'com.fileman.app'
+    compileSdk = 36   // Android 16
+
+    defaultConfig {
+        applicationId = "app.fileman.mgr"
+        minSdk = 24
+        targetSdk = 36
+        // CI run number keeps versionCode increasing so a new build always installs over the old one
+        versionCode = (System.getenv('VERSION_CODE_OVERRIDE') ?: (10 + (System.getenv('GITHUB_RUN_NUMBER') ?: '0').toInteger()).toString()).toInteger()
+        versionName = System.getenv('APP_VERSION_NAME') ?: "1.0"
+        // GitHub repo (owner/repo) the in-app updater reads releases from; CI sets it automatically
+        buildConfigField 'String', 'UPDATE_REPO', "\"${System.getenv('UPDATE_REPO') ?: ''}\""
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
+    signingConfigs {
+        release {
+            if (hasSigning) {
+                storeFile = file(signStore)
+                storePassword = signStorePass
+                keyAlias = signAlias
+                keyPassword = signKeyPass
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            debuggable = false
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig = hasSigning ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
+
+    packaging {
+        resources.excludes += ['/META-INF/{AL2.0,LGPL2.1}', 'DebugProbesKt.bin']
+    }
+}
+
+dependencies {
+    // Aligns every Kotlin artifact to one version (fixes "Duplicate class kotlin.collections.jdk8...")
+    implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.core:core-splashscreen:1.0.1'
+    implementation 'androidx.drawerlayout:drawerlayout:1.2.0'
+    // Extra archive formats (7z, rar, bz2, xz) - used only by ArcExtra.java; delete that file and these three lines to drop them
+    implementation 'org.apache.commons:commons-compress:1.21'
+    implementation 'org.tukaani:xz:1.9'
+    implementation 'com.github.junrar:junrar:7.5.5'
+}

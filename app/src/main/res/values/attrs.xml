@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Accent family: swapped as a whole by the colour theme the user picks (Settings > Appearance). -->
+    <attr name="cAccent" format="color" />
+    <attr name="cAccentText" format="color" />
+    <attr name="cAccentSoft" format="color" />
+    <attr name="cBrandStart" format="color" />
+    <attr name="cBrandMid" format="color" />
+    <attr name="cBrandEnd" format="color" />
+
+    <!-- Neutral family: surfaces, strokes and text. Defaults come from colors.xml (day / night); the neutral and AMOLED colour themes override them. -->
+    <attr name="cBg" format="color" />
+    <attr name="cSurface" format="color" />
+    <attr name="cSurfaceHigh" format="color" />
+    <attr name="cField" format="color" />
+    <attr name="cStroke" format="color" />
+    <attr name="cStrokeSoft" format="color" />
+    <attr name="cTextPrimary" format="color" />
+    <attr name="cTextSecondary" format="color" />
+    <attr name="cTextHint" format="color" />
+    <attr name="cNeutralSoft" format="color" />
+</resources>

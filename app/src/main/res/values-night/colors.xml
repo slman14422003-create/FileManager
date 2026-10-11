@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand palette taken from the launcher icon: deep navy canvas, indigo-tinted surfaces,
+         one blue accent that flows into the cyan -> blue -> violet brand gradient. -->
+    <color name="bg">#000000</color>
+    <color name="surface">#1C1C1E</color>
+    <color name="surface_high">#2C2C2E</color>
+    <color name="field">#2C2C2E</color>
+    <color name="stroke">#38383A</color>
+    <color name="stroke_soft">#2A2A2C</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#9A9AA1</color>
+    <color name="text_hint">#636366</color>
+    <color name="accent">#0A84FF</color>
+    <color name="accent_text">#0A84FF</color>
+    <color name="accent_soft">#0A2A4D</color>
+    <color name="neutral_soft">#3A3A3C</color>
+    <color name="on_accent">#FFFFFF</color>
+    <color name="ripple">#26FFFFFF</color>
+    <color name="ripple_on_accent">#22000000</color>
+    <color name="brand_start">#0A84FF</color>
+    <color name="brand_mid">#0A84FF</color>
+    <color name="brand_end">#0A84FF</color>
+    <color name="ok">#30D158</color>
+    <color name="bad">#FF453A</color>
+    <color name="warn">#FF9F0A</color>
+    <color name="info">#0A84FF</color>
+    <color name="violet">#BF5AF2</color>
+    <color name="lime">#FFD60A</color>
+</resources>

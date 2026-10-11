@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="gutter">20dp</dimen>
+    <dimen name="content_max_width">760dp</dimen>
+    <dimen name="nav_max_width">0dp</dimen>
+    <dimen name="tile_box">92dp</dimen>
+    <dimen name="tile_icon">42dp</dimen>
+    <dimen name="tile_min_cell">116dp</dimen>
+    <fraction name="dlg_min_minor">52%</fraction>
+    <fraction name="dlg_min_major">40%</fraction>
+</resources>
