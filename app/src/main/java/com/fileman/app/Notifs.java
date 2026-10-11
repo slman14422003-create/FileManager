@@ -35,7 +35,8 @@ final class Notifs {
                         NotificationManager.IMPORTANCE_DEFAULT);
                 nm.createNotificationChannel(ch);
             }
-            Intent open = new Intent(c, InstallerActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            Intent open = new Intent(c, InstallerActivity.class).putExtra("history", true)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             PendingIntent pi = PendingIntent.getActivity(c, 0, open,
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             NotificationCompat.Builder b = new NotificationCompat.Builder(c, CHANNEL)

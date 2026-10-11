@@ -203,49 +203,104 @@ public class HomeActivity extends BaseActivity {
 
         if (!access) content.addView(permissionCard());
 
-        // one grid of big tiles: volumes, downloads, analysis, the categories, then the smart lists
-        List<View> tiles = new ArrayList<>();
+        content.addView(searchBar());
+
         File internal = Environment.getExternalStorageDirectory();
-        tiles.add(storageTile(internal, getString(R.string.fm_internal)));
-        int n = 1;
-        for (File sd : sdRoots()) {
-            tiles.add(storageTile(sd, getString(R.string.fm_sdcard) + (n > 1 ? " " + n : "")));
-            n++;
-        }
         final File dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
         String dlSub = dlCount >= 0 ? getString(R.string.home_tile_sub, dlCount, Fmt.size(dlSize)) : (access ? "…" : "");
-        tiles.add(homeTile(R.drawable.ic_download, R.color.ok, getString(R.string.fm_downloads), dlSub,
-                v -> openFolder(dl)));
-        tiles.add(analysisTile(internal));
-        tiles.add(catTile(Cats.IMG));
-        tiles.add(catTile(Cats.AUD));
-        tiles.add(catTile(Cats.VID));
-        tiles.add(catTile(Cats.DOC));
-        tiles.add(catTile(Cats.APK));
-        tiles.add(catTile(Cats.RECENT));
-        tiles.add(catTile(Cats.FAV));
-        tiles.add(catTile(Cats.ARC));
-        tiles.add(catTile(Cats.LARGE));
-        tiles.add(homeTile(R.drawable.ic_package, R.color.lime, getString(R.string.home_installer),
-                getString(R.string.pk_beta), v -> startActivity(new Intent(this, InstallerActivity.class))));
 
+        // 1) quick access: what people open most
+        List<View> quick = new ArrayList<>();
+        quick.add(homeTile(R.drawable.ic_download, R.color.ok, getString(R.string.fm_downloads), dlSub,
+                v -> openFolder(dl)));
+        quick.add(catTile(Cats.RECENT));
+        quick.add(catTile(Cats.FAV));
+        addSection(getString(R.string.home_quick), quick);
+
+        // 2) storage: volumes, analysis, biggest files
+        List<View> storage = new ArrayList<>();
+        storage.add(storageTile(internal, getString(R.string.fm_internal)));
+        int n = 1;
+        for (File sd : sdRoots()) {
+            storage.add(storageTile(sd, getString(R.string.fm_sdcard) + (n > 1 ? " " + n : "")));
+            n++;
+        }
+        storage.add(analysisTile(internal));
+        storage.add(catTile(Cats.LARGE));
+        addSection(getString(R.string.home_sec_storage), storage);
+
+        // 3) categories
+        List<View> cats = new ArrayList<>();
+        cats.add(catTile(Cats.IMG));
+        cats.add(catTile(Cats.VID));
+        cats.add(catTile(Cats.AUD));
+        cats.add(catTile(Cats.DOC));
+        cats.add(catTile(Cats.APK));
+        cats.add(catTile(Cats.ARC));
+        addSection(getString(R.string.home_sec_categories), cats);
+
+        // 4) tools
+        List<View> tools = new ArrayList<>();
+        tools.add(homeTile(R.drawable.ic_package, R.color.lime, getString(R.string.home_installer),
+                getString(R.string.pk_beta), v -> startActivity(new Intent(this, InstallerActivity.class))));
+        addSection(getString(R.string.home_tools), tools);
+
+        if (keepY > 0) scroller.post(() -> scroller.scrollTo(0, keepY));
+        if (!entered) {   // soft staggered entrance the first time the screen is drawn
+            entered = true;
+            for (int i = 0; i < Math.min(content.getChildCount(), 8); i++) Ui.enter(content.getChildAt(i), i);
+        }
+    }
+
+    /** A titled group of tiles laid out in as many equal columns as the window allows. */
+    private void addSection(String title, List<View> tiles) {
+        content.addView(Ui.sectionTitle(this, title));
         final int cols = Layout.columns(this, 3, 6);
+        int side = Math.max(Ui.dp(this, 10), Layout.gutter(this) - Ui.dp(this, 4));
         for (int i = 0; i < tiles.size(); i += cols) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
-            int side = Math.max(Ui.dp(this, 10), Layout.gutter(this) - Ui.dp(this, 4));
-            row.setPadding(side, i == 0 ? Ui.dp(this, 6) : 0, side, 0);
+            row.setPadding(side, 0, side, 0);
             for (int k = 0; k < cols; k++) {
                 View cell = i + k < tiles.size() ? tiles.get(i + k) : new View(this);
                 row.addView(cell, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             }
             content.addView(row);
         }
-        if (keepY > 0) scroller.post(() -> scroller.scrollTo(0, keepY));
-        if (!entered) {   // soft staggered entrance the first time the screen is drawn
-            entered = true;
-            for (int i = 0; i < Math.min(content.getChildCount(), 8); i++) Ui.enter(content.getChildAt(i), i);
-        }
+    }
+
+    /** Tappable search field at the top of the home screen. */
+    private View searchBar() {
+        LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        bar.setBackgroundResource(R.drawable.bg_input);
+        bar.setPaddingRelative(Ui.dp(this, 16), 0, Ui.dp(this, 16), 0);
+        ImageView ic = new ImageView(this);
+        ic.setImageResource(R.drawable.ic_search);
+        ic.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.text_secondary)));
+        bar.addView(ic, new LinearLayout.LayoutParams(Ui.dp(this, 20), Ui.dp(this, 20)));
+        TextView t = new TextView(this);
+        t.setText(R.string.home_search_hint);
+        t.setTextSize(15);
+        t.setTextColor(Ui.color(this, R.color.text_hint));
+        t.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        tlp.setMarginStart(Ui.dp(this, 10));
+        bar.addView(t, tlp);
+        bar.setContentDescription(getString(R.string.fm_search));
+        Ui.press(this, bar);
+        bar.setOnClickListener(v -> {
+            Intent i = new Intent(this, FileManagerActivity.class);
+            i.putExtra("search", true);
+            startActivity(i);
+        });
+        int side = Math.max(Ui.dp(this, 16), Layout.gutter(this));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 46));
+        lp.setMargins(side, Ui.dp(this, 4), side, 0);
+        bar.setLayoutParams(lp);
+        return bar;
     }
 
     /** One grid cell: an iOS app-icon style rounded square (solid colour, white glyph), the name and a detail line. */

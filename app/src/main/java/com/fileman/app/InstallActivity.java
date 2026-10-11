@@ -551,6 +551,9 @@ public class InstallActivity extends BaseActivity {
                         note(getString(stageRes));
                     });
                 }
+                if (Store.instBool(this, "awake", true)) {
+                    ui.post(() -> getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON));
+                }
                 PkgInstaller.install(this, in, (done, total) -> ui.post(() -> {
                     if (destroyed || state != S_INSTALLING) return;
                     progress.setProgress((int) Math.min(100, done * 100 / Math.max(1, total)));

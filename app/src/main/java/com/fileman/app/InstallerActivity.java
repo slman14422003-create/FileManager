@@ -16,6 +16,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import androidx.core.content.FileProvider;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
@@ -76,6 +77,14 @@ public class InstallerActivity extends BaseActivity {
     private volatile boolean destroyed = false;
 
     private List<File> foundFiles = new ArrayList<>();
+    private java.util.Map<File, Found> foundInfo = new java.util.HashMap<>();
+
+    /** What an .apk on the device is, and how it compares with the copy installed now. */
+    private static final class Found {
+        String pkg = "", label = "", ver = "";
+        long code;
+        int state;   // 0 unknown, 1 new app, 2 update, 3 same version installed, 4 older than installed
+    }
     private List<App> apps = new ArrayList<>();
     private LinearLayout appList;
     private String appQuery = "";
@@ -114,7 +123,11 @@ public class InstallerActivity extends BaseActivity {
         ContextCompat.registerReceiver(this, rx, new IntentFilter(PkgInstaller.action(this)),
                 ContextCompat.RECEIVER_NOT_EXPORTED);
 
-        showHome();
+        // deep links: launcher shortcuts and the result notification
+        Intent launch = getIntent();
+        if (launch != null && launch.getBooleanExtra("history", false)) showHistory();
+        else if (launch != null && launch.getBooleanExtra("found", false)) scanFound();
+        else showHome();
     }
 
     @Override
@@ -258,9 +271,35 @@ public class InstallerActivity extends BaseActivity {
                 else Perms.requestNotifications(this);
             }));
         }
+        boolean batt = Perms.ignoresBattery(this);
+        Row rb = new Row(R.drawable.ic_timer, true, getString(R.string.pk_perm_battery),
+                getString(R.string.pk_perm_battery_sub), false, !batt);
+        rb.badge(getString(batt ? R.string.perm_granted : R.string.perm_denied),
+                Ui.color(this, batt ? R.color.ok : R.color.bad));
+        content.addView(Ui.rowView(this, content, rb, v -> {
+            if (Perms.ignoresBattery(this)) Perms.openAppSettings(this);
+            else Perms.requestBattery(this);
+        }));
+
+        boolean usage = Perms.hasUsageAccess(this);
+        Row ru = new Row(R.drawable.ic_chart, true, getString(R.string.pk_perm_usage),
+                getString(R.string.pk_perm_usage_sub), false, !usage);
+        ru.badge(getString(usage ? R.string.perm_granted : R.string.perm_denied),
+                Ui.color(this, usage ? R.color.ok : R.color.bad));
+        content.addView(Ui.rowView(this, content, ru, v -> Perms.openUsageAccess(this)));
+
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_shield, false,
                 getString(R.string.pk_perm_installer), getString(R.string.pk_perm_installer_sub), false, false)
                 .badge(getString(R.string.perm_granted), Ui.color(this, R.color.ok)), null));
+
+        // ---- integration: make this the app that opens APK files
+        final String apkMime = "application/vnd.android.package-archive";
+        boolean isDef = Perms.isDefaultFor(this, apkMime, "apk");
+        Row rdef = new Row(R.drawable.ic_open, true, getString(R.string.pk_default_installer),
+                getString(R.string.pk_default_installer_sub), false, !isDef);
+        rdef.badge(getString(isDef ? R.string.pk_default_yes : R.string.pk_default_no),
+                Ui.color(this, isDef ? R.color.ok : R.color.text_secondary));
+        content.addView(Ui.rowView(this, content, rdef, v -> Perms.chooseDefault(this, apkMime, "apk")));
 
         // ---- installer options
         content.addView(Ui.sectionTitle(this, getString(R.string.pk_h_settings)));
@@ -268,6 +307,7 @@ public class InstallerActivity extends BaseActivity {
         addOption("verify", true, R.string.pk_opt_verify, R.string.pk_opt_verify_sub);
         addOption("delete_after", false, R.string.pk_opt_delete, R.string.pk_opt_delete_sub);
         addOption("notify", true, R.string.pk_opt_notify, R.string.pk_opt_notify_sub);
+        addOption("awake", true, R.string.pk_opt_awake, R.string.pk_opt_awake_sub);
         if (Build.VERSION.SDK_INT >= 34) {
             addOption("owner", false, R.string.pk_opt_owner, R.string.pk_opt_owner_sub);
         }
@@ -349,12 +389,101 @@ public class InstallerActivity extends BaseActivity {
                 out.add(h.f);
                 if (out.size() >= MAX_FOUND) break;
             }
+            final java.util.Map<File, Found> info = new java.util.HashMap<>();
+            PackageManager pm = getPackageManager();
+            for (File f : out) {
+                if (destroyed) return;
+                if (!"apk".equals(Cats.extOf(f.getName()))) continue;
+                Found fi = quickInfo(pm, f);
+                if (fi != null) info.put(f, fi);
+            }
             ui.post(() -> {
                 if (destroyed || screen != S_FOUND) return;
                 foundFiles = out;
+                foundInfo = info;
                 showFoundList();
             });
         });
+    }
+
+    @SuppressWarnings("deprecation")
+    private static long codeOf(PackageInfo p) {
+        return Build.VERSION.SDK_INT >= 28 ? p.getLongVersionCode() : p.versionCode;
+    }
+
+    /** Reads an .apk's package name / version and compares it with the installed copy. */
+    private Found quickInfo(PackageManager pm, File f) {
+        try {
+            PackageInfo pi = pm.getPackageArchiveInfo(f.getAbsolutePath(), 0);
+            if (pi == null || pi.packageName == null) return null;
+            Found x = new Found();
+            x.pkg = pi.packageName;
+            x.ver = pi.versionName == null ? "" : pi.versionName;
+            x.code = codeOf(pi);
+            ApplicationInfo ai = pi.applicationInfo;
+            if (ai != null) {
+                ai.sourceDir = f.getAbsolutePath();
+                ai.publicSourceDir = f.getAbsolutePath();
+                try {
+                    x.label = String.valueOf(ai.loadLabel(pm));
+                } catch (Throwable ignored) {
+                }
+            }
+            try {
+                long cur = codeOf(pm.getPackageInfo(x.pkg, 0));
+                x.state = x.code > cur ? 2 : x.code == cur ? 3 : 4;
+            } catch (PackageManager.NameNotFoundException e) {
+                x.state = 1;
+            }
+            return x;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** Older copies of a package that has a newer (or equal, newer-dated) file in the list. */
+    private List<File> duplicateFiles() {
+        java.util.Map<String, List<File>> groups = new java.util.HashMap<>();
+        for (File f : foundFiles) {
+            Found fi = foundInfo.get(f);
+            if (fi == null) continue;
+            List<File> g = groups.get(fi.pkg);
+            if (g == null) groups.put(fi.pkg, g = new ArrayList<>());
+            g.add(f);
+        }
+        List<File> del = new ArrayList<>();
+        for (List<File> g : groups.values()) {
+            if (g.size() < 2) continue;
+            Collections.sort(g, (x, y) -> {
+                int c = Long.compare(foundInfo.get(y).code, foundInfo.get(x).code);
+                return c != 0 ? c : Long.compare(y.lastModified(), x.lastModified());
+            });
+            for (int i = 1; i < g.size(); i++) del.add(g.get(i));
+        }
+        return del;
+    }
+
+    private void confirmDupes(final List<File> del) {
+        long total = 0;
+        for (File f : del) total += f.length();
+        new Dlg(this)
+                .setTitle(R.string.pk_dupes_sub)
+                .setMessage(getString(R.string.pk_dupes_q, del.size(), Fmt.size(total)))
+                .setPositiveButton(R.string.delete, (d, w) -> {
+                    busy(true);
+                    io.execute(() -> {
+                        int n = 0;
+                        for (File f : del) if (f.delete()) n++;
+                        final int done = n;
+                        ui.post(() -> {
+                            if (destroyed) return;
+                            Toast.makeText(this, getString(R.string.pk_dupes_done, done), Toast.LENGTH_SHORT).show();
+                            scanFound();
+                        });
+                    });
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
     }
 
     private void walk(File dir, List<Cats.Hit> out, int[] budget, int depth) {
@@ -385,9 +514,23 @@ public class InstallerActivity extends BaseActivity {
             return;
         }
         final List<File> singles = new ArrayList<>(foundFiles);
+        final List<File> updates = new ArrayList<>();
+        for (File f : foundFiles) {
+            Found fi = foundInfo.get(f);
+            if (fi != null && fi.state == 2) updates.add(f);
+        }
+        if (!updates.isEmpty()) {
+            content.addView(row(R.drawable.ic_refresh, getString(R.string.pk_updates, updates.size()),
+                    getString(R.string.pk_updates_sub), v -> confirmBatch(updates)));
+        }
         if (singles.size() > 1) {
             content.addView(row(R.drawable.ic_download, getString(R.string.pk_install_all, singles.size()),
                     getString(R.string.pk_install_all_sub), v -> confirmBatch(singles)));
+        }
+        final List<File> dupes = duplicateFiles();
+        if (!dupes.isEmpty()) {
+            content.addView(row(R.drawable.ic_delete, getString(R.string.pk_dupes, dupes.size()),
+                    getString(R.string.pk_dupes_sub), v -> confirmDupes(dupes)));
         }
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
@@ -396,9 +539,22 @@ public class InstallerActivity extends BaseActivity {
             File p = f.getParentFile();
             String sub = Fmt.size(f.length()) + " · " + Fmt.ago(f.lastModified())
                     + (p != null ? " · " + p.getName() : "");
-            Row r = new Row(R.drawable.ic_package, false, f.getName(), sub, false, true)
+            Found fi = foundInfo.get(f);
+            String title = f.getName();
+            if (fi != null) {
+                if (!fi.label.isEmpty()) title = fi.label;
+                if (!fi.ver.isEmpty()) sub = fi.ver + " · " + sub;
+            }
+            Row r = new Row(R.drawable.ic_package, false, title, sub, false, true)
                     .tint(Ui.color(this, R.color.ok));
-            if (!ext.equals("apk")) r.badge(ext.toUpperCase(Locale.ROOT), Ui.color(this, R.color.accent_text));
+            if (!ext.equals("apk")) {
+                r.badge(ext.toUpperCase(Locale.ROOT), Ui.color(this, R.color.accent_text));
+            } else if (fi != null && fi.state != 0) {
+                int[] names = {0, R.string.pk_st_new_chip, R.string.pk_st_update_chip, R.string.pk_st_same_chip,
+                        R.string.pk_st_older_chip};
+                int[] cols = {0, R.color.accent_text, R.color.ok, R.color.text_secondary, R.color.warn};
+                r.badge(getString(names[fi.state]), Ui.color(this, cols[fi.state]));
+            }
             list.addView(Ui.rowView(this, list, r, v -> showFile(f)));
         }
         Ui.group(this, list);
@@ -414,6 +570,9 @@ public class InstallerActivity extends BaseActivity {
     // ------------------------------------------------------------------ installing
 
     private void runInstall(final File f, final PkgInstaller.Info known) {
+        if (Store.instBool(this, "awake", true)) {
+            getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
         busy(true);
         setStatus(getString(R.string.pk_inspecting));
         io.execute(() -> {
@@ -481,6 +640,9 @@ public class InstallerActivity extends BaseActivity {
     private void onInstallResult(boolean ok, String msg) {
         if (destroyed) return;
         busy(false);
+        if (!batchActive || queue.isEmpty()) {
+            getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
         PkgInstaller.Info in = installing;
         String label = in != null && !in.label.isEmpty() ? in.label : getString(R.string.pk_title);
         if (in != null) PkgInstaller.log(this, in, ok, msg);
@@ -663,24 +825,76 @@ public class InstallerActivity extends BaseActivity {
     }
 
     private void appMenu(final App a) {
-        String[] items = {getString(R.string.pk_open_app), getString(R.string.pk_app_info),
-                getString(R.string.pk_extract), getString(R.string.pk_uninstall)};
+        String[] items = {getString(R.string.pk_open_app), getString(R.string.pk_details),
+                getString(R.string.pk_app_info), getString(R.string.pk_extract),
+                getString(R.string.pk_share), getString(R.string.pk_uninstall)};
         new Dlg(this).setTitle(a.label).setItems(items, (d, which) -> {
             switch (which) {
                 case 0:
                     openApp(a.pkg);
                     break;
                 case 1:
-                    appInfo(a.pkg);
+                    appDetails(a);
                     break;
                 case 2:
+                    appInfo(a.pkg);
+                    break;
+                case 3:
                     extractApk(a);
+                    break;
+                case 4:
+                    shareApk(a);
                     break;
                 default:
                     uninstall(a.pkg);
                     break;
             }
         }).show();
+    }
+
+    private void detail(StringBuilder sb, int label, String value) {
+        if (sb.length() > 0) sb.append("\n\n");
+        sb.append(getString(label)).append("\n").append(value);
+    }
+
+    /** One dialog with everything useful about an installed app. */
+    private void appDetails(final App a) {
+        PackageManager pm = getPackageManager();
+        StringBuilder sb = new StringBuilder();
+        try {
+            PackageInfo pi = pm.getPackageInfo(a.pkg, PackageManager.GET_PERMISSIONS);
+            ApplicationInfo ai = pi.applicationInfo;
+            java.text.DateFormat df = java.text.DateFormat.getDateTimeInstance();
+            detail(sb, R.string.pk_ad_pkg, a.pkg);
+            detail(sb, R.string.pk_d_version, (pi.versionName == null ? "" : pi.versionName) + " (" + codeOf(pi) + ")");
+            detail(sb, R.string.pk_d_size, Fmt.size(a.size));
+            if (ai != null) {
+                detail(sb, R.string.pk_d_sdk, getString(R.string.pk_d_sdk_sub, ai.minSdkVersion, ai.targetSdkVersion));
+                if (ai.splitSourceDirs != null && ai.splitSourceDirs.length > 0) {
+                    detail(sb, R.string.pk_d_splits, getString(R.string.pk_d_splits_sub, ai.splitSourceDirs.length + 1));
+                }
+            }
+            detail(sb, R.string.pk_ad_first, df.format(new java.util.Date(pi.firstInstallTime)));
+            detail(sb, R.string.pk_ad_updated, df.format(new java.util.Date(pi.lastUpdateTime)));
+            String src = null;
+            try {
+                src = Build.VERSION.SDK_INT >= 30 ? pm.getInstallSourceInfo(a.pkg).getInstallingPackageName()
+                        : pm.getInstallerPackageName(a.pkg);
+            } catch (Throwable ignored) {
+            }
+            if (src != null) {
+                try {
+                    src = pm.getApplicationLabel(pm.getApplicationInfo(src, 0)) + " (" + src + ")";
+                } catch (Throwable ignored) {
+                }
+            }
+            detail(sb, R.string.pk_ad_source, src == null ? getString(R.string.pk_ad_unknown) : src);
+            detail(sb, R.string.pk_ad_perms, String.valueOf(pi.requestedPermissions == null ? 0 : pi.requestedPermissions.length));
+        } catch (Throwable e) {
+            sb.append(a.pkg);
+        }
+        new Dlg(this).setTitle(a.label).setMessage(sb.toString())
+                .setPositiveButton(android.R.string.ok, null).show();
     }
 
     private void openApp(String pkg) {
@@ -713,6 +927,34 @@ public class InstallerActivity extends BaseActivity {
         }
     }
 
+    /** Writes the installed app as .apk (or all its splits as one .apks bundle) into dir. */
+    private File writeApp(App a, File dir) throws Exception {
+        ApplicationInfo ai = getPackageManager().getApplicationInfo(a.pkg, 0);
+        //noinspection ResultOfMethodCallIgnored
+        dir.mkdirs();
+        String name = (a.label + "_" + a.ver).replaceAll("[^\\p{L}\\p{N}._-]", "_");
+        String[] splits = ai.splitSourceDirs;
+        File out;
+        if (splits == null || splits.length == 0) {
+            out = new File(dir, name + ".apk");
+            PkgInstaller.copy(new FileInputStream(ai.sourceDir), new FileOutputStream(out), null);
+        } else {
+            out = new File(dir, name + ".apks");
+            try (ZipOutputStream z = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(out)))) {
+                z.setLevel(Deflater.NO_COMPRESSION);   // APKs are compressed already
+                z.putNextEntry(new ZipEntry("splits/base.apk"));
+                pump(new FileInputStream(ai.sourceDir), z);
+                z.closeEntry();
+                for (String s : splits) {
+                    z.putNextEntry(new ZipEntry("splits/" + new File(s).getName()));
+                    pump(new FileInputStream(s), z);
+                    z.closeEntry();
+                }
+            }
+        }
+        return out;
+    }
+
     /** Copies the installed APK (or all its splits as one .apks bundle) to Download/FileManager-APKs. */
     private void extractApk(final App a) {
         busy(true);
@@ -720,35 +962,12 @@ public class InstallerActivity extends BaseActivity {
             String result;
             boolean ok = false;
             try {
-                ApplicationInfo ai = getPackageManager().getApplicationInfo(a.pkg, 0);
                 File base = Perms.hasAllFiles(this)
                         ? Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                         : getExternalFilesDir(null);
                 File dir = new File(base, Perms.hasAllFiles(this) ? "FileManager-APKs" : "apks");
-                //noinspection ResultOfMethodCallIgnored
-                dir.mkdirs();
-                String name = (a.label + "_" + a.ver).replaceAll("[^\\p{L}\\p{N}._-]", "_");
-                String[] splits = ai.splitSourceDirs;
-                File out;
-                if (splits == null || splits.length == 0) {
-                    out = new File(dir, name + ".apk");
-                    PkgInstaller.copy(new FileInputStream(ai.sourceDir), new FileOutputStream(out), null);
-                } else {
-                    out = new File(dir, name + ".apks");
-                    try (ZipOutputStream z = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(out)))) {
-                        z.setLevel(Deflater.NO_COMPRESSION);   // APKs are compressed already
-                        z.putNextEntry(new ZipEntry("splits/base.apk"));
-                        pump(new FileInputStream(ai.sourceDir), z);
-                        z.closeEntry();
-                        for (String s : splits) {
-                            z.putNextEntry(new ZipEntry("splits/" + new File(s).getName()));
-                            pump(new FileInputStream(s), z);
-                            z.closeEntry();
-                        }
-                    }
-                }
+                result = writeApp(a, dir).getAbsolutePath();
                 ok = true;
-                result = out.getAbsolutePath();
             } catch (Throwable e) {
                 result = String.valueOf(e.getMessage());
             }
@@ -758,6 +977,45 @@ public class InstallerActivity extends BaseActivity {
                 if (destroyed) return;
                 busy(false);
                 Dlg.result(this, fok, getString(fok ? R.string.pk_extract_done : R.string.pk_extract_fail), fres);
+            });
+        });
+    }
+
+    /** Builds the package in the cache folder and opens the system share sheet for it. */
+    private void shareApk(final App a) {
+        busy(true);
+        io.execute(() -> {
+            File out = null;
+            String err = null;
+            try {
+                File dir = new File(getCacheDir(), "share");
+                File[] old = dir.listFiles();
+                if (old != null) for (File o : old) //noinspection ResultOfMethodCallIgnored
+                    o.delete();
+                out = writeApp(a, dir);
+            } catch (Throwable e) {
+                err = String.valueOf(e.getMessage());
+            }
+            final File fo = out;
+            final String ferr = err;
+            ui.post(() -> {
+                if (destroyed) return;
+                busy(false);
+                if (fo == null) {
+                    Dlg.result(this, false, getString(R.string.pk_extract_fail), ferr);
+                    return;
+                }
+                try {
+                    Uri u = FileProvider.getUriForFile(this, getPackageName() + ".files", fo);
+                    Intent send = new Intent(Intent.ACTION_SEND);
+                    send.setType(fo.getName().endsWith(".apk") ? "application/vnd.android.package-archive"
+                            : "application/octet-stream");
+                    send.putExtra(Intent.EXTRA_STREAM, u);
+                    send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(Intent.createChooser(send, a.label));
+                } catch (Exception e) {
+                    Dlg.result(this, false, getString(R.string.pk_extract_fail), String.valueOf(e.getMessage()));
+                }
             });
         });
     }

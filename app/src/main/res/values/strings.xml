@@ -242,8 +242,8 @@
     <!-- package installer (beta) and advanced tools -->
     <string name="pk_title">مثبّت الحزم</string>
     <string name="pk_beta">بيتا</string>
-    <string name="pk_subtitle">بيتا 3 · تثبيت APK والحزم المقسّمة (حتى الضخمة) مع فحص السلامة وإدارة التطبيقات</string>
-    <string name="pk_beta_note">نسخة تجريبية (بيتا 3): تثبّت APK وAPKS وXAPK وAPKM عبر مثبّت النظام الرسمي، وتقرأ الحزم الضخمة (ZIP64) وأسماءها العربية، وتفحص سلامة الحزمة (CRC) قبل التثبيت، وتتحقق من الإصدار والمعالج والمساحة والتوقيع، وتختار تلقائيًا الحزم المناسبة لجهازك، وتقارن بصمة SHA-256 بما في الحافظة، وتنسخ ملفات OBB، وتحتفظ بسجل للنتائج. التثبيت الصامت دون موافقة غير متاح لأي تطبيق عادي، لذلك قد يطلب النظام تأكيدك.</string>
+    <string name="pk_subtitle">بيتا 4 · تثبيت APK والحزم المقسّمة مع حالة الإصدار وتنظيف المكرر وتكامل مع النظام</string>
+    <string name="pk_beta_note">نسخة تجريبية (بيتا 4): تثبّت APK وAPKS وXAPK وAPKM عبر مثبّت النظام الرسمي مع فحص السلامة والتوقيع والمعمارية والمساحة، وتُظهر في قائمة الحزم حالة كل ملف (جديد، تحديث، مثبّت، أقدم) مقارنةً بما على جهازك، وتثبّت التحديثات دفعة واحدة، وتنظّف النسخ المكررة، وتعرض تفاصيل أي تطبيق وتشاركه، وتبقي الشاشة مضاءة أثناء التثبيت الكبير. تكامل: اختصارات من أيقونة التطبيق، وإشعار النتيجة يفتح السجل، وتعيين المثبّت الافتراضي. التثبيت الصامت دون موافقة غير متاح لأي تطبيق عادي، لذلك قد يطلب النظام تأكيدك.</string>
     <string name="pk_tools">الأدوات</string>
     <string name="pk_found">حزم على الجهاز</string>
     <string name="pk_found_sub">ابحث عن APK وAPKS وXAPK وAPKM في التخزين</string>
@@ -458,7 +458,7 @@
     <string name="pal_graphite">رمادي</string>
     <string name="pal_mono">محايد</string>
     <string name="pal_amoled">أسود AMOLED</string>
-    <string name="pk_beta2">بيتا 3</string>
+    <string name="pk_beta2">بيتا 4</string>
     <string name="pk_chip_blocked">لا يمكن التثبيت</string>
     <string name="pk_d_abi">المعمارية</string>
     <string name="pk_d_abi_none">بدون مكتبات أصلية: تعمل على كل المعمارات</string>
@@ -623,4 +623,34 @@
     <string name="ct_t_fax">فاكس</string>
     <string name="ct_t_main">رئيسي</string>
     <string name="ct_t_other">أخرى</string>
+    <string name="home_sec_storage">التخزين</string>
+    <string name="home_sec_categories">الفئات</string>
+    <string name="home_search_hint">ابحث في ملفاتك…</string>
+    <string name="pk_perm_battery">تجاهل توفير البطارية</string>
+    <string name="pk_perm_battery_sub">يمنع النظام من إيقاف التثبيت الطويل للحزم الضخمة عند إغلاق الشاشة</string>
+    <string name="pk_perm_usage">الوصول إلى الاستخدام</string>
+    <string name="pk_perm_usage_sub">لعرض أحجام التطبيقات الحقيقية في تحليل المساحة</string>
+    <string name="pk_default_installer">المثبّت الافتراضي</string>
+    <string name="pk_default_installer_sub">افتح ملفات APK من أي تطبيق مباشرةً هنا</string>
+    <string name="pk_default_yes">مفعّل</string>
+    <string name="pk_default_no">غير مفعّل</string>
+    <string name="pk_opt_awake">إبقاء الشاشة مضاءة أثناء التثبيت</string>
+    <string name="pk_opt_awake_sub">يمنع انقطاع التثبيت الطويل بسبب إطفاء الشاشة</string>
+    <string name="pk_st_new_chip">جديد</string>
+    <string name="pk_st_update_chip">تحديث</string>
+    <string name="pk_st_same_chip">مثبّت</string>
+    <string name="pk_st_older_chip">أقدم</string>
+    <string name="pk_updates">تثبيت التحديثات (%1$d)</string>
+    <string name="pk_updates_sub">الحزم الأحدث من المثبّت على جهازك فقط</string>
+    <string name="pk_dupes">تنظيف النسخ المكررة (%1$d)</string>
+    <string name="pk_dupes_sub">يحذف الإصدارات الأقدم من الحزمة نفسها ويُبقي الأحدث</string>
+    <string name="pk_dupes_q">سيُحذف %1$d ملف (%2$s) ويُبقى أحدث إصدار من كل تطبيق.</string>
+    <string name="pk_dupes_done">تم حذف %1$d ملف</string>
+    <string name="pk_share">مشاركة الحزمة</string>
+    <string name="pk_ad_pkg">اسم الحزمة</string>
+    <string name="pk_ad_first">أول تثبيت</string>
+    <string name="pk_ad_updated">آخر تحديث</string>
+    <string name="pk_ad_source">مصدر التثبيت</string>
+    <string name="pk_ad_perms">الأذونات</string>
+    <string name="pk_ad_unknown">غير معروف</string>
 </resources>

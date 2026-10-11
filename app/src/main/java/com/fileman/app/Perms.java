@@ -169,6 +169,52 @@ public final class Perms {
         openAppSettings(a);
     }
 
+    // ------------------------------------------------------------------ battery optimization / usage access (installer beta 4)
+
+    public static boolean ignoresBattery(Context c) {
+        try {
+            android.os.PowerManager pm = (android.os.PowerManager) c.getSystemService(Context.POWER_SERVICE);
+            return pm == null || pm.isIgnoringBatteryOptimizations(c.getPackageName());
+        } catch (Throwable e) {
+            return true;
+        }
+    }
+
+    public static void requestBattery(Activity a) {
+        try {
+            a.startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:" + a.getPackageName())));
+        } catch (Exception e) {
+            try {
+                a.startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            } catch (Exception ignored) {
+                openAppSettings(a);
+            }
+        }
+    }
+
+    public static boolean hasUsageAccess(Context c) {
+        try {
+            android.app.AppOpsManager ops = (android.app.AppOpsManager) c.getSystemService(Context.APP_OPS_SERVICE);
+            int mode = Build.VERSION.SDK_INT >= 29
+                    ? ops.unsafeCheckOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    android.os.Process.myUid(), c.getPackageName())
+                    : ops.checkOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    android.os.Process.myUid(), c.getPackageName());
+            return mode == android.app.AppOpsManager.MODE_ALLOWED;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    public static void openUsageAccess(Activity a) {
+        try {
+            a.startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
+        } catch (Exception e) {
+            openAppSettings(a);
+        }
+    }
+
     public static void openAppSettings(Activity a) {
         try {
             a.startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
