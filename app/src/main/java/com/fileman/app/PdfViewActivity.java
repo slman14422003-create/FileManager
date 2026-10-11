@@ -17,13 +17,11 @@ import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.util.LruCache;
 import android.util.SparseArray;
-import android.view.ViewTreeObserver;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsListView;
 import android.widget.BaseAdapter;
 import android.widget.FrameLayout;
-import android.widget.HorizontalScrollView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ListView;
@@ -61,7 +59,6 @@ public class PdfViewActivity extends BaseActivity {
     private float[] ratios;          // height / width per page (0 = unknown yet)
     private float defaultRatio = 1.414f;
     private float zoom = 1f;
-    private HorizontalScrollView hsv;
     private PinchZoomLayout pinch;
     /** Last bitmap drawn for each page: shown (stretched) while a sharper one renders after a zoom. */
     private final SparseArray<WeakReference<Bitmap>> lastBmp = new SparseArray<>();
@@ -261,8 +258,6 @@ public class PdfViewActivity extends BaseActivity {
         holder.post(() -> {
             if (destroyed) return;
             viewW = holder.getWidth();
-            hsv = new HorizontalScrollView(this);
-            hsv.setHorizontalScrollBarEnabled(false);
             list = new ListView(this);
             list.setDivider(null);
             list.setDividerHeight(0);
@@ -283,21 +278,29 @@ public class PdfViewActivity extends BaseActivity {
                     updateSubtitle(first);
                 }
             });
-            hsv.addView(list, new FrameLayout.LayoutParams(listWidth(), ViewGroup.LayoutParams.MATCH_PARENT));
             pinch = new PinchZoomLayout(this);
             pinch.setZoomRange(1f, ZOOMS[ZOOMS.length - 1] + 1f, 2.5f);
             pinch.setListener(new PinchZoomLayout.Listener() {
                 @Override
-                public float zoom() {
-                    return zoom;
+                public void onZoomChanged(float z) {
+                    // keep the bottom clearance (floating bar) constant on screen while zoomed
+                    list.setPadding(0, Ui.dp(PdfViewActivity.this, 6), 0, Math.round(Ui.dp(PdfViewActivity.this, 100) / z));
                 }
 
                 @Override
-                public void onZoomCommit(float z, float sx, float sy, float ex, float ey) {
-                    commitZoom(z, sx, sy, ex, ey);
+                public void onZoomSettled(float z) {
+                    zoom = z;
+                    list.setFastScrollEnabled(z < 1.05f);
+                    if (adapter != null) adapter.notifyDataSetChanged();   // re-render at the new resolution
+                    showPill(firstVisible);
+                }
+
+                @Override
+                public void scrollContentBy(int dy) {
+                    list.scrollListBy(dy);
                 }
             });
-            pinch.addView(hsv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+            pinch.addView(list, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
             holder.addView(pinch, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
@@ -335,8 +338,9 @@ public class PdfViewActivity extends BaseActivity {
         });
     }
 
+    /** Layout width of the page list: always the screen width; zoom is a view transform on top of it. */
     private int listWidth() {
-        return Math.round(viewW * zoom);
+        return viewW;
     }
 
     private void updateSubtitle(int first) {
@@ -386,67 +390,16 @@ public class PdfViewActivity extends BaseActivity {
     /** Zoom button: steps through the preset levels around the centre of the screen. */
     private void cycleZoom() {
         if (list == null || pinch == null) return;
+        float cur = pinch.getZoom();
         float next = ZOOMS[0];
         for (float z : ZOOMS) {
-            if (z > zoom + 0.05f) {
+            if (z > cur + 0.05f) {
                 next = z;
                 break;
             }
         }
-        float cx = pinch.getWidth() / 2f;
-        float cy = pinch.getHeight() / 2f;
-        commitZoom(next, cx, cy, cx, cy);
-        Toast.makeText(this, Math.round(zoom * 100) + "%", Toast.LENGTH_SHORT).show();
-    }
-
-    /**
-     * Applies a new zoom and keeps the page point that was under (sx, sy) under (ex, ey): vertically by
-     * re-anchoring the list on the page it sits on, horizontally by rescrolling the wrapper.
-     */
-    private void commitZoom(float newZoom, float sx, float sy, float ex, float ey) {
-        if (list == null || hsv == null || adapter == null) return;
-        newZoom = Math.max(1f, Math.min(ZOOMS[ZOOMS.length - 1] + 1f, newZoom));
-        if (Math.abs(newZoom - zoom) < 0.005f) return;
-        final float ratio = newZoom / zoom;
-        final int margin = Ui.dp(this, 8);
-
-        // vertical anchor: the page under the start point and how far down it the point is
-        int anchorPos = firstVisible;
-        float anchorFrac = 0f;
-        int first = list.getFirstVisiblePosition();
-        for (int i = 0; i < list.getChildCount(); i++) {
-            View c = list.getChildAt(i);
-            if (sy >= c.getTop() && sy < c.getBottom()) {
-                anchorPos = first + i;
-                anchorFrac = (sy - c.getTop()) / Math.max(1f, c.getHeight());
-                break;
-            }
-        }
-        final float contentX = hsv.getScrollX() + sx;   // horizontal position inside the content
-
-        zoom = newZoom;
-        final int newW = listWidth();
-        ViewGroup.LayoutParams lp = list.getLayoutParams();
-        lp.width = newW;
-        list.setLayoutParams(lp);
-        adapter.notifyDataSetChanged();
-
-        float rt = anchorPos < ratios.length && ratios[anchorPos] > 0 ? ratios[anchorPos] : defaultRatio;
-        float newItemH = Math.max(100, newW - 2 * margin) * rt + margin;
-        list.setSelectionFromTop(anchorPos, Math.round(ey - anchorFrac * newItemH));
-
-        final float targetScrollX = contentX * ratio - ex;
-        final ViewTreeObserver vto = hsv.getViewTreeObserver();
-        vto.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-            @Override
-            public void onGlobalLayout() {
-                ViewTreeObserver o = hsv.getViewTreeObserver();
-                if (o.isAlive()) o.removeOnGlobalLayoutListener(this);
-                int max = Math.max(0, newW - hsv.getWidth());
-                hsv.scrollTo(Math.max(0, Math.min(max, Math.round(targetScrollX))), 0);
-            }
-        });
-        showPill(firstVisible);
+        pinch.animateZoomTo(next, pinch.getWidth() / 2f, pinch.getHeight() / 2f);
+        Toast.makeText(this, Math.round(next * 100) + "%", Toast.LENGTH_SHORT).show();
     }
 
     /** Rotation, split screen or a foldable opening: refit the pages to the new width. */
@@ -458,9 +411,6 @@ public class PdfViewActivity extends BaseActivity {
             if (destroyed || list == null) return;
             if (holder.getWidth() <= 0 || holder.getWidth() == viewW) return;
             viewW = holder.getWidth();
-            ViewGroup.LayoutParams lp = list.getLayoutParams();
-            lp.width = listWidth();
-            list.setLayoutParams(lp);
             adapter.notifyDataSetChanged();
         });
     }
@@ -521,7 +471,7 @@ public class PdfViewActivity extends BaseActivity {
     }
 
     private void bind(final int position, final int pageW, final ImageView iv) {
-        final int bw = Math.min(pageW, MAX_BITMAP_W);
+        final int bw = Math.min(Math.round(pageW * Math.max(1f, zoom)), MAX_BITMAP_W);
         final String key = position + "@" + bw;
         iv.setTag(key);
         Bitmap cached = cache.get(key);
