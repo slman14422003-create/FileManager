@@ -1,0 +1,107 @@
+package com.fileman.app;
+
+import android.content.Context;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+/** Settings > Appearance: light / dark (AMOLED) / auto, each with a live preview. */
+public class ThemeActivity extends BaseActivity {
+    private LinearLayout content;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_detail);
+        useGroupedBackground();
+        ((TextView) findViewById(R.id.title)).setText(R.string.theme_title);
+        ((TextView) findViewById(R.id.subtitle)).setText(R.string.theme_sub);
+        findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
+        findViewById(R.id.btnRefresh).setVisibility(View.GONE);
+        content = findViewById(R.id.content);
+        render();
+    }
+
+    private void render() {
+        content.removeAllViews();
+        final String mode = Store.themeMode(this);
+        final int pal = Appearance.paletteIndex(Store.palette(this));
+
+        // ---- mode tiles (each one drawn with its own real colours)
+        content.addView(Ui.sectionTitle(this, getString(R.string.theme_mode)));
+        ThemePreview.Colors day = ThemePreview.Colors.of(Appearance.themed(this, false, pal));
+        ThemePreview.Colors night = ThemePreview.Colors.of(Appearance.themed(this, true, pal));
+        ThemePreview.Colors gray = ThemePreview.Colors.of(Appearance.themed(this, true, pal, true));
+        LinearLayout tiles = new LinearLayout(this);
+        tiles.setOrientation(LinearLayout.HORIZONTAL);
+        tiles.setLayoutDirection(getResources().getConfiguration().getLayoutDirection());
+        tiles.setPadding(Ui.dp(this, 8), 0, Ui.dp(this, 8), 0);
+        tiles.addView(modeTile(Appearance.LIGHT, ThemePreview.MODE_LIGHT, day, night, gray, mode, R.string.theme_light));
+        tiles.addView(modeTile(Appearance.DARK, ThemePreview.MODE_DARK, day, night, gray, mode, R.string.theme_dark));
+        tiles.addView(modeTile(Appearance.GRAY, ThemePreview.MODE_GRAY, day, night, gray, mode, R.string.theme_gray));
+        tiles.addView(modeTile(Appearance.AUTO, ThemePreview.MODE_AUTO, day, night, gray, mode, R.string.theme_auto));
+        content.addView(tiles);
+        content.addView(Ui.body(this, getString(Appearance.AUTO.equals(mode) ? R.string.theme_auto_note
+                : R.string.theme_mode_note), 13, R.color.text_hint));
+    }
+
+    private View modeTile(final String id, int previewMode, ThemePreview.Colors day, ThemePreview.Colors night,
+                          ThemePreview.Colors gray, String current, int nameRes) {
+        boolean selected = id.equals(current);
+        LinearLayout tile = new LinearLayout(this);
+        tile.setOrientation(LinearLayout.VERTICAL);
+        tile.setGravity(Gravity.CENTER_HORIZONTAL);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        tlp.setMargins(Ui.dp(this, 3), 0, Ui.dp(this, 3), 0);
+        tile.setLayoutParams(tlp);
+
+        FrameLayout frame = new FrameLayout(this);
+        int pad = Ui.dp(this, 3);
+        frame.setPadding(pad, pad, pad, pad);
+        GradientDrawable ring = new GradientDrawable();
+        ring.setCornerRadius(Ui.dp(this, 14));
+        ring.setColor(0);
+        ring.setStroke(Ui.dp(this, selected ? 2 : 1), Ui.color(this, selected ? R.color.accent : R.color.stroke));
+        frame.setBackground(ring);
+        frame.addView(new ThemePreview(this, day, night, gray, previewMode),
+                new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 140)));
+        tile.addView(frame, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout label = new LinearLayout(this);
+        label.setGravity(Gravity.CENTER);
+        label.setOrientation(LinearLayout.HORIZONTAL);
+        label.setPadding(0, Ui.dp(this, 8), 0, 0);
+        if (selected) {
+            ImageView ck = new ImageView(this);
+            ck.setImageResource(R.drawable.ic_check_circle);
+            ck.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.accent_text)));
+            label.addView(ck, new LinearLayout.LayoutParams(Ui.dp(this, 18), Ui.dp(this, 18)));
+        }
+        TextView t = new TextView(this);
+        t.setText(nameRes);
+        t.setTextSize(14);
+        t.setTextColor(Ui.color(this, selected ? R.color.accent_text : R.color.text_primary));
+        if (selected) t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        t.setPadding(Ui.dp(this, selected ? 5 : 0), 0, 0, 0);
+        label.addView(t);
+        tile.addView(label);
+
+        Ui.press(this, tile);
+        tile.setOnClickListener(v -> {
+            if (id.equals(Store.themeMode(this))) return;
+            boolean before = Appearance.nightFor(Store.themeMode(this));
+            Store.setThemeMode(this, id);
+            Appearance.applyMode(this);   // AppCompat recreates the open screens when day/night really changes
+            if (before == Appearance.nightFor(id)) Appearance.recreateAll();   // e.g. dark <-> gray
+            render();
+        });
+        return tile;
+    }
+}

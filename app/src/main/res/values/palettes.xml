@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The app has a single iOS-style palette; light / AMOLED dark come from colors.xml and values-night. -->
+    <style name="Palette" />
+    <style name="Palette.Ios" />
+
+    <style name="Theme.Gray">
+        <item name="cBg">@color/gray_bg</item>
+        <item name="cGroupBg">@color/gray_bg</item>
+        <item name="cSurface">@color/gray_surface</item>
+        <item name="cSurfaceHigh">@color/gray_surface_high</item>
+        <item name="cField">@color/gray_surface</item>
+        <item name="cStroke">@color/gray_stroke</item>
+        <item name="cStrokeSoft">@color/gray_surface_high</item>
+        <item name="cTextPrimary">@color/gray_text_primary</item>
+        <item name="cTextSecondary">@color/gray_text_secondary</item>
+        <item name="cTextHint">@color/gray_text_hint</item>
+        <item name="cNeutralSoft">@color/gray_surface_high</item>
+        <item name="cAccent">@color/gray_accent</item>
+        <item name="cAccentText">@color/gray_accent_text</item>
+        <item name="cAccentSoft">@color/gray_accent_soft</item>
+        <item name="cBrandStart">@color/gray_accent</item>
+        <item name="cBrandMid">@color/gray_accent</item>
+        <item name="cBrandEnd">@color/gray_accent</item>
+    </style>
+</resources>
