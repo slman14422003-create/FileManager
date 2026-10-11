@@ -106,7 +106,7 @@ public final class Appearance {
         Context cc = app.createConfigurationContext(cfg);
         ContextThemeWrapper w = new ContextThemeWrapper(cc, R.style.AppTheme);
         w.getTheme().applyStyle(PALETTES[paletteIndex].style, true);
-        if (gray) w.getTheme().applyStyle(R.style.Theme_Gray, true);
+        if (gray) w.getTheme().applyStyle(R.style.GrayMode, true);
         return w;
     }
 }

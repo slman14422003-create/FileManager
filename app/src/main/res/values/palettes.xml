@@ -4,7 +4,7 @@
     <style name="Palette" />
     <style name="Palette.Ios" />
 
-    <style name="Theme.Gray">
+    <style name="GrayMode">
         <item name="cBg">@color/gray_bg</item>
         <item name="cGroupBg">@color/gray_bg</item>
         <item name="cSurface">@color/gray_surface</item>
