@@ -202,12 +202,25 @@ public class HomeActivity extends BaseActivity {
         }
     }
 
-    /** One grid cell: a rounded icon box, the name under it and a small detail line. */
+    /** One grid cell: an iOS app-icon style rounded square (solid colour, white glyph), the name and a detail line. */
     private View homeTile(int icon, int colorRes, String title, String sub, View.OnClickListener click) {
+        return homeTile(icon, colorRes, title, sub, click, true);
+    }
+
+    /** {@code solid} false keeps the plain card box (used by the tiles that draw a usage ring or pie in it). */
+    private View homeTile(int icon, int colorRes, String title, String sub, View.OnClickListener click, boolean solid) {
         View v = LayoutInflater.from(this).inflate(R.layout.item_home_tile, content, false);
         ImageView iv = v.findViewById(R.id.icon);
         iv.setImageResource(icon);
-        iv.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, colorRes)));
+        if (solid) {
+            android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+            g.setCornerRadius(Ui.dp(this, 20));
+            g.setColor(Ui.color(this, colorRes));
+            v.findViewById(R.id.box).setBackground(g);
+            iv.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
+        } else {
+            iv.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, colorRes)));
+        }
         ((TextView) v.findViewById(R.id.title)).setText(title);
         ((TextView) v.findViewById(R.id.sub)).setText(sub);
         v.setContentDescription(title);
@@ -274,7 +287,7 @@ public class HomeActivity extends BaseActivity {
 
     /** Volume tile: a usage ring around the drive icon, "used / total" under the name. */
     private View storageTile(final File root, String label) {
-        View v = homeTile(R.drawable.ic_drive, R.color.accent_text, label, "…", x -> openFolder(root));
+        View v = homeTile(R.drawable.ic_drive, R.color.accent_text, label, "…", x -> openFolder(root), false);
         try {
             StatFs st = new StatFs(root.getAbsolutePath());
             long total = st.getTotalBytes();
@@ -297,7 +310,7 @@ public class HomeActivity extends BaseActivity {
     /** Storage analysis tile: a small pie of the used space, opens the advanced tools. */
     private View analysisTile(File root) {
         View v = homeTile(R.drawable.ic_chart, R.color.accent_text, getString(R.string.home_analysis), "",
-                x -> startActivity(new Intent(this, StorageActivity.class)));
+                x -> startActivity(new Intent(this, StorageActivity.class)), false);
         try {
             StatFs st = new StatFs(root.getAbsolutePath());
             long total = st.getTotalBytes();

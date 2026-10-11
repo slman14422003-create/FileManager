@@ -1186,16 +1186,16 @@ public class FileManagerActivity extends BaseActivity {
             final String path = e.f.getAbsolutePath();
             boolean sel = selected.contains(path);
             int type = typeOf(e);
-            int color = Ui.color(FileManagerActivity.this, colorFor(type));
+            int color = Ui.color(FileManagerActivity.this, e.dir ? R.color.accent : colorFor(type));
 
             ImageView icon = v.findViewById(R.id.icon);
             ImageView thumb = v.findViewById(R.id.thumb);
             icon.setImageResource(iconFor(type));
             icon.setImageTintList(ColorStateList.valueOf(color));
             GradientDrawable g = new GradientDrawable();
-            g.setCornerRadius(Ui.dp(FileManagerActivity.this, 12));
+            g.setCornerRadius(Ui.dp(FileManagerActivity.this, 8));
             g.setColor((color & 0x00FFFFFF) | 0x26000000);
-            icon.setBackground(g);
+            icon.setBackground(null);   // iOS Files: a plain coloured glyph, no tinted square
             thumb.setBackground(g.getConstantState().newDrawable().mutate());
             thumb.setClipToOutline(true);
             thumb.setTag(path);

@@ -20,7 +20,7 @@ public class UsageView extends View {
     private final RectF rect = new RectF();
     private int mode = RING;
     private float percent = 0f;
-    private int fillColor = 0xFF2F6FEB;
+    private int fillColor = 0xFF007AFF;
     private int trackColor = 0x33888888;
     private Drawable icon;
 

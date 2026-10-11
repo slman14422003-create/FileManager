@@ -229,7 +229,7 @@ public class ImageViewActivity extends BaseActivity {
         card.setGravity(Gravity.CENTER_VERTICAL);
         card.setPadding(Ui.dp(this, 6), Ui.dp(this, 6), Ui.dp(this, 6), Ui.dp(this, 6));
         GradientDrawable cardBg = new GradientDrawable();
-        cardBg.setCornerRadius(Ui.dp(this, 28));
+        cardBg.setCornerRadius(Ui.dp(this, 14));
         cardBg.setColor(0xD9101420);
         cardBg.setStroke(Ui.dp(this, 1), 0x33FFFFFF);
         card.setBackground(cardBg);
@@ -397,7 +397,7 @@ public class ImageViewActivity extends BaseActivity {
             boolean on = thumbStart + k == index;
             if (c.getTag() == null || ((Boolean) c.getTag()) != on) {   // restyle only what changed
                 GradientDrawable g = new GradientDrawable();
-                g.setCornerRadius(Ui.dp(this, 13));
+                g.setCornerRadius(Ui.dp(this, 10));
                 if (on) g.setStroke(Ui.dp(this, 2), Ui.color(this, R.color.accent));
                 c.setBackground(g);
                 c.setAlpha(on ? 1f : 0.72f);

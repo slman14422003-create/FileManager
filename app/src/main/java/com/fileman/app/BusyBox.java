@@ -26,7 +26,7 @@ final class BusyBox {
 
         percent = new TextView(c);
         percent.setTextSize(26);
-        percent.setTypeface(Typeface.create("serif", Typeface.BOLD));
+        percent.setTypeface(Typeface.DEFAULT_BOLD);
         percent.setTextColor(Ui.color(c, R.color.text_primary));
         percent.setGravity(Gravity.CENTER);
         percent.setTextDirection(View.TEXT_DIRECTION_LTR);

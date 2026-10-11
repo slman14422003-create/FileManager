@@ -12,13 +12,14 @@
         android:gravity="center_vertical"
         android:minHeight="76dp"
         android:orientation="horizontal"
-        android:paddingStart="20dp"
+        android:paddingStart="22dp"
         android:paddingTop="10dp"
-        android:paddingEnd="12dp"
-        android:paddingBottom="8dp">
+        android:paddingEnd="8dp"
+        android:paddingBottom="6dp">
 
         <ImageView
             android:id="@+id/brandLogo"
+            android:visibility="gone"
             android:layout_width="46dp"
             android:layout_height="46dp"
             android:layout_marginEnd="14dp"
@@ -38,12 +39,12 @@
                 android:id="@+id/homeTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:fontFamily="serif"
                 android:singleLine="true"
                 android:text="@string/app_name"
                 android:textAlignment="viewStart"
                 android:textColor="?attr/cTextPrimary"
-                android:textSize="24sp" />
+                android:textSize="32sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:layout_width="match_parent"
@@ -59,6 +60,7 @@
         <ImageButton
             android:id="@+id/btnSearch"
             style="@style/IconButton"
+            android:tint="?attr/cAccent"
             android:layout_marginEnd="6dp"
             android:contentDescription="@string/fm_search"
             android:src="@drawable/ic_search" />
@@ -66,6 +68,7 @@
         <ImageButton
             android:id="@+id/btnSettings"
             style="@style/IconButton"
+            android:tint="?attr/cAccent"
             android:contentDescription="@string/settings"
             android:src="@drawable/ic_settings" />
     </LinearLayout>

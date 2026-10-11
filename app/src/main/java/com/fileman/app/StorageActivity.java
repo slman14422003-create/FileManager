@@ -248,8 +248,8 @@ public class StorageActivity extends BaseActivity {
         double pct = total > 0 ? (total - free) * 100.0 / total : 0;
         TextView big = new TextView(this);
         big.setText(getString(R.string.home_used_pct, Math.round(pct)));
-        big.setTextSize(22);
-        big.setTypeface(android.graphics.Typeface.SERIF);
+        big.setTextSize(24);
+        big.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
         big.setTextColor(Ui.color(this, R.color.text_primary));
         big.setPadding(0, 0, 0, Ui.dp(this, 4));
         card.addView(big);

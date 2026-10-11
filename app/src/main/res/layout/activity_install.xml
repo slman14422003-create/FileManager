@@ -61,9 +61,9 @@
                 android:id="@+id/hero"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="14dp"
+                android:layout_marginStart="@dimen/gutter"
                 android:layout_marginTop="10dp"
-                android:layout_marginEnd="14dp"
+                android:layout_marginEnd="@dimen/gutter"
                 android:background="@drawable/bg_card_hero"
                 android:gravity="center_horizontal"
                 android:orientation="vertical"
@@ -98,11 +98,11 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
                     android:ellipsize="end"
-                    android:fontFamily="serif"
                     android:gravity="center"
                     android:maxLines="2"
                     android:textColor="?attr/cTextPrimary"
-                    android:textSize="24sp" />
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/appPkg"

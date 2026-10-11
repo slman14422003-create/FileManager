@@ -2,7 +2,7 @@
 <resources>
     <dimen name="gutter">20dp</dimen>
     <dimen name="content_max_width">760dp</dimen>
-    <dimen name="nav_max_width">0dp</dimen>
+    <dimen name="nav_max_width">480dp</dimen>
     <dimen name="tile_box">92dp</dimen>
     <dimen name="tile_icon">42dp</dimen>
     <dimen name="tile_min_cell">116dp</dimen>

@@ -10,7 +10,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-/** iOS-style tab bar (thumb reach): Home, Files, Search, Settings. Added to the screen's root column. */
+/** Floating iOS-style tab bar (thumb reach): Home, Files, Search, Settings. Added to the screen's root column. */
 final class NavBar {
     static final int HOME = 0, FILES = 1, SEARCH = 2, SETTINGS = 3;
 
@@ -25,7 +25,9 @@ final class NavBar {
         LinearLayout bar = new LinearLayout(a);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setBackgroundResource(R.drawable.bg_tabbar);   // iOS tab bar: full width, hairline on top
+        bar.setBackgroundResource(R.drawable.bg_tabbar_float);   // floating capsule
+        bar.setElevation(Ui.dp(a, 10));
+        bar.setPadding(Ui.dp(a, 8), Ui.dp(a, 6), Ui.dp(a, 8), Ui.dp(a, 6));
         int[] icons = {R.drawable.ic_home, R.drawable.ic_folder, R.drawable.ic_search, R.drawable.ic_settings};
         int[] labels = {R.string.nav_home, R.string.nav_files, R.string.nav_search, R.string.nav_settings};
         for (int i = 0; i < 4; i++) {
@@ -36,7 +38,8 @@ final class NavBar {
             item.setOrientation(LinearLayout.VERTICAL);
             item.setGravity(Gravity.CENTER);
             item.setContentDescription(a.getString(labels[i]));
-            item.setPadding(0, Ui.dp(a, 6), 0, Ui.dp(a, 4));
+            item.setPadding(0, Ui.dp(a, 5), 0, Ui.dp(a, 4));
+            if (on) item.setBackgroundResource(R.drawable.bg_nav_active);
 
             ImageView icon = new ImageView(a);
             icon.setImageResource(icons[i]);
@@ -55,10 +58,11 @@ final class NavBar {
 
             Ui.press(a, item);
             item.setOnClickListener(v -> go(a, idx, selected));
-            bar.addView(item, new LinearLayout.LayoutParams(0, Ui.dp(a, 54), 1f));
+            bar.addView(item, new LinearLayout.LayoutParams(0, Ui.dp(a, 52), 1f));
         }
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        blp.setMargins(Ui.dp(a, 16), Ui.dp(a, 6), Ui.dp(a, 16), Ui.dp(a, 12));
         ((LinearLayout) root).addView(bar, blp);
         Layout.markNav(bar);
         Layout.refreshNav(a);

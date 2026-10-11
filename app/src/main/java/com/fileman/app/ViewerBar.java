@@ -18,7 +18,7 @@ final class ViewerBar {
     private ViewerBar() {
     }
 
-    /** A bar of icon buttons: the iOS bottom toolbar, or ({@code dark}) the translucent black pill used over media. */
+    /** A bar of icon buttons: a floating capsule (or, with {@code dark}, the translucent black one used over media). */
     static LinearLayout build(Activity a, boolean dark, int[] icons, int[] descs, View.OnClickListener[] clicks) {
         LinearLayout bar = new LinearLayout(a);
         bar.setOrientation(LinearLayout.HORIZONTAL);
@@ -31,9 +31,10 @@ final class ViewerBar {
             g.setStroke(Ui.dp(a, 1), 0x33FFFFFF);
             bar.setBackground(g);
         } else {
-            bar.setBackgroundResource(R.drawable.bg_tabbar);   // iOS toolbar: full width, hairline on top
+            bar.setBackgroundResource(R.drawable.bg_tabbar_float);   // floating capsule
         }
-        if (dark) bar.setPadding(Ui.dp(a, 8), Ui.dp(a, 6), Ui.dp(a, 8), Ui.dp(a, 6));
+        bar.setPadding(Ui.dp(a, 8), Ui.dp(a, 6), Ui.dp(a, 8), Ui.dp(a, 6));
+        bar.setElevation(Ui.dp(a, 10));
         int tint = dark ? 0xFFFFFFFF : Ui.color(a, R.color.accent);
         for (int i = 0; i < icons.length; i++) {
             ImageButton b = new ImageButton(a);
@@ -44,10 +45,8 @@ final class ViewerBar {
             b.setContentDescription(a.getString(descs[i]));
             Ui.press(a, b);
             b.setOnClickListener(clicks[i]);
-            LinearLayout.LayoutParams lp = dark ? new LinearLayout.LayoutParams(Ui.dp(a, 50), Ui.dp(a, 46))
-                    : new LinearLayout.LayoutParams(0, Ui.dp(a, 52), 1f);
-            if (dark) lp.setMargins(Ui.dp(a, 3), 0, Ui.dp(a, 3), 0);
-            if (!dark) b.setBackgroundResource(R.drawable.bg_icon_btn);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Ui.dp(a, 50), Ui.dp(a, 46));
+            lp.setMargins(Ui.dp(a, 3), 0, Ui.dp(a, 3), 0);
             bar.addView(b, lp);
         }
         return bar;
@@ -57,10 +56,9 @@ final class ViewerBar {
     static LinearLayout attach(Activity a, FrameLayout holder, boolean dark, int[] icons, int[] descs,
                                View.OnClickListener[] clicks) {
         LinearLayout bar = build(a, dark, icons, descs, clicks);
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                dark ? ViewGroup.LayoutParams.WRAP_CONTENT : ViewGroup.LayoutParams.MATCH_PARENT,
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-        lp.bottomMargin = dark ? Ui.dp(a, 16) : 0;
+        lp.bottomMargin = Ui.dp(a, 16);
         holder.addView(bar, lp);
         return bar;
     }

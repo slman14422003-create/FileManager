@@ -345,7 +345,7 @@ public class MediaActivity extends BaseActivity {
         songTitle = new TextView(this);
         songTitle.setTextColor(Ui.color(this, R.color.text_primary));
         songTitle.setTextSize(21);
-        songTitle.setTypeface(Typeface.create("serif", Typeface.BOLD));
+        songTitle.setTypeface(Typeface.DEFAULT_BOLD);
         songTitle.setGravity(Gravity.CENTER);
         songTitle.setMaxLines(2);
         songTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
