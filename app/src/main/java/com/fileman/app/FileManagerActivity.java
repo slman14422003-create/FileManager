@@ -1280,12 +1280,8 @@ public class FileManagerActivity extends BaseActivity {
             ImageView icon = v.findViewById(R.id.icon);
             ImageView thumb = v.findViewById(R.id.thumb);
             icon.setImageResource(iconFor(type));
-            icon.setImageTintList(ColorStateList.valueOf(0xFFFFFFFF));
-            GradientDrawable g = new GradientDrawable();
-            g.setCornerRadius(Ui.dp(FileManagerActivity.this, 10));
-            g.setColor(0xFF000000 | (color & 0x00FFFFFF));
-            icon.setBackground(g);
-            thumb.setBackground(g.getConstantState().newDrawable().mutate());
+            Ui.outlineIcon(FileManagerActivity.this, icon, 10);
+            thumb.setBackground(Ui.outlineBox(FileManagerActivity.this, Ui.dp(FileManagerActivity.this, 10)));
             thumb.setClipToOutline(true);
             thumb.setTag(path);
             Bitmap cached = (type == T_IMG || type == T_APK || type == T_VID) ? thumbs.get(path + "|" + e.mod) : null;

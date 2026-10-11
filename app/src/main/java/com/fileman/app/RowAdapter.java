@@ -72,11 +72,7 @@ public class RowAdapter extends BaseAdapter {
         icon.setImageResource(r.icon);
         boolean colored = r.iconColor != 0;
         int tint = colored ? r.iconColor : Ui.color(ctx, R.color.accent_text);
-        icon.setImageTintList(ColorStateList.valueOf(0xFFFFFFFF));
-        GradientDrawable tile = new GradientDrawable();
-        tile.setCornerRadius(Ui.dp(ctx, 8));
-        tile.setColor(colored ? tint : Ui.color(ctx, R.color.accent));
-        icon.setBackground(tile);
+        Ui.outlineIcon(ctx, icon, 8);
 
         ((TextView) v.findViewById(R.id.title)).setText(r.title);
 

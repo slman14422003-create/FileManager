@@ -261,8 +261,10 @@ public class HomeActivity extends BaseActivity {
         if (solid) {
             v.findViewById(R.id.box).setBackground(
                     Ui.iconTile(this, getResources().getDimensionPixelSize(R.dimen.tile_box)));
-            iv.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
+            iv.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.OUTLINE_GLYPH));
         } else {
+            v.findViewById(R.id.box).setBackground(
+                    Ui.iconTile(this, getResources().getDimensionPixelSize(R.dimen.tile_box)));
             iv.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, colorRes)));
         }
         ((TextView) v.findViewById(R.id.title)).setText(title);
@@ -343,7 +345,7 @@ public class HomeActivity extends BaseActivity {
             UsageView u = v.findViewById(R.id.usage);
             u.setVisibility(View.VISIBLE);
             u.setUsage(UsageView.RING, pct, Ui.color(this, pct > 90 ? R.color.bad : R.color.accent),
-                    Ui.color(this, R.color.neutral_soft));
+                    0x33FFFFFF);
             u.setCenterIcon(R.drawable.ic_drive, Ui.color(this, R.color.accent_text));
         } catch (Exception e) {
             ((TextView) v.findViewById(R.id.sub)).setText(R.string.fm_unreadable);
@@ -365,7 +367,7 @@ public class HomeActivity extends BaseActivity {
             v.findViewById(R.id.icon).setVisibility(View.GONE);
             UsageView u = v.findViewById(R.id.usage);
             u.setVisibility(View.VISIBLE);
-            u.setUsage(UsageView.PIE, pct, Ui.color(this, R.color.accent), Ui.color(this, R.color.neutral_soft));
+            u.setUsage(UsageView.PIE, pct, Ui.color(this, R.color.accent), 0x33FFFFFF);
         } catch (Exception ignored) {
         }
         return v;

@@ -49,33 +49,27 @@ public final class Ui {
                 .start();
     }
 
-    /**
-     * Home-screen icon tile drawn like the launcher icon: the same blue gradient, a glossy top highlight,
-     * a soft bottom shade and a thin light rim.
-     */
+    /** Glyph colour of the unified outline icon style. */
+    public static final int OUTLINE_GLYPH = 0xFFF2F2F7;
+
+    /** Unified minimalist outline icon box: always dark fill, thin light outline (never white). */
+    public static android.graphics.drawable.Drawable outlineBox(Context c, float radiusPx) {
+        android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+        g.setCornerRadius(radiusPx);
+        g.setColor(0xFF2A2A2F);
+        g.setStroke(Math.max(1, dp(c, 1)), 0x40FFFFFF);
+        return g;
+    }
+
+    /** Home-screen tile: outline box with ~26% corners, like the iOS app-icon squircle. */
     public static android.graphics.drawable.Drawable iconTile(Context c, int sizePx) {
-        float r = sizePx * 0.26f;
-        android.graphics.drawable.GradientDrawable base = new android.graphics.drawable.GradientDrawable(
-                android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-                new int[]{0xFF7CC8FF, 0xFF3395FF, 0xFF0A63E8});
-        base.setCornerRadius(r);
-        android.graphics.drawable.GradientDrawable shade = new android.graphics.drawable.GradientDrawable(
-                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0x00000000, 0x33052F7A});
-        shade.setCornerRadius(r);
-        android.graphics.drawable.GradientDrawable gloss = new android.graphics.drawable.GradientDrawable(
-                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0x66FFFFFF, 0x00FFFFFF});
-        gloss.setCornerRadii(new float[]{r, r, r, r, 0, 0, 0, 0});
-        android.graphics.drawable.GradientDrawable rim = new android.graphics.drawable.GradientDrawable();
-        rim.setCornerRadius(r);
-        rim.setColor(0);
-        rim.setStroke(Math.max(1, dp(c, 1) / 2), 0x55FFFFFF);
-        android.graphics.drawable.LayerDrawable ld = new android.graphics.drawable.LayerDrawable(
-                new android.graphics.drawable.Drawable[]{base, shade, gloss, rim});
-        ld.setLayerGravity(2, android.view.Gravity.TOP);
-        ld.setLayerHeight(2, sizePx / 2);
-        return ld;
+        return outlineBox(c, sizePx * 0.26f);
+    }
+
+    /** Applies the outline style to a small list/row icon: dark box, light line glyph. */
+    public static void outlineIcon(Context c, ImageView iv, int cornerDp) {
+        iv.setImageTintList(ColorStateList.valueOf(OUTLINE_GLYPH));
+        iv.setBackground(outlineBox(c, dp(c, cornerDp)));
     }
 
     public static float dpf(Context c, float v) {
@@ -504,11 +498,7 @@ public final class Ui {
         ImageView icon = t.view.findViewById(R.id.icon);
         if (icon != null) {
             icon.setImageResource(iconRes);
-            icon.setImageTintList(ColorStateList.valueOf(0xFFFFFFFF));
-            GradientDrawable g = new GradientDrawable();
-            g.setCornerRadius(dp(c, 8));
-            g.setColor(0xFF000000 | (iconColor & 0x00FFFFFF));
-            icon.setBackground(g);
+            outlineIcon(c, icon, 8);
             icon.setVisibility(View.VISIBLE);
         }
         return t;
