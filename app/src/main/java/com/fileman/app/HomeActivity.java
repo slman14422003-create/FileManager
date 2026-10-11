@@ -83,6 +83,11 @@ public class HomeActivity extends BaseActivity {
     }
 
     @Override
+    protected void onLayoutChanged() {
+        render();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         stop.set(true);
@@ -178,11 +183,13 @@ public class HomeActivity extends BaseActivity {
         tiles.add(homeTile(R.drawable.ic_package, R.color.lime, getString(R.string.home_installer),
                 getString(R.string.pk_beta), v -> startActivity(new Intent(this, InstallerActivity.class))));
 
-        for (int i = 0; i < tiles.size(); i += 3) {
+        final int cols = Layout.columns(this, 3, 6);
+        for (int i = 0; i < tiles.size(); i += cols) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setPadding(Ui.dp(this, 10), i == 0 ? Ui.dp(this, 6) : 0, Ui.dp(this, 10), 0);
-            for (int k = 0; k < 3; k++) {
+            int side = Math.max(Ui.dp(this, 10), Layout.gutter(this) - Ui.dp(this, 4));
+            row.setPadding(side, i == 0 ? Ui.dp(this, 6) : 0, side, 0);
+            for (int k = 0; k < cols; k++) {
                 View cell = i + k < tiles.size() ? tiles.get(i + k) : new View(this);
                 row.addView(cell, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             }

@@ -3,15 +3,15 @@
     <!-- DAY palette (the default). The dark counterpart lives in values-night/colors.xml with the same names.
          accent / accent_text / accent_soft / brand_* are the defaults of the "Ocean" colour theme; the other
          colour themes override them through the cAccent... attributes (see palettes.xml). -->
-    <color name="bg">#F3F6FC</color>
+    <color name="bg">#F4F7FD</color>
     <color name="surface">#FFFFFF</color>
     <color name="surface_high">#EAF0FB</color>
     <color name="field">#EDF1F9</color>
-    <color name="stroke">#D3DBEC</color>
-    <color name="stroke_soft">#E3E9F5</color>
+    <color name="stroke">#D9E0F0</color>
+    <color name="stroke_soft">#E8EDF7</color>
     <color name="text_primary">#0C1330</color>
-    <color name="text_secondary">#454F78</color>
-    <color name="text_hint">#7F89AD</color>
+    <color name="text_secondary">#3E4870</color>
+    <color name="text_hint">#74809F</color>
     <color name="accent">#2F6FEB</color>
     <color name="accent_text">#1D55CC</color>
     <color name="accent_soft">#E2EBFF</color>

@@ -28,6 +28,11 @@ import java.util.concurrent.Executors;
 
 /** Simple text viewer / editor for local files opened from the in-app file manager. */
 public class FileEditActivity extends BaseActivity {
+    @Override
+    protected boolean constrainContent() {
+        return false;
+    }
+
     private static final long MAX_BYTES = 2L * 1024 * 1024;
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();

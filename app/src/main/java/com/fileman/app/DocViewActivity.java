@@ -31,6 +31,11 @@ import java.util.concurrent.Executors;
  * WebView: no JavaScript, no file or content access, no navigation to other pages.
  */
 public class DocViewActivity extends BaseActivity {
+    @Override
+    protected boolean constrainContent() {
+        return false;
+    }
+
     private static final String BASE = "https://doc.local/view";
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();

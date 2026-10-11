@@ -50,8 +50,8 @@
         <item name="android:textColorSecondary">?attr/cTextSecondary</item>
         <item name="android:backgroundDimAmount">0.62</item>
         <item name="android:windowAnimationStyle">@style/DialogAnim</item>
-        <item name="windowMinWidthMinor">92%</item>
-        <item name="windowMinWidthMajor">60%</item>
+        <item name="windowMinWidthMinor">@fraction/dlg_min_minor</item>
+        <item name="windowMinWidthMajor">@fraction/dlg_min_major</item>
         <item name="android:windowElevation">0dp</item>
     </style>
 
@@ -61,8 +61,8 @@
     </style>
 
     <style name="IconButton">
-        <item name="android:layout_width">44dp</item>
-        <item name="android:layout_height">44dp</item>
+        <item name="android:layout_width">48dp</item>
+        <item name="android:layout_height">48dp</item>
         <item name="android:background">@drawable/bg_icon_btn</item>
         <item name="android:tint">?attr/cTextPrimary</item>
         <item name="android:scaleType">center</item>

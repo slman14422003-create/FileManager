@@ -11,8 +11,8 @@
 
     <FrameLayout
         android:id="@+id/box"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
+        android:layout_width="@dimen/tile_box"
+        android:layout_height="@dimen/tile_box"
         android:background="@drawable/bg_tile"
         android:duplicateParentState="true">
 
@@ -25,8 +25,8 @@
 
         <ImageView
             android:id="@+id/icon"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
+            android:layout_width="@dimen/tile_icon"
+            android:layout_height="@dimen/tile_icon"
             android:layout_gravity="center"
             android:duplicateParentState="true"
             android:importantForAccessibility="no"

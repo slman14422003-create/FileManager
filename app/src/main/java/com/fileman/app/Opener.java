@@ -15,7 +15,7 @@ import java.io.File;
 
 /**
  * Opens a file inside the app whenever there is a built-in viewer for it: images, video, audio, PDF,
- * Word / Excel / PowerPoint (docx, xlsx, pptx), OpenDocument, CSV, RTF, HTML, SVG and text files.
+ * Word / Excel / PowerPoint (docx, xlsx, pptx), OpenDocument, CSV, RTF, HTML, SVG, contact files (vcf) and text files.
  * APKs install; everything else is handed to another app.
  */
 public final class Opener {
@@ -47,6 +47,9 @@ public final class Opener {
                 break;
             case Cats.V_DOC:
                 start(a, DocViewActivity.class, f);
+                break;
+            case Cats.V_CONTACT:
+                start(a, ContactsActivity.class, f);
                 break;
             case Cats.V_LEGACY:
                 legacy(a, f);

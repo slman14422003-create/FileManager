@@ -398,7 +398,7 @@ public class FileManagerActivity extends BaseActivity {
         navBar = NavBar.attach(this, getIntent().getBooleanExtra("search", false) ? NavBar.SEARCH : NavBar.FILES);
         buildFab();
         searchView.setOnFocusChangeListener((v, focus) -> {
-            if (navBar != null) navBar.setVisibility(focus ? View.GONE : View.VISIBLE);
+            if (navBar != null) navBar.setVisibility(focus || !selected.isEmpty() ? View.GONE : View.VISIBLE);
         });
         if (getIntent().getBooleanExtra("search", false)) setSearchOpen(true, true);
     }
@@ -848,6 +848,7 @@ public class FileManagerActivity extends BaseActivity {
         boolean sel = !selected.isEmpty();
         if (fab != null) fab.setVisibility(mode == M_DIR && !sel ? View.VISIBLE : View.GONE);
         selBar.setVisibility(sel ? View.VISIBLE : View.GONE);
+        if (navBar != null) navBar.setVisibility(sel || searchView.hasFocus() ? View.GONE : View.VISIBLE);
         searchView.setVisibility(!sel && searchOpen ? View.VISIBLE : View.GONE);
         if (sel) selCount.setText(getString(R.string.fm_selected_n, selected.size()));
         updatePermBanner();
@@ -1369,10 +1370,11 @@ public class FileManagerActivity extends BaseActivity {
 
     private void openFile(Entry e) {
         if (pick) {
-            if (pickMulti) {
-                selected.add(e.f.getAbsolutePath());
+            if (pickMulti && !selected.isEmpty()) {   // long-press started a multi selection: taps add / remove
+                String key = e.f.getAbsolutePath();
+                if (!selected.remove(key)) selected.add(key);
                 updateChrome();
-            } else {
+            } else {   // a plain tap picks the file and returns at once, no confirm button
                 setResult(RESULT_OK, new Intent().putExtra("picked", e.f.getAbsolutePath()));
                 finish();
             }
@@ -1470,6 +1472,7 @@ public class FileManagerActivity extends BaseActivity {
         fab.setImageResource(R.drawable.ic_add);
         fab.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.on_accent)));
         fab.setBackgroundResource(R.drawable.bg_fab);
+        fab.setElevation(Ui.dp(this, 8));
         fab.setScaleType(android.widget.ImageView.ScaleType.CENTER);
         fab.setContentDescription(getString(R.string.fm_new));
         fab.setElevation(Ui.dp(this, 6));

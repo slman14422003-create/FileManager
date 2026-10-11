@@ -50,6 +50,11 @@ import java.util.concurrent.Executors;
  * floating action bar (share, rotate, slideshow, details).
  */
 public class ImageViewActivity extends BaseActivity {
+    @Override
+    protected boolean constrainContent() {
+        return false;
+    }
+
     private static final int MAX_SIDE = 2560;
     private static final int THUMB_WINDOW = 24;
     private static final int SLIDE_MS = 3500;

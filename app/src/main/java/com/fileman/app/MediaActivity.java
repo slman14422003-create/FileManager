@@ -58,6 +58,11 @@ import java.util.concurrent.Executors;
  * </ul>
  */
 public class MediaActivity extends BaseActivity {
+    @Override
+    protected boolean constrainContent() {
+        return false;
+    }
+
     private static final float[] SPEEDS = {1f, 1.25f, 1.5f, 2f, 0.5f, 0.75f};
     private static final int SKIP_MS = 10_000;
     private static final int HIDE_MS = 3500;

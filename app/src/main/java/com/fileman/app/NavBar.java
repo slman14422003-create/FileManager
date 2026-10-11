@@ -27,6 +27,7 @@ final class NavBar {
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setBackgroundResource(R.drawable.bg_nav_float);
         bar.setPadding(Ui.dp(a, 6), Ui.dp(a, 6), Ui.dp(a, 6), Ui.dp(a, 6));
+        bar.setElevation(Ui.dp(a, 6));
         int[] icons = {R.drawable.ic_home, R.drawable.ic_folder, R.drawable.ic_search, R.drawable.ic_settings};
         int[] labels = {R.string.nav_home, R.string.nav_files, R.string.nav_search, R.string.nav_settings};
         for (int i = 0; i < 4; i++) {
@@ -64,6 +65,8 @@ final class NavBar {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         blp.setMargins(Ui.dp(a, 16), Ui.dp(a, 6), Ui.dp(a, 16), Ui.dp(a, 12));
         ((LinearLayout) root).addView(bar, blp);
+        Layout.markNav(bar);
+        Layout.refreshNav(a);
         return bar;
     }
 

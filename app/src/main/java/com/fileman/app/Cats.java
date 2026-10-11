@@ -22,7 +22,7 @@ public final class Cats {
     }
 
     public static final int T_DIR = 0, T_IMG = 1, T_VID = 2, T_AUD = 3, T_ARC = 4, T_APK = 5,
-            T_TXT = 6, T_PDF = 7, T_OTHER = 8, T_DOC = 9;
+            T_TXT = 6, T_PDF = 7, T_OTHER = 8, T_DOC = 9, T_CONTACT = 10;
 
     /** Category keys used in the "cat" intent extra of FileManagerActivity. */
     public static final String IMG = "img", VID = "vid", AUD = "aud", DOC = "doc", APK = "apk",
@@ -59,6 +59,7 @@ public final class Cats {
         if (in(x, "zip", "rar", "7z", "tar", "gz", "tgz", "xz", "bz2", "jar")) return T_ARC;
         if (x.equals("apk") || x.equals("apks") || x.equals("xapk") || x.equals("apkm")) return T_APK;
         if (x.equals("pdf")) return T_PDF;
+        if (x.equals("vcf") || x.equals("vcard")) return T_CONTACT;
         if (isOfficeExt(x)) return T_DOC;
         if (isTextExt(x)) return T_TXT;
         return T_OTHER;
@@ -80,6 +81,8 @@ public final class Cats {
                 return R.drawable.ic_package;
             case T_TXT:
                 return R.drawable.ic_code;
+            case T_CONTACT:
+                return R.drawable.ic_contact;
             case T_PDF:
             case T_DOC:
                 return R.drawable.ic_file_text;
@@ -108,6 +111,8 @@ public final class Cats {
                 return R.color.bad;
             case T_DOC:
                 return R.color.info;
+            case T_CONTACT:
+                return R.color.violet;
             default:
                 return R.color.text_secondary;
         }
@@ -169,7 +174,7 @@ public final class Cats {
     // ------------------------------------------------------------------ which viewer opens a file
 
     public static final int V_NONE = 0, V_APK = 1, V_TEXT = 2, V_IMAGE = 3, V_MEDIA = 4, V_PDF = 5,
-            V_DOC = 6, V_LEGACY = 7;
+            V_DOC = 6, V_LEGACY = 7, V_CONTACT = 8;
 
     /** Built-in viewer for a (lower-case) extension. */
     public static int viewKind(String ext) {
@@ -178,6 +183,7 @@ public final class Cats {
         if (t == T_IMG) return V_IMAGE;
         if (t == T_VID || t == T_AUD) return V_MEDIA;
         if (t == T_PDF) return V_PDF;
+        if (t == T_CONTACT) return V_CONTACT;
         if (in(ext, "docx", "docm", "dotx", "xlsx", "xlsm", "xltx", "pptx", "pptm", "ppsx", "odt", "ods", "odp",
                 "csv", "tsv", "rtf", "html", "htm", "xhtml", "svg", "doc", "dot", "dotm", "xls", "xlt", "xltm", "ppt", "pps",
                 "pot", "potx", "epub", "md", "markdown", "pages", "numbers", "key")) return V_DOC;
@@ -230,8 +236,8 @@ public final class Cats {
 
     /** Result of {@link #scan}: counts and sizes per category plus the newest files. */
     public static final class Stats {
-        public final int[] count = new int[10];
-        public final long[] size = new long[10];
+        public final int[] count = new int[T_CONTACT + 1];   // one slot per T_* type
+        public final long[] size = new long[T_CONTACT + 1];
         public final List<File> recent = new ArrayList<>();
         public boolean complete = true;
         /** Files changed during the last week ("new files" tile). */

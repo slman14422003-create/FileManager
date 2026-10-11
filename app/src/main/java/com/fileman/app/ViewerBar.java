@@ -34,6 +34,7 @@ final class ViewerBar {
             bar.setBackgroundResource(R.drawable.bg_nav_float);
         }
         bar.setPadding(Ui.dp(a, 8), Ui.dp(a, 6), Ui.dp(a, 8), Ui.dp(a, 6));
+        bar.setElevation(Ui.dp(a, 6));
         int tint = dark ? 0xFFFFFFFF : Ui.color(a, R.color.text_primary);
         for (int i = 0; i < icons.length; i++) {
             ImageButton b = new ImageButton(a);

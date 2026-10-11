@@ -346,7 +346,7 @@ public final class Ui {
     public static <T extends View> T block(Context c, T v) {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(dp(c, 14), dp(c, 10), dp(c, 14), dp(c, 6));
+        lp.setMargins(Layout.gutter(c), dp(c, 10), Layout.gutter(c), dp(c, 6));
         v.setLayoutParams(lp);
         return v;
     }
@@ -359,7 +359,7 @@ public final class Ui {
         l.setPaddingRelative(dp(c, 16), dp(c, 12), dp(c, 16), dp(c, 6));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(dp(c, 14), dp(c, 2), dp(c, 14), dp(c, 6));
+        lp.setMargins(Layout.gutter(c), dp(c, 2), Layout.gutter(c), dp(c, 6));
         l.setLayoutParams(lp);
         return l;
     }
@@ -377,7 +377,7 @@ public final class Ui {
         t.setTextIsSelectable(true);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(dp(c, 14), dp(c, 4), dp(c, 14), dp(c, 6));
+        lp.setMargins(Layout.gutter(c), dp(c, 4), Layout.gutter(c), dp(c, 6));
         t.setLayoutParams(lp);
         return t;
     }
