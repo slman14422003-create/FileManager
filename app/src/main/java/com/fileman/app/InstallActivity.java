@@ -430,11 +430,13 @@ public class InstallActivity extends BaseActivity {
             details.addView(Ui.sectionTitle(this, getString(R.string.pk_opt_section)));
             Ui.Toggle tv = Ui.toggle(this, details, R.string.pk_opt_verify, R.string.pk_opt_verify_sub,
                     Store.instBool(this, "verify", true));
+        tv.withIcon(R.drawable.ic_shield);
             tv.onChange((b, on) -> Store.setInstBool(this, "verify", on));
             details.addView(tv.view);
             if (canSmart) {
                 Ui.Toggle t = Ui.toggle(this, details, R.string.pk_opt_smart, R.string.pk_opt_smart_sub,
                         Store.instBool(this, "smart", true));
+                t.withIcon(R.drawable.ic_package);
                 t.onChange((b, on) -> {
                     Store.setInstBool(this, "smart", on);
                     PkgInstaller.applySelection(this, in, on);
@@ -445,6 +447,7 @@ public class InstallActivity extends BaseActivity {
             if (canDelete) {
                 Ui.Toggle t = Ui.toggle(this, details, R.string.pk_opt_delete, R.string.pk_opt_delete_sub,
                         Store.instBool(this, "delete_after", false));
+                t.withIcon(R.drawable.ic_delete);
                 t.onChange((b, on) -> Store.setInstBool(this, "delete_after", on));
                 details.addView(t.view);
             }

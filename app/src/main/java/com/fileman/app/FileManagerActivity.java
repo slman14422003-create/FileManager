@@ -1580,7 +1580,9 @@ public class FileManagerActivity extends BaseActivity {
     private void newMenu() {
         String[] items = {getString(R.string.fm_new_folder), getString(R.string.fm_new_file),
                 getString(R.string.fm_import_files)};
-        new Dlg(this).setTitle(R.string.fm_new).setItems(items, (d, which) -> {
+        Dlg sheetDlg = new Dlg(this);
+        sheetDlg.setTitle(R.string.fm_new);
+        sheetDlg.setItems(items, new int[]{R.drawable.ic_folder, R.drawable.ic_file_text, R.drawable.ic_download}, (d, which) -> {
             if (mode != M_DIR) {
                 toast(R.string.fm_open_folder_first);
                 return;
@@ -1588,7 +1590,8 @@ public class FileManagerActivity extends BaseActivity {
             if (which == 0) newItemDialog(true);
             else if (which == 1) newItemDialog(false);
             else importLauncher.launch("*/*");
-        }).show();
+        });
+        sheetDlg.show();
     }
 
     private void newItemDialog(final boolean folder) {

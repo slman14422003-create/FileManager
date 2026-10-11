@@ -68,14 +68,8 @@ final class ViewerBar {
         ImageView iv = a.findViewById(R.id.headerIcon);
         if (iv == null || f == null) return;
         int type = f.isDirectory() ? Cats.T_DIR : Cats.typeOfExt(Cats.extOf(f.getName()));
-        int col = Ui.color(a, Cats.colorFor(type));
         iv.setImageResource(Cats.iconFor(type));
-        iv.setImageTintList(ColorStateList.valueOf(col));
-        GradientDrawable g = new GradientDrawable();
-        g.setCornerRadius(Ui.dp(a, 10));
-        g.setColor(col);
-        iv.setImageTintList(ColorStateList.valueOf(0xFFFFFFFF));
-        iv.setBackground(g);
+        Ui.outlineIcon(a, iv, 10);
         iv.setVisibility(View.VISIBLE);
     }
 }

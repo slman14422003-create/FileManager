@@ -57,9 +57,9 @@
             android:id="@+id/subtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:ellipsize="middle"
+            android:ellipsize="end"
             android:gravity="start"
-            android:singleLine="true"
+            android:maxLines="2"
             android:textAlignment="viewStart"
             android:textColor="?attr/cTextSecondary"
             android:textSize="13sp" />

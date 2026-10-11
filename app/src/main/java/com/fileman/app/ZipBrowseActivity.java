@@ -494,12 +494,15 @@ public class ZipBrowseActivity extends BaseActivity {
         final File dl = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);
         String[] items = {getString(R.string.zip_dest_here), getString(R.string.zip_dest_folder),
                 getString(R.string.zip_dest_download), getString(R.string.zip_dest_pick)};
-        new Dlg(this).setTitle(titleRes).setItems(items, (dlg, which) -> {
+        Dlg sheetDlg = new Dlg(this);
+        sheetDlg.setTitle(titleRes);
+        sheetDlg.setItems(items, new int[]{R.drawable.ic_folder, R.drawable.ic_add, R.drawable.ic_download, R.drawable.ic_open}, (dlg, which) -> {
             if (which == 0) d.to(parent);
             else if (which == 1) d.to(unique(parent, stripExt(zip.getName())));
             else if (which == 2) d.to(dl);
             else pickFolder(parent, d);
-        }).show();
+        });
+        sheetDlg.show();
     }
 
     private AlertDialog pickDialog;

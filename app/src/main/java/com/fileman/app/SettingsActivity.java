@@ -56,6 +56,7 @@ public class SettingsActivity extends BaseActivity {
 
         Ui.Toggle hidden = Ui.toggle(this, content, R.string.set_hidden, R.string.set_hidden_sub,
                 Store.showHidden(this));
+        hidden.withIcon(R.drawable.ic_folder);
         hidden.onChange((b, on) -> Store.setShowHidden(this, on));
         content.addView(hidden.view);
 

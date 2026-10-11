@@ -314,7 +314,7 @@ public final class Ui {
         final Integer shapeKey = fillRes * 4 + (first ? 1 : 0) + (last ? 2 : 0);
         if (shapeKey.equals(card.getTag(R.id.tag_shape))) return;
         card.setTag(R.id.tag_shape, shapeKey);
-        float big = dp(c, 12);   // iOS inset-grouped list: rounded outer corners, square inside
+        float big = dp(c, 20);   // inset-grouped list: rounded outer corners, square inside
         float small = 0f;
         float top = first ? big : small;
         float bottom = last ? big : small;
@@ -390,7 +390,7 @@ public final class Ui {
     public static <T extends View> T block(Context c, T v) {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(Layout.gutter(c), dp(c, 10), Layout.gutter(c), dp(c, 6));
+        lp.setMargins(Math.max(dp(c, 16), Layout.gutter(c)), dp(c, 10), Math.max(dp(c, 16), Layout.gutter(c)), dp(c, 6));
         v.setLayoutParams(lp);
         return v;
     }
@@ -403,7 +403,7 @@ public final class Ui {
         l.setPaddingRelative(dp(c, 16), dp(c, 12), dp(c, 16), dp(c, 6));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(Layout.gutter(c), dp(c, 2), Layout.gutter(c), dp(c, 6));
+        lp.setMargins(Math.max(dp(c, 16), Layout.gutter(c)), dp(c, 2), Math.max(dp(c, 16), Layout.gutter(c)), dp(c, 6));
         l.setLayoutParams(lp);
         return l;
     }
@@ -421,7 +421,7 @@ public final class Ui {
         t.setTextIsSelectable(true);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(Layout.gutter(c), dp(c, 4), Layout.gutter(c), dp(c, 6));
+        lp.setMargins(Math.max(dp(c, 16), Layout.gutter(c)), dp(c, 4), Math.max(dp(c, 16), Layout.gutter(c)), dp(c, 6));
         t.setLayoutParams(lp);
         return t;
     }
@@ -446,6 +446,17 @@ public final class Ui {
 
         public void onChange(CompoundButton.OnCheckedChangeListener l) {
             sw.setOnCheckedChangeListener(l);
+        }
+
+        /** Shows the same outline icon box every other settings row has, so rows line up. */
+        public Toggle withIcon(int iconRes) {
+            ImageView icon = view.findViewById(R.id.icon);
+            if (icon != null) {
+                icon.setImageResource(iconRes);
+                outlineIcon(view.getContext(), icon, 8);
+                icon.setVisibility(View.VISIBLE);
+            }
+            return this;
         }
     }
 

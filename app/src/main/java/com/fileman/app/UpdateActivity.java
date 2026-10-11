@@ -191,9 +191,11 @@ public class UpdateActivity extends BaseActivity {
         opts.addView(Ui.rowView(this, content, new Row(R.drawable.ic_info, false, getString(R.string.upd_source),
                 repo.isEmpty() ? getString(R.string.upd_no_source_short) : repo, false, true), v -> editSource()));
         final Ui.Toggle auto = Ui.toggle(this, opts, R.string.upd_auto, 0, Store.autoUpdate(this));
+        auto.withIcon(R.drawable.ic_refresh);
         auto.onChange((b, on) -> Store.setAutoUpdate(this, on));
         opts.addView(auto.view);
         final Ui.Toggle pre = Ui.toggle(this, opts, R.string.upd_pre, 0, Store.updatePre(this));
+        pre.withIcon(R.drawable.ic_code);
         pre.onChange((b, on) -> {
             Store.setUpdatePre(this, on);
             check();

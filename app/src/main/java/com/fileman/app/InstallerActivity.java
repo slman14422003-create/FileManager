@@ -322,8 +322,26 @@ public class InstallerActivity extends BaseActivity {
                 v -> showHistory()));
     }
 
+    private static int optionIcon(String key) {
+        switch (key) {
+            case "smart":
+                return R.drawable.ic_package;
+            case "verify":
+                return R.drawable.ic_shield;
+            case "delete_after":
+                return R.drawable.ic_delete;
+            case "notify":
+                return R.drawable.ic_info;
+            case "awake":
+                return R.drawable.ic_timer;
+            default:
+                return R.drawable.ic_lock;
+        }
+    }
+
     private void addOption(final String key, boolean def, int titleRes, int subRes) {
         Ui.Toggle t = Ui.toggle(this, content, titleRes, subRes, Store.instBool(this, key, def));
+        t.withIcon(optionIcon(key));
         t.onChange((b, on) -> Store.setInstBool(this, key, on));
         content.addView(t.view);
     }
@@ -787,6 +805,7 @@ public class InstallerActivity extends BaseActivity {
         content.addView(chips);
 
         Ui.Toggle sys = Ui.toggle(this, content, R.string.pk_show_system, R.string.pk_show_system_sub, showSystem);
+        sys.withIcon(R.drawable.ic_shield);
         sys.onChange((b, on) -> {
             showSystem = on;
             loadApps();
