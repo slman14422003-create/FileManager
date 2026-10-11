@@ -6,6 +6,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -69,7 +71,8 @@ public class ZipBrowseActivity extends BaseActivity {
     private volatile boolean destroyed;
 
     private View loading;
-    private TextView title, subtitle, empty;
+    private TextView title, subtitle, empty, zipPill;
+    private LinearLayout crumbRow;
     private ListView list;
     private Button extractBtn;
     private ListAdapter adapter;
@@ -88,7 +91,11 @@ public class ZipBrowseActivity extends BaseActivity {
         }
         title = findViewById(R.id.title);
         subtitle = findViewById(R.id.subtitle);
+        subtitle.setSingleLine(true);
+        subtitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
         title.setText(zip.getName());
+        zipPill = findViewById(R.id.zipPill);
+        crumbRow = findViewById(R.id.crumbRow);
         ViewerBar.headerIcon(this, zip);
         loading = findViewById(R.id.loading);
         if (loading instanceof ProgressBar) Ui.tint(this, (ProgressBar) loading);
@@ -243,9 +250,10 @@ public class ZipBrowseActivity extends BaseActivity {
     }
 
     private void refreshChrome() {
-        String where = cur.isEmpty() ? "/" : "/" + cur;
-        subtitle.setText(query.isEmpty() ? where + " · " + Fmt.size(zip.length())
+        subtitle.setText(query.isEmpty() ? (arc == null ? "" : arc.format + " · ") + Fmt.size(zip.length())
                 : getString(R.string.zip_search_n, shown.size(), query));
+        zipPill.setText(getString(R.string.fm_n_files, fileCount));
+        buildCrumbs();
         empty.setVisibility(shown.isEmpty() ? View.VISIBLE : View.GONE);
         empty.setText(tree.isEmpty() ? R.string.zip_empty : R.string.zip_folder_empty);
         boolean any = !tree.isEmpty();
@@ -253,6 +261,53 @@ public class ZipBrowseActivity extends BaseActivity {
         extractBtn.setText(selected.isEmpty() ? getString(R.string.zip_extract_all)
                 : getString(R.string.zip_extract_sel, selected.size()));
         adapter.notifyDataSetChanged();
+    }
+
+    /** archive icon > folder > folder: tap a part to jump back to it. */
+    private void buildCrumbs() {
+        crumbRow.removeAllViews();
+        ImageView root = new ImageView(this);
+        root.setImageResource(R.drawable.ic_archive);
+        root.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.accent_text)));
+        root.setScaleType(ImageView.ScaleType.CENTER);
+        root.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40)));
+        root.setOnClickListener(v -> {
+            query = "";
+            cur = "";
+            show();
+        });
+        crumbRow.addView(root);
+        String[] parts = cur.isEmpty() ? new String[0] : cur.split("/");
+        StringBuilder path = new StringBuilder();
+        for (int i = 0; i < parts.length; i++) {
+            if (parts[i].isEmpty()) continue;
+            path.append(parts[i]).append('/');
+            final String target = path.toString();
+            TextView sep = new TextView(this);
+            sep.setText("›");
+            sep.setTextColor(Ui.color(this, R.color.text_hint));
+            sep.setTextSize(16);
+            sep.setPadding(Ui.dp(this, 2), 0, Ui.dp(this, 2), 0);
+            crumbRow.addView(sep);
+            boolean last = i == parts.length - 1;
+            TextView t = new TextView(this);
+            t.setText(parts[i]);
+            t.setTextSize(14);
+            t.setSingleLine(true);
+            t.setTextColor(Ui.color(this, last ? R.color.text_primary : R.color.accent_text));
+            if (last) t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+            t.setPadding(Ui.dp(this, 6), Ui.dp(this, 8), Ui.dp(this, 6), Ui.dp(this, 8));
+            if (!last) {
+                t.setOnClickListener(v -> {
+                    query = "";
+                    cur = target;
+                    show();
+                });
+            }
+            crumbRow.addView(t);
+        }
+        final android.widget.HorizontalScrollView hs = (android.widget.HorizontalScrollView) crumbRow.getParent();
+        hs.post(() -> hs.fullScroll(View.FOCUS_RIGHT));
     }
 
     private void toggle(Node n) {

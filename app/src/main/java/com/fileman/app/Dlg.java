@@ -28,8 +28,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Dialog builder used everywhere in the app. Same language as the screens: a surface card with soft corners,
- * start-aligned text, outline icon boxes in choice rows and pill buttons.
+ * Dialog builder used everywhere in the app (iOS look): an alert is a rounded card with a bold start-aligned title, the text and two
+ * rounded buttons; an action sheet is two floating cards (the choices, then Cancel set apart).
  * <ul>
  *   <li><b>Alert</b> (title, message, buttons): Cancel and the main action sit side by side as pills
  *   (Cancel neutral, main action accent, destructive actions red); three or more buttons stack.</li>
@@ -39,6 +39,10 @@ import java.util.Set;
  */
 public class Dlg extends AlertDialog.Builder {
     private boolean hasItems, hasButton;
+    private CharSequence titleText, messageText;
+    private CharSequence[] itemLabels;
+    private int[] itemIcons;
+    private DialogInterface.OnClickListener itemListener;
 
     public Dlg(Context context) {
         super(context);
@@ -47,20 +51,142 @@ public class Dlg extends AlertDialog.Builder {
     @Override
     public AlertDialog create() {
         final boolean sheet = hasItems && !hasButton;
-        if (sheet) super.setNegativeButton(R.string.cancel, null);   // an action sheet always has Cancel
+        final AlertDialog[] ref = new AlertDialog[1];
+        if (sheet) {
+            super.setView(buildSheet(ref));
+        } else {
+            if (titleText != null) super.setTitle(titleText);
+            if (messageText != null) super.setMessage(messageText);
+            if (hasItems) super.setAdapter(new ChoiceAdapter(getContext(), itemLabels, itemIcons), itemListener);
+        }
         final AlertDialog d = super.create();
+        ref[0] = d;
         if (sheet) {
             Window w = d.getWindow();
             if (w != null) {
                 w.setGravity(Gravity.BOTTOM);
                 w.setWindowAnimations(R.style.SheetAnim);
-                WindowManager.LayoutParams lp = w.getAttributes();
-                lp.y = Ui.dp(getContext(), 6);
-                w.setAttributes(lp);
+                w.setBackgroundDrawable(new ColorDrawable(0));
             }
         }
         d.setOnShowListener(dialog -> style(d, sheet));
         return d;
+    }
+
+    @Override
+    public AlertDialog.Builder setTitle(int titleId) {
+        titleText = getContext().getString(titleId);
+        return this;
+    }
+
+    @Override
+    public AlertDialog.Builder setTitle(CharSequence title) {
+        titleText = title;
+        return this;
+    }
+
+    @Override
+    public AlertDialog.Builder setMessage(int messageId) {
+        messageText = getContext().getString(messageId);
+        return this;
+    }
+
+    @Override
+    public AlertDialog.Builder setMessage(CharSequence message) {
+        messageText = message;
+        return this;
+    }
+
+    // ------------------------------------------------------------------ action sheet: two floating cards
+
+    private static GradientDrawable card(Context c) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(Ui.color(c, R.color.surface));
+        g.setCornerRadius(Ui.dp(c, 26));
+        g.setStroke(hairline(c), Ui.color(c, R.color.stroke_soft));
+        return g;
+    }
+
+    /** Top card: optional small caption and the choices; second card: Cancel, set apart by a gap. */
+    private View buildSheet(final AlertDialog[] ref) {
+        final Context c = getContext();
+        LinearLayout root = new LinearLayout(c);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 12), Ui.dp(c, 10));
+
+        LinearLayout top = new LinearLayout(c);
+        top.setOrientation(LinearLayout.VERTICAL);
+        top.setBackground(card(c));
+        top.setClipToOutline(true);
+        if (titleText != null || messageText != null) {
+            TextView h = new TextView(c);
+            StringBuilder sb = new StringBuilder();
+            if (titleText != null) sb.append(titleText);
+            if (messageText != null) sb.append(sb.length() > 0 ? "\n" : "").append(messageText);
+            h.setText(sb);
+            h.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f);
+            h.setTypeface(Typeface.DEFAULT_BOLD);
+            h.setTextColor(Ui.color(c, R.color.text_secondary));
+            h.setGravity(Gravity.CENTER);
+            h.setPadding(Ui.dp(c, 20), Ui.dp(c, 16), Ui.dp(c, 20), Ui.dp(c, 16));
+            top.addView(h, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            View line = new View(c);
+            line.setBackgroundColor(Ui.color(c, R.color.stroke_soft));
+            top.addView(line, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, hairline(c)));
+        }
+        ListView lv = new ListView(c);
+        lv.setAdapter(new SheetAdapter(c, itemLabels));
+        lv.setDivider(new ColorDrawable(Ui.color(c, R.color.stroke_soft)));
+        lv.setDividerHeight(hairline(c));
+        lv.setSelector(android.R.color.transparent);
+        lv.setVerticalScrollBarEnabled(false);
+        lv.setOnItemClickListener((p, v, pos, id) -> {
+            if (ref[0] != null) ref[0].dismiss();
+            if (itemListener != null) itemListener.onClick(ref[0], pos);
+        });
+        top.addView(lv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        root.addView(top, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView cancel = new TextView(c);
+        cancel.setText(R.string.cancel);
+        cancel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        cancel.setTypeface(Typeface.DEFAULT_BOLD);
+        cancel.setTextColor(Ui.color(c, R.color.accent_text));
+        cancel.setGravity(Gravity.CENTER);
+        cancel.setBackground(card(c));
+        cancel.setClickable(true);
+        Ui.press(c, cancel);
+        cancel.setOnClickListener(v -> {
+            if (ref[0] != null) ref[0].dismiss();
+        });
+        LinearLayout.LayoutParams kp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(c, 58));
+        kp.topMargin = Ui.dp(c, 8);
+        root.addView(cancel, kp);
+        return root;
+    }
+
+    private static final class SheetAdapter extends ArrayAdapter<CharSequence> {
+        SheetAdapter(Context c, CharSequence[] items) {
+            super(c, 0, items);
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            Context c = getContext();
+            TextView t = convertView instanceof TextView ? (TextView) convertView : new TextView(c);
+            CharSequence label = getItem(position);
+            t.setText(label);
+            t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+            t.setGravity(Gravity.CENTER);
+            t.setMinHeight(Ui.dp(c, 58));
+            t.setPaddingRelative(Ui.dp(c, 20), Ui.dp(c, 10), Ui.dp(c, 20), Ui.dp(c, 10));
+            t.setTextColor(Ui.color(c, destructive(c, label) ? R.color.bad : R.color.accent_text));
+            t.setBackgroundResource(R.drawable.bg_tab_btn);
+            return t;
+        }
     }
 
     @Override
@@ -103,13 +229,18 @@ public class Dlg extends AlertDialog.Builder {
     @Override
     public AlertDialog.Builder setItems(CharSequence[] items, DialogInterface.OnClickListener listener) {
         hasItems = true;
-        return setAdapter(new ChoiceAdapter(getContext(), items, null), listener);
+        itemLabels = items;
+        itemIcons = null;
+        itemListener = listener;
+        return this;
     }
 
     /** Same, with an outline icon in front of each row (0 = no icon for that row). */
     public Dlg setItems(CharSequence[] items, int[] icons, DialogInterface.OnClickListener listener) {
         hasItems = true;
-        setAdapter(new ChoiceAdapter(getContext(), items, icons), listener);
+        itemLabels = items;
+        itemIcons = icons;
+        itemListener = listener;
         return this;
     }
 
@@ -230,24 +361,34 @@ public class Dlg extends AlertDialog.Builder {
         Context c = d.getContext();
         if (d.getWindow() != null) {
             d.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+            if (sheet) d.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         }
+        if (sheet) return;
+        View tt = d.findViewById(androidx.appcompat.R.id.title_template);
+        if (tt != null) {
+            tt.setPadding(0, 0, 0, 0);
+            ViewGroup.LayoutParams tlp = tt.getLayoutParams();
+            if (tlp instanceof ViewGroup.MarginLayoutParams) ((ViewGroup.MarginLayoutParams) tlp).setMargins(0, 0, 0, 0);
+        }
+        View topPanel = d.findViewById(androidx.appcompat.R.id.topPanel);
+        if (topPanel != null) topPanel.setPadding(0, 0, 0, 0);
         TextView title = d.findViewById(androidx.appcompat.R.id.alertTitle);
         if (title != null) {
-            title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19);
+            title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
             title.setTypeface(Typeface.DEFAULT_BOLD);
             title.setTextColor(Ui.color(c, R.color.text_primary));
             title.setGravity(Gravity.START);
             title.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-            title.setPaddingRelative(Ui.dp(c, 24), Ui.dp(c, 24), Ui.dp(c, 24), Ui.dp(c, sheet ? 10 : 4));
+            title.setPaddingRelative(Ui.dp(c, 26), Ui.dp(c, 26), Ui.dp(c, 26), Ui.dp(c, 6));
         }
         TextView msg = d.findViewById(android.R.id.message);
         if (msg != null) {
-            msg.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f);
+            msg.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
             msg.setTextColor(Ui.color(c, title != null ? R.color.text_secondary : R.color.text_primary));
-            msg.setLineSpacing(0, 1.25f);
+            msg.setLineSpacing(0, 1.3f);
             msg.setGravity(Gravity.START);
             msg.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-            msg.setPaddingRelative(Ui.dp(c, 24), Ui.dp(c, title != null ? 6 : 24), Ui.dp(c, 24), Ui.dp(c, 20));
+            msg.setPaddingRelative(Ui.dp(c, 26), Ui.dp(c, title != null ? 6 : 26), Ui.dp(c, 26), Ui.dp(c, 22));
         }
         ListView lv = d.getListView();
         if (lv != null) {
@@ -285,7 +426,7 @@ public class Dlg extends AlertDialog.Builder {
         if (parent instanceof LinearLayout) {
             LinearLayout bar = (LinearLayout) parent;
             bar.setOrientation(row ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
-            bar.setPaddingRelative(Ui.dp(c, 20), Ui.dp(c, 4), Ui.dp(c, 20), Ui.dp(c, 18));
+            bar.setPaddingRelative(Ui.dp(c, 20), Ui.dp(c, 0), Ui.dp(c, 20), Ui.dp(c, 20));
             bar.setMinimumHeight(0);
             View spacer = bar.findViewById(androidx.appcompat.R.id.spacer);
             if (spacer != null) spacer.setVisibility(View.GONE);
@@ -300,7 +441,7 @@ public class Dlg extends AlertDialog.Builder {
             boolean main = b == pos || (single && !sheet);
             boolean red = destructive(c, b.getText());
             b.setAllCaps(false);
-            b.setTypeface(main ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
+            b.setTypeface(Typeface.DEFAULT_BOLD);
             b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
             b.setMinHeight(Ui.dp(c, 48));
             b.setMinimumHeight(Ui.dp(c, 48));
@@ -309,10 +450,10 @@ public class Dlg extends AlertDialog.Builder {
             b.setPadding(Ui.dp(c, 16), 0, Ui.dp(c, 16), 0);
             b.setStateListAnimator(null);
             if (main) {
-                b.setBackgroundResource(red ? R.drawable.btn_danger : R.drawable.btn_primary);
+                b.setBackgroundResource(red ? R.drawable.dlg_btn_danger : R.drawable.dlg_btn_primary);
                 b.setTextColor(Ui.color(c, R.color.on_accent));
             } else {
-                b.setBackgroundResource(R.drawable.btn_secondary);
+                b.setBackgroundResource(R.drawable.dlg_btn_secondary);
                 b.setTextColor(Ui.color(c, red ? R.color.bad : R.color.text_primary));
             }
             ViewGroup.LayoutParams lp = b.getLayoutParams();
@@ -321,8 +462,8 @@ public class Dlg extends AlertDialog.Builder {
                 m.width = row ? 0 : ViewGroup.LayoutParams.MATCH_PARENT;
                 m.height = Ui.dp(c, 48);
                 m.weight = row ? 1f : 0f;
-                if (row) m.setMargins(Ui.dp(c, 4), 0, Ui.dp(c, 4), 0);
-                else m.setMargins(0, Ui.dp(c, 4), 0, Ui.dp(c, 4));
+                if (row) m.setMargins(Ui.dp(c, 5), 0, Ui.dp(c, 5), 0);
+                else m.setMargins(0, Ui.dp(c, 5), 0, Ui.dp(c, 5));
                 b.setLayoutParams(m);
             }
         }

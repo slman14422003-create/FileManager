@@ -7,6 +7,52 @@
 
     <include layout="@layout/view_header" />
 
+    <!-- path inside the archive with the size pill on the far side -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="4dp">
+
+        <HorizontalScrollView
+            android:id="@+id/crumbScroll"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layoutDirection="ltr"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/crumbRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+        <TextView
+            android:id="@+id/zipPill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/btn_secondary"
+            android:drawablePadding="8dp"
+            android:drawableStart="@drawable/ic_archive"
+            android:drawableTint="?attr/cAccentText"
+            android:gravity="center"
+            android:minHeight="36dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="14dp"
+            android:singleLine="true"
+            android:textColor="?attr/cTextPrimary"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
