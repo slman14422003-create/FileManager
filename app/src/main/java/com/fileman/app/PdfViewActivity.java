@@ -369,6 +369,7 @@ public class PdfViewActivity extends BaseActivity {
 
                 @Override
                 public void onZoomBegin() {
+                    if (zoomAnim != null) zoomAnim.cancel();
                     liveZoom = true;
                 }
 
@@ -381,7 +382,8 @@ public class PdfViewActivity extends BaseActivity {
 
                 @Override
                 public void onZoomCommit(float z, float sx, float sy, float ex, float ey) {
-                    commitZoom(z, sx, sy, ex, ey);
+                    if (liveZoom) commitZoom(z, sx, sy, ex, ey);
+                    else animateZoom(z, ex, ey);
                 }
             });
             pinch.addView(hsv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
@@ -412,6 +414,7 @@ public class PdfViewActivity extends BaseActivity {
                     new int[]{R.drawable.ic_zoom, R.drawable.ic_list_play, R.drawable.ic_night},
                     new int[]{R.string.v_zoom, R.string.rd_page_jump, R.string.rd_night},
                     new View.OnClickListener[]{v -> cycleZoom(), v -> askPage(), v -> toggleNight()});
+            prefetchRatios();
             int saved = (int) Store.resume(this, file.getAbsolutePath());
             if (saved > 0 && saved < pageCount) {
                 list.setSelection(saved);
@@ -419,6 +422,46 @@ public class PdfViewActivity extends BaseActivity {
             }
             updateSubtitle(saved);
             showPill(saved);
+        });
+    }
+
+    /** Reads every page's shape in the background so heights are right before they are drawn (no jumps while zooming). */
+    private void prefetchRatios() {
+        final int count = Math.min(pageCount, 3000);
+        io.execute(() -> {
+            final float[] found = new float[count];
+            for (int i = 0; i < count; i++) {
+                if (destroyed) return;
+                synchronized (lock) {
+                    if (destroyed || renderer == null) return;
+                    try {
+                        PdfRenderer.Page p = renderer.openPage(i);
+                        try {
+                            if (p.getWidth() > 0) found[i] = (float) p.getHeight() / p.getWidth();
+                        } finally {
+                            p.close();
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
+            ui.post(() -> {
+                if (destroyed || list == null || ratios == null) return;
+                boolean changed = false;
+                for (int i = 0; i < count && i < ratios.length; i++) {
+                    if (found[i] > 0 && Math.abs(ratios[i] - found[i]) > 0.001f) {
+                        ratios[i] = found[i];
+                        changed = true;
+                    }
+                }
+                if (!changed) return;
+                int pos = list.getFirstVisiblePosition();
+                View c = list.getChildAt(0);
+                int top = c == null ? 0 : c.getTop();
+                adapter.notifyDataSetChanged();
+                list.setSelectionFromTop(pos, top - list.getPaddingTop());
+                scheduleTiles();
+            });
         });
     }
 
@@ -493,8 +536,7 @@ public class PdfViewActivity extends BaseActivity {
         }
         float cx = pinch.getWidth() / 2f;
         float cy = pinch.getHeight() / 2f;
-        commitZoom(next, cx, cy, cx, cy);
-        Toast.makeText(this, Math.round(zoom * 100) + "%", Toast.LENGTH_SHORT).show();
+        animateZoom(next, cx, cy);
     }
 
     /**
@@ -502,23 +544,32 @@ public class PdfViewActivity extends BaseActivity {
      * re-anchoring the list on the page it sits on, horizontally by rescrolling the wrapper.
      */
     private void commitZoom(float newZoom, float sx, float sy, float ex, float ey) {
-        if (list == null || hsv == null || adapter == null) return;
+        if (list == null || hsv == null || adapter == null || content == null || pinch == null) return;
         newZoom = Math.max(1f, Math.min(maxZoom, newZoom));
-        if (Math.abs(newZoom - zoom) < 0.005f) return;
+        if (Math.abs(newZoom - zoom) < 0.0005f) return;
         final int margin = Ui.dp(this, 8);
-
         final int padTop = list.getPaddingTop();
         final int oldPageW = Math.max(100, listWidth() - 2 * margin);
+
+        // vertical anchor: the page under the point (the nearest one when the point sits in a gap)
         int anchorPos = firstVisible;
         float anchorOff = 0f;
         int first = list.getFirstVisiblePosition();
-        for (int i = 0; i < list.getChildCount(); i++) {
-            View c = list.getChildAt(i);
-            if (sy >= c.getTop() && sy < c.getBottom()) {
-                anchorPos = first + i;
-                anchorOff = sy - c.getTop() - margin / 2f;   // distance inside the page itself
-                break;
+        int n = list.getChildCount();
+        if (n > 0) {
+            int best = 0;
+            float bestDist = Float.MAX_VALUE;
+            for (int i = 0; i < n; i++) {
+                View c = list.getChildAt(i);
+                float d = sy < c.getTop() ? c.getTop() - sy : sy > c.getBottom() ? sy - c.getBottom() : 0f;
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = i;
+                }
             }
+            View c = list.getChildAt(best);
+            anchorPos = first + best;
+            anchorOff = sy - c.getTop() - margin / 2f;   // distance inside the page itself
         }
         final float contentX = hsv.getScrollX() + sx;
 
@@ -528,23 +579,48 @@ public class PdfViewActivity extends BaseActivity {
         final float pageRatio = Math.max(100, newW - 2 * margin) / (float) oldPageW;
         content.setFixedWidth(newW);
         adapter.notifyDataSetChanged();
-
         float newOff = margin / 2f + anchorOff * pageRatio;
         list.setSelectionFromTop(anchorPos, Math.round(ey - newOff) - padTop);
 
-        final float targetScrollX = (contentX - margin) * pageRatio + margin - ex;
-        final ViewTreeObserver vto = hsv.getViewTreeObserver();
-        vto.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-            @Override
-            public void onGlobalLayout() {
-                ViewTreeObserver o = hsv.getViewTreeObserver();
-                if (o.isAlive()) o.removeOnGlobalLayoutListener(this);
-                int max = Math.max(0, newW - hsv.getWidth());
-                hsv.scrollTo(Math.max(0, Math.min(max, Math.round(targetScrollX))), 0);
-            }
-        });
+        // lay everything out right now so the horizontal position is exact in this very frame
+        pinch.measure(View.MeasureSpec.makeMeasureSpec(pinch.getWidth(), View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(pinch.getHeight(), View.MeasureSpec.EXACTLY));
+        pinch.layout(pinch.getLeft(), pinch.getTop(), pinch.getRight(), pinch.getBottom());
+        float target = (contentX - margin) * pageRatio + margin - ex;
+        int max = Math.max(0, newW - hsv.getWidth());
+        hsv.scrollTo(Math.max(0, Math.min(max, Math.round(target))), 0);
+
         showPill(firstVisible);
         scheduleTiles();
+    }
+
+    private android.animation.ValueAnimator zoomAnim;
+
+    /** Smooth zoom to a level around a fixed point (double tap and the zoom button). */
+    private void animateZoom(final float target, final float fx, final float fy) {
+        if (list == null || pinch == null) return;
+        final float to = Math.max(1f, Math.min(maxZoom, target));
+        if (zoomAnim != null) zoomAnim.cancel();
+        if (Math.abs(to - zoom) < 0.005f) return;
+        final android.animation.ValueAnimator va = android.animation.ValueAnimator.ofFloat(zoom, to);
+        va.setDuration(220);
+        va.setInterpolator(new android.view.animation.DecelerateInterpolator());
+        va.addUpdateListener(a -> {
+            liveZoom = true;
+            commitZoom((float) a.getAnimatedValue(), fx, fy, fx, fy);
+            showZoomPill(zoom);
+        });
+        va.addListener(new android.animation.AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(android.animation.Animator animation) {
+                liveZoom = false;
+                if (zoomAnim == animation) zoomAnim = null;
+                if (adapter != null && !destroyed) adapter.notifyDataSetChanged();
+                scheduleTiles();
+            }
+        });
+        zoomAnim = va;
+        va.start();
     }
 
     /** Rotation, split screen or a foldable opening: refit the pages to the new width. */
@@ -838,6 +914,7 @@ public class PdfViewActivity extends BaseActivity {
     protected void onDestroy() {
         super.onDestroy();
         destroyed = true;
+        if (zoomAnim != null) zoomAnim.cancel();
         ui.removeCallbacksAndMessages(null);
         io.shutdownNow();
         synchronized (lock) {
