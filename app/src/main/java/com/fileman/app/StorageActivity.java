@@ -110,7 +110,7 @@ public class StorageActivity extends BaseActivity {
         findViewById(R.id.subtitle).setVisibility(View.GONE);
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
         ImageButton refresh = findViewById(R.id.btnRefresh);
-        refresh.setOnClickListener(v -> load());
+        refresh.setOnClickListener(v -> load(false));
         content = findViewById(R.id.content);
         scroll = (ScrollView) content.getParent();
         contentBottom = content.getPaddingBottom();
@@ -119,16 +119,46 @@ public class StorageActivity extends BaseActivity {
         buildSelBar();
     }
 
+    private LiveSync live;
+    private long lastLoadAt = 0;
+    private final Runnable liveRun = () -> {
+        if (!destroyed) load(true);
+    };
+
     @Override
     protected void onResume() {
         super.onResume();
-        load();
+        load(stats != null);
+        if (live == null) live = new LiveSync(this, this::liveReload);
+        File root = Environment.getExternalStorageDirectory();
+        java.util.List<File> dirs = new ArrayList<>();
+        dirs.add(root);
+        String[] names = {Environment.DIRECTORY_DOWNLOADS, Environment.DIRECTORY_DCIM, Environment.DIRECTORY_PICTURES,
+                Environment.DIRECTORY_MOVIES, Environment.DIRECTORY_MUSIC, Environment.DIRECTORY_DOCUMENTS};
+        for (String n : names) dirs.add(Environment.getExternalStoragePublicDirectory(n));
+        live.watch(dirs, true);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (live != null) live.stop();
+        ui.removeCallbacks(liveRun);
+    }
+
+    /** Folders changed: rescan quietly, at most once every few seconds, and keep the current numbers meanwhile. */
+    private void liveReload() {
+        if (destroyed) return;
+        long wait = Math.max(0, lastLoadAt + 4000 - android.os.SystemClock.uptimeMillis());
+        ui.removeCallbacks(liveRun);
+        ui.postDelayed(liveRun, wait);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         destroyed = true;
+        if (live != null) live.stop();
         runStop.set(true);
         pool.shutdownNow();
         ui.removeCallbacksAndMessages(null);
@@ -136,18 +166,21 @@ public class StorageActivity extends BaseActivity {
 
     // ------------------------------------------------------------------ data (three independent stages)
 
-    private void load() {
+    private void load(final boolean quiet) {
         runStop.set(true);
         final AtomicBoolean st = new AtomicBoolean(false);
         runStop = st;
         final int run = ++runId;
-        stats = null;
-        bigs = null;
-        apps = null;
-        cacheTotal = -1;
-        selected.clear();
-        shownBig = PAGE;
-        updateSel();
+        lastLoadAt = android.os.SystemClock.uptimeMillis();
+        if (!quiet) {
+            stats = null;
+            bigs = null;
+            apps = null;
+            cacheTotal = -1;
+            selected.clear();
+            shownBig = PAGE;
+            updateSel();
+        }
         final File root = Environment.getExternalStorageDirectory();
         try {
             StatFs sf = new StatFs(root.getAbsolutePath());
@@ -178,6 +211,12 @@ public class StorageActivity extends BaseActivity {
             ui.post(() -> {
                 if (destroyed || run != runId) return;
                 bigs = out;
+                if (quiet) {
+                    Set<File> alive = new java.util.HashSet<>();
+                    for (Big b : out) alive.add(b.f);
+                    selected.retainAll(alive);
+                    updateSel();
+                }
                 render();
             });
         });
@@ -784,7 +823,7 @@ public class StorageActivity extends BaseActivity {
             deleteContents(getCacheDir());
             deleteContents(getExternalCacheDir());
             Toast.makeText(this, getString(R.string.sa_cleaned, Fmt.size(before)), Toast.LENGTH_SHORT).show();
-            load();
+            load(true);
         });
     }
 

@@ -51,6 +51,7 @@ public class HomeActivity extends BaseActivity {
     private volatile int dlCount = -1;
     private volatile long dlSize = 0;
     private LiveSync live;
+    private int statsSig = 0;
     private boolean rescanQueued;
     private long lastScanStart;
     private final Runnable rescan = () -> {
@@ -207,10 +208,15 @@ public class HomeActivity extends BaseActivity {
             ui.post(() -> {
                 scanning = false;
                 if (isFinishing() || isDestroyed() || res == null || stop.get()) return;
+                int sig = java.util.Arrays.hashCode(res.count) * 31 + java.util.Arrays.hashCode(res.size);
+                sig = sig * 31 + res.recent.hashCode();
+                sig = sig * 31 + res.newCount;
+                boolean same = stats != null && sig == statsSig;
+                statsSig = sig;
                 stats = res;
                 saveCache(res);
                 statsAt = System.currentTimeMillis();
-                render();
+                if (!same) render();
                 if (rescanQueued) {
                     rescanQueued = false;
                     liveRescan();

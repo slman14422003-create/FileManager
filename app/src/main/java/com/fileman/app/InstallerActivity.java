@@ -120,6 +120,12 @@ public class InstallerActivity extends BaseActivity {
             }
         });
 
+        IntentFilter pf = new IntentFilter();
+        pf.addAction(Intent.ACTION_PACKAGE_ADDED);
+        pf.addAction(Intent.ACTION_PACKAGE_REMOVED);
+        pf.addAction(Intent.ACTION_PACKAGE_REPLACED);
+        pf.addDataScheme("package");
+        ContextCompat.registerReceiver(this, pkgRx, pf, ContextCompat.RECEIVER_EXPORTED);
         ContextCompat.registerReceiver(this, rx, new IntentFilter(PkgInstaller.action(this)),
                 ContextCompat.RECEIVER_NOT_EXPORTED);
 
@@ -147,6 +153,10 @@ public class InstallerActivity extends BaseActivity {
         destroyed = true;
         try {
             unregisterReceiver(rx);
+        } catch (Exception ignored) {
+        }
+        try {
+            unregisterReceiver(pkgRx);
         } catch (Exception ignored) {
         }
         ui.removeCallbacksAndMessages(null);
@@ -852,6 +862,54 @@ public class InstallerActivity extends BaseActivity {
                 renderApps();
             });
         });
+    }
+
+    /** One app was installed, updated or removed: patch just that entry in the shown list. */
+    private final BroadcastReceiver pkgRx = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context ctx, Intent i) {
+            if (destroyed || screen != S_APPS || apps == null || i.getData() == null) return;
+            final String pkg = i.getData().getSchemeSpecificPart();
+            final boolean removed = Intent.ACTION_PACKAGE_REMOVED.equals(i.getAction())
+                    && !i.getBooleanExtra(Intent.EXTRA_REPLACING, false);
+            io.execute(() -> {
+                final App a = removed ? null : loadApp(pkg);
+                ui.post(() -> {
+                    if (destroyed || screen != S_APPS || apps == null) return;
+                    for (int k = apps.size() - 1; k >= 0; k--) {
+                        if (pkg.equals(apps.get(k).pkg)) apps.remove(k);
+                    }
+                    if (a != null) apps.add(a);
+                    sortApps();
+                    renderApps();
+                });
+            });
+        }
+    };
+
+    private App loadApp(String pkg) {
+        try {
+            PackageManager pm = getPackageManager();
+            PackageInfo pi = pm.getPackageInfo(pkg, 0);
+            ApplicationInfo ai = pi.applicationInfo;
+            if (ai == null) return null;
+            boolean sys = (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0
+                    && (ai.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
+            if (sys && !showSystem) return null;
+            App a = new App();
+            a.pkg = pi.packageName;
+            a.label = String.valueOf(ai.loadLabel(pm));
+            a.ver = pi.versionName == null ? "" : pi.versionName;
+            a.size = ai.sourceDir == null ? 0 : new File(ai.sourceDir).length();
+            a.updated = pi.lastUpdateTime;
+            try {
+                a.icon = pm.getApplicationIcon(a.pkg);
+            } catch (Exception ignored) {
+            }
+            return a;
+        } catch (Throwable e) {
+            return null;
+        }
     }
 
     private void sortApps() {

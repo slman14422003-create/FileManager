@@ -63,7 +63,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.List;
 import java.util.Locale;
 import java.util.PriorityQueue;
@@ -420,7 +423,10 @@ public class FileManagerActivity extends BaseActivity {
             navigate(target);
         }
         updatePermBanner();
-        if (live == null) live = new LiveSync(this, this::liveRefresh);
+        if (live == null) {
+            live = new LiveSync(this, this::liveRefresh);
+            live.setDelta(this::liveDelta);
+        }
         if (resumedOnce && (mode == M_DIR || mode == M_CAT || mode == M_FAV)) refresh(true);
         resumedOnce = true;
         updateLive();
@@ -430,6 +436,78 @@ public class FileManagerActivity extends BaseActivity {
     protected void onPause() {
         super.onPause();
         if (live != null) live.stop();
+    }
+
+    /** One folder reported a few changed names: patch the shown list in place instead of listing it again. */
+    private void liveDelta(final String dirPath, final Set<String> names) {
+        if (isFinishing() || isDestroyed()) return;
+        if (busy != null && busy.isShowing()) return;
+        if (mode != M_DIR || cur == null || !cur.getAbsolutePath().equals(dirPath)) {
+            liveRefresh();
+            return;
+        }
+        final long my = gen;
+        final File dir = cur;
+        final boolean hidden = showHidden;
+        final List<String> ns = new ArrayList<>(names);
+        io.execute(() -> {
+            final Map<String, Entry> upd = new LinkedHashMap<>();
+            for (String n : ns) {
+                if (!hidden && n.startsWith(".")) continue;
+                File f = new File(dir, n);
+                upd.put(f.getAbsolutePath(), f.exists() ? new Entry(f) : null);
+            }
+            post(() -> {
+                if (my != gen || mode != M_DIR || !dir.equals(cur)) return;
+                applyDelta(upd);
+            });
+        });
+    }
+
+    private void applyDelta(Map<String, Entry> upd) {
+        Comparator<Entry> cmp = comparator();
+        boolean changed = false;
+        Set<String> added = new java.util.HashSet<>();
+        for (Map.Entry<String, Entry> me : upd.entrySet()) {
+            String key = me.getKey();
+            Entry ne = me.getValue();
+            int idx = -1;
+            for (int i = 0; i < shown.size(); i++) {
+                if (shown.get(i).f.getAbsolutePath().equals(key)) {
+                    idx = i;
+                    break;
+                }
+            }
+            if (ne == null) {
+                if (idx >= 0) {
+                    shown.remove(idx);
+                    changed = true;
+                }
+                continue;
+            }
+            if (idx >= 0) {
+                Entry old = shown.get(idx);
+                if (old.mod == ne.mod && old.size == ne.size && old.kids == ne.kids && old.dir == ne.dir) continue;
+                shown.remove(idx);
+            } else {
+                added.add(key);
+            }
+            int pos = Collections.binarySearch(shown, ne, cmp);
+            if (pos < 0) pos = -pos - 1;
+            shown.add(pos, ne);
+            changed = true;
+        }
+        if (!changed) return;
+        if (!added.isEmpty()) {
+            for (String a : added) if (fresh.size() < 12) fresh.add(a);
+            ui.removeCallbacks(clearFresh);
+            ui.postDelayed(clearFresh, 700);
+        }
+        Set<String> alive = new LinkedHashSet<>();
+        for (Entry e : shown) alive.add(e.f.getAbsolutePath());
+        selected.retainAll(alive);
+        updateChrome();
+        updateEmptyView();
     }
 
     private void liveRefresh() {
@@ -685,6 +763,8 @@ public class FileManagerActivity extends BaseActivity {
     private void load() {
         final long my = ++gen;
         final File dir = cur;
+        final Map<String, Entry> prev = new HashMap<>();
+        if (quiet && shownMode == mode) for (Entry e : shown) prev.put(e.f.getAbsolutePath(), e);
         loading(true);
         io.execute(() -> {
             File[] arr = dir.listFiles();
@@ -693,7 +773,13 @@ public class FileManagerActivity extends BaseActivity {
             if (arr != null) {
                 for (File f : arr) {
                     if (!showHidden && f.getName().startsWith(".")) continue;
-                    out.add(new Entry(f));
+                    Entry old = prev.get(f.getAbsolutePath());
+                    if (old != null && old.mod == f.lastModified() && old.dir == f.isDirectory()
+                            && (old.dir || old.size == f.length())) {
+                        out.add(old);   // unchanged: keep it, no folder listing or thumbnail work again
+                    } else {
+                        out.add(new Entry(f));
+                    }
                 }
             }
             Collections.sort(out, comparator());
@@ -878,6 +964,10 @@ public class FileManagerActivity extends BaseActivity {
         for (Entry e : shown) alive.add(e.f.getAbsolutePath());
         selected.retainAll(alive);
         updateChrome();   // notifies the adapter once
+        updateEmptyView();
+    }
+
+    private void updateEmptyView() {
         boolean empty = shown.isEmpty();
         emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
         if (empty) {
