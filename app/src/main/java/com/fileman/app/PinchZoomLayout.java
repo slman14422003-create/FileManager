@@ -17,6 +17,12 @@ public class PinchZoomLayout extends FrameLayout {
 
         default void onZoomPreview(float zoom) {
         }
+
+        default void onZoomBegin() {
+        }
+
+        default void onZoomEnd() {
+        }
     }
 
     public interface Panner {
@@ -38,6 +44,8 @@ public class PinchZoomLayout extends FrameLayout {
     private float maxZoom = 4f;
     private float[] tapStops = {2.5f};
 
+    private boolean live = false;
+    private float lastFX, lastFY;
     private float preview = 1f;
     private float startX, startY, curX, curY;
 
@@ -58,6 +66,9 @@ public class PinchZoomLayout extends FrameLayout {
                 if (t == null || listener == null) return false;
                 endPan(false);
                 preview = 1f;
+                lastFX = d.getFocusX();
+                lastFY = d.getFocusY();
+                if (live) listener.onZoomBegin();
                 startX = curX = d.getFocusX();
                 startY = curY = d.getFocusY();
                 t.setPivotX(startX);
@@ -70,6 +81,16 @@ public class PinchZoomLayout extends FrameLayout {
                 View t = target();
                 if (t == null || listener == null) return false;
                 float z = Math.max(0.01f, listener.zoom());
+                if (live) {
+                    float nz = clamp(z * d.getScaleFactor(), minZoom, maxZoom);
+                    float fx = d.getFocusX();
+                    float fy = d.getFocusY();
+                    listener.onZoomCommit(nz, lastFX, lastFY, fx, fy);
+                    lastFX = fx;
+                    lastFY = fy;
+                    listener.onZoomPreview(listener.zoom());
+                    return true;
+                }
                 preview = clamp(preview * d.getScaleFactor(), minZoom / z, maxZoom / z);
                 curX = d.getFocusX();
                 curY = d.getFocusY();
@@ -85,6 +106,10 @@ public class PinchZoomLayout extends FrameLayout {
             public void onScaleEnd(ScaleGestureDetector d) {
                 View t = target();
                 if (t == null || listener == null) return;
+                if (live) {
+                    listener.onZoomEnd();
+                    return;
+                }
                 float ratio = preview;
                 preview = 1f;
                 t.setScaleX(1f);
@@ -113,6 +138,10 @@ public class PinchZoomLayout extends FrameLayout {
                 return true;
             }
         });
+    }
+
+    public void setLive(boolean on) {
+        live = on;
     }
 
     public void setListener(Listener l) {

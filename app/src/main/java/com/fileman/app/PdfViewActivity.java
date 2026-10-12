@@ -50,8 +50,8 @@ public class PdfViewActivity extends BaseActivity {
         return false;
     }
 
-    private static final float[] ZOOMS = {1f, 1.5f, 2f, 3f, 5f, 8f, 12f, 16f, 24f, 32f};
-    private static final float ZOOM_CAP = 32f;
+    private static final float[] ZOOMS = {1f, 1.5f, 2f, 3f, 4f, 5f};
+    private static final float ZOOM_CAP = 5f;
     private static final float MAX_PAGE_PX = 60000f;
     private float maxZoom = ZOOM_CAP;
     private static final int MAX_BITMAP_W = 1800;
@@ -71,6 +71,7 @@ public class PdfViewActivity extends BaseActivity {
     private float[] ratios;          // height / width per page (0 = unknown yet)
     private float defaultRatio = 1.414f;
     private float zoom = 1f;
+    private boolean liveZoom = false;
     private HorizontalScrollView hsv;
     private FixedWidthFrame content;
     private PinchZoomLayout pinch;
@@ -333,9 +334,10 @@ public class PdfViewActivity extends BaseActivity {
             content.addView(list, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
             hsv.addView(content, new FrameLayout.LayoutParams(listWidth(), ViewGroup.LayoutParams.MATCH_PARENT));
-            maxZoom = Math.max(4f, Math.min(ZOOM_CAP, MAX_PAGE_PX / Math.max(1f, viewW * Math.max(1f, defaultRatio))));
+            maxZoom = Math.min(ZOOM_CAP, MAX_PAGE_PX / Math.max(1f, viewW * Math.max(1f, defaultRatio)));
             pinch = new PinchZoomLayout(this);
-            pinch.setZoomRange(1f, maxZoom, 2.5f, 5f, 10f);
+            pinch.setZoomRange(1f, maxZoom, 2.5f, 5f);
+            pinch.setLive(true);
             pinch.setPanner(new PinchZoomLayout.Panner() {
                 @Override
                 public boolean active() {
@@ -363,6 +365,18 @@ public class PdfViewActivity extends BaseActivity {
                 @Override
                 public void onZoomPreview(float z) {
                     showZoomPill(z);
+                }
+
+                @Override
+                public void onZoomBegin() {
+                    liveZoom = true;
+                }
+
+                @Override
+                public void onZoomEnd() {
+                    liveZoom = false;
+                    if (adapter != null) adapter.notifyDataSetChanged();
+                    scheduleTiles();
                 }
 
                 @Override
@@ -491,34 +505,34 @@ public class PdfViewActivity extends BaseActivity {
         if (list == null || hsv == null || adapter == null) return;
         newZoom = Math.max(1f, Math.min(maxZoom, newZoom));
         if (Math.abs(newZoom - zoom) < 0.005f) return;
-        final float ratio = newZoom / zoom;
         final int margin = Ui.dp(this, 8);
 
-        // vertical anchor: the page under the start point and how far down it the point is
+        final int padTop = list.getPaddingTop();
+        final int oldPageW = Math.max(100, listWidth() - 2 * margin);
         int anchorPos = firstVisible;
-        float anchorFrac = 0f;
+        float anchorOff = 0f;
         int first = list.getFirstVisiblePosition();
         for (int i = 0; i < list.getChildCount(); i++) {
             View c = list.getChildAt(i);
             if (sy >= c.getTop() && sy < c.getBottom()) {
                 anchorPos = first + i;
-                anchorFrac = (sy - c.getTop()) / Math.max(1f, c.getHeight());
+                anchorOff = sy - c.getTop() - margin / 2f;   // distance inside the page itself
                 break;
             }
         }
-        final float contentX = hsv.getScrollX() + sx;   // horizontal position inside the content
+        final float contentX = hsv.getScrollX() + sx;
 
         zoom = newZoom;
         invalidateTiles();
         final int newW = listWidth();
+        final float pageRatio = Math.max(100, newW - 2 * margin) / (float) oldPageW;
         content.setFixedWidth(newW);
         adapter.notifyDataSetChanged();
 
-        float rt = anchorPos < ratios.length && ratios[anchorPos] > 0 ? ratios[anchorPos] : defaultRatio;
-        float newItemH = Math.max(100, newW - 2 * margin) * rt + margin;
-        list.setSelectionFromTop(anchorPos, Math.round(ey - anchorFrac * newItemH));
+        float newOff = margin / 2f + anchorOff * pageRatio;
+        list.setSelectionFromTop(anchorPos, Math.round(ey - newOff) - padTop);
 
-        final float targetScrollX = contentX * ratio - ex;
+        final float targetScrollX = (contentX - margin) * pageRatio + margin - ex;
         final ViewTreeObserver vto = hsv.getViewTreeObserver();
         vto.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
@@ -773,6 +787,7 @@ public class PdfViewActivity extends BaseActivity {
         WeakReference<Bitmap> prev = lastBmp.get(position);
         Bitmap stale = prev == null ? null : prev.get();
         iv.setImageBitmap(stale != null && !stale.isRecycled() ? stale : null);   // blurry for a moment, never blank
+        if (liveZoom && stale != null && !stale.isRecycled()) return;
         io.execute(() -> {
             Bitmap b = null;
             float ratio = 0;
