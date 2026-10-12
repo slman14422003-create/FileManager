@@ -194,11 +194,7 @@ public final class Cats {
     // ------------------------------------------------------------------ helpers
 
     public static boolean isLink(File f) {
-        try {
-            return !f.getCanonicalPath().equals(f.getAbsolutePath());
-        } catch (IOException e) {
-            return true;
-        }
+        return FsCache.isLink(f.getPath());
     }
 
     public static String displayName(ContentResolver cr, Uri uri) {

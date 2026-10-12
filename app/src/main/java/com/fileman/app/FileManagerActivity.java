@@ -73,6 +73,7 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
@@ -91,7 +92,7 @@ public class FileManagerActivity extends BaseActivity {
     private static final int M_DIR = 0, M_SEARCH = 1, M_FAV = 2, M_LARGEST = 3, M_CAT = 4;
     private static final int T_DIR = Cats.T_DIR, T_IMG = Cats.T_IMG, T_APK = Cats.T_APK, T_VID = Cats.T_VID,
             T_TXT = Cats.T_TXT;
-    private static final int MAX_SEARCH = 300;
+    private static final int MAX_SEARCH = 2000;
     private static final int MAX_LARGEST = 60;
     private static final int MAX_CAT = 400;
 
@@ -102,24 +103,35 @@ public class FileManagerActivity extends BaseActivity {
         final boolean dir;
         final long size;
         final long mod;
-        final int kids;
         final String ext;
+        final FsCache.Snap snap;
+        final int ix;
+        volatile int kids = FsCache.KIDS_UNKNOWN;
+        String dateStr;
 
         Entry(File f) {
             this.f = f;
             this.name = f.getName();
-            this.dir = f.isDirectory();
-            this.mod = f.lastModified();
-            if (dir) {
-                String[] l = f.list();
-                kids = l == null ? -1 : l.length;
-                size = 0;
-                ext = "";
-            } else {
-                kids = 0;
-                size = f.length();
-                ext = extOf(name);
-            }
+            this.snap = null;
+            this.ix = -1;
+            long[] o = new long[3];
+            boolean ok = FsCache.stat(f.getPath(), o);
+            this.dir = ok && (o[0] & FsCache.F_DIR) != 0;
+            this.mod = ok ? o[2] : 0;
+            this.size = ok && !dir ? o[1] : 0;
+            this.ext = dir ? "" : extOf(name);
+        }
+
+        Entry(File parent, FsCache.Snap s, int i) {
+            this.name = s.name[i];
+            this.f = new File(parent, name);
+            this.snap = s;
+            this.ix = i;
+            this.dir = (s.flag[i] & FsCache.F_DIR) != 0;
+            this.mod = s.mod[i];
+            this.size = dir ? 0 : s.size[i];
+            this.ext = dir ? "" : extOf(name);
+            this.kids = s.kids[i];
         }
     }
 
@@ -135,6 +147,10 @@ public class FileManagerActivity extends BaseActivity {
 
     private final ExecutorService io = Executors.newFixedThreadPool(3);
     private final ExecutorService thumbIo = Executors.newFixedThreadPool(2);
+    private final ExecutorService kidsIo = Executors.newSingleThreadExecutor();
+    private FsCache fsCache;
+    private volatile String busyPending;
+    private final AtomicBoolean busyQueued = new AtomicBoolean();
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final SimpleDateFormat dateFmt = new SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.US);
 
@@ -216,6 +232,7 @@ public class FileManagerActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_files);
         prefs = getSharedPreferences("fm", MODE_PRIVATE);
+        fsCache = FsCache.get(this);
         sortMode = prefs.getInt("sort", SORT_NAME);
         sortDesc = prefs.getBoolean("desc", false);
         showHidden = Store.showHidden(this);
@@ -353,7 +370,7 @@ public class FileManagerActivity extends BaseActivity {
                         refresh();
                     }
                 } else {
-                    ui.postDelayed(searchRun, 350);
+                    ui.postDelayed(searchRun, 200);
                 }
             }
         });
@@ -449,6 +466,7 @@ public class FileManagerActivity extends BaseActivity {
         final long my = gen;
         final File dir = cur;
         final boolean hidden = showHidden;
+        fsCache.invalidateDir(dir);
         final List<String> ns = new ArrayList<>(names);
         io.execute(() -> {
             final Map<String, Entry> upd = new LinkedHashMap<>();
@@ -487,7 +505,7 @@ public class FileManagerActivity extends BaseActivity {
             }
             if (idx >= 0) {
                 Entry old = shown.get(idx);
-                if (old.mod == ne.mod && old.size == ne.size && old.kids == ne.kids && old.dir == ne.dir) continue;
+                if (old.mod == ne.mod && old.size == ne.size && old.dir == ne.dir) continue;
                 shown.remove(idx);
             } else {
                 added.add(key);
@@ -508,11 +526,13 @@ public class FileManagerActivity extends BaseActivity {
         selected.retainAll(alive);
         updateChrome();
         updateEmptyView();
+        fillKids();
     }
 
     private void liveRefresh() {
         if (isFinishing() || isDestroyed()) return;
         if (busy != null && busy.isShowing()) return;
+        if (mode == M_DIR && cur != null) fsCache.invalidateDir(cur);
         refresh(true);
     }
 
@@ -553,8 +573,11 @@ public class FileManagerActivity extends BaseActivity {
         super.onDestroy();
         if (live != null) live.stop();
         ui.removeCallbacksAndMessages(null);
+        gen++;
+        fsCache.stopWarm();
         io.shutdownNow();
         thumbIo.shutdownNow();
+        kidsIo.shutdownNow();
     }
 
     private void action(ImageButton b, int icon, int desc, View.OnClickListener l) {
@@ -735,10 +758,13 @@ public class FileManagerActivity extends BaseActivity {
         final int m = sortMode;
         final boolean d = sortDesc;
         final Set<String> pinned = Store.pins(this);
+        final boolean hasPins = !pinned.isEmpty();
         return (a, b) -> {
-            boolean pa = pinned.contains(a.f.getAbsolutePath());
-            boolean pb = pinned.contains(b.f.getAbsolutePath());
-            if (pa != pb) return pa ? -1 : 1;
+            if (hasPins) {
+                boolean pa = pinned.contains(a.f.getAbsolutePath());
+                boolean pb = pinned.contains(b.f.getAbsolutePath());
+                if (pa != pb) return pa ? -1 : 1;
+            }
             if (a.dir != b.dir) return a.dir ? -1 : 1;
             int r;
             switch (m) {
@@ -760,69 +786,128 @@ public class FileManagerActivity extends BaseActivity {
         };
     }
 
+    private List<Entry> entriesOf(File dir, FsCache.Snap s, boolean hidden) {
+        int n = s.count();
+        List<Entry> out = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
+            if (!hidden && s.name[i].startsWith(".")) continue;
+            out.add(new Entry(dir, s, i));
+        }
+        Collections.sort(out, comparator());
+        return out;
+    }
+
     private void load() {
         final long my = ++gen;
         final File dir = cur;
-        final Map<String, Entry> prev = new HashMap<>();
-        if (quiet && shownMode == mode) for (Entry e : shown) prev.put(e.f.getAbsolutePath(), e);
+        final boolean hidden = showHidden;
+        final boolean silent = quiet;
         loading(true);
         io.execute(() -> {
-            File[] arr = dir.listFiles();
-            final boolean denied = arr == null;
-            final List<Entry> out = new ArrayList<>();
-            if (arr != null) {
-                for (File f : arr) {
-                    if (!showHidden && f.getName().startsWith(".")) continue;
-                    Entry old = prev.get(f.getAbsolutePath());
-                    if (old != null && old.mod == f.lastModified() && old.dir == f.isDirectory()
-                            && (old.dir || old.size == f.length())) {
-                        out.add(old);   // unchanged: keep it, no folder listing or thumbnail work again
-                    } else {
-                        out.add(new Entry(f));
-                    }
-                }
+            final String key = dir.getAbsolutePath();
+            final FsCache.Snap snap = fsCache.peek(key);
+            if (snap != null) {
+                if (my != gen) return;
+                final List<Entry> first = entriesOf(dir, snap, hidden);
+                final boolean recent = snap.fresh();
+                post(() -> {
+                    if (my != gen) return;
+                    listDenied = false;
+                    setShown(first, silent);
+                    if (recent) loading(false);
+                });
+                if (recent) return;
             }
-            Collections.sort(out, comparator());
+            final FsCache.Snap now = fsCache.scan(dir, snap);
+            if (now != null) fsCache.put(now);
+            if (my != gen) return;
+            if (now == null) {
+                fsCache.invalidateDir(dir);
+                post(() -> {
+                    if (my != gen) return;
+                    listDenied = true;
+                    setShown(new ArrayList<Entry>(), silent);
+                    loading(false);
+                });
+                return;
+            }
+            if (snap != null && snap.sig == now.sig) {
+                post(() -> {
+                    if (my == gen) loading(false);
+                });
+                return;
+            }
+            final List<Entry> out = entriesOf(dir, now, hidden);
             post(() -> {
                 if (my != gen) return;
-                listDenied = denied;
-                setShown(out);
+                listDenied = false;
+                setShown(out, silent || snap != null);
                 loading(false);
             });
         });
+    }
+
+    /** Folder item counts are filled in afterwards, so a big folder never waits for its sub-folders to be opened. */
+    private void fillKids() {
+        final long my = gen;
+        final List<Entry> todo = new ArrayList<>();
+        for (Entry e : shown) if (e.dir && e.kids == FsCache.KIDS_UNKNOWN) todo.add(e);
+        if (todo.isEmpty()) return;
+        try {
+            kidsIo.execute(() -> {
+                int batch = 0;
+                FsCache.Snap owner = null;
+                for (Entry e : todo) {
+                    if (my != gen) return;
+                    int k = fsCache.countKids(e.f.getAbsolutePath());
+                    e.kids = k;
+                    if (e.snap != null && e.ix >= 0 && e.ix < e.snap.kids.length) {
+                        e.snap.kids[e.ix] = k;
+                        owner = e.snap;
+                    }
+                    if (++batch >= 40) {
+                        batch = 0;
+                        post(() -> {
+                            if (my == gen) adapter.notifyDataSetChanged();
+                        });
+                    }
+                }
+                if (owner != null) fsCache.flush(owner);
+                post(() -> {
+                    if (my == gen) adapter.notifyDataSetChanged();
+                });
+            });
+        } catch (Exception ignored) {
+        }
     }
 
     private void runSearch() {
         final long my = ++gen;
         final File dir = cur;
         final String q = query;
+        final boolean hidden = showHidden;
         loading(true);
         io.execute(() -> {
-            List<Entry> out = new ArrayList<>();
-            walkSearch(dir, q, out, my, 0, new int[]{250000});
-            Collections.sort(out, comparator());
-            final List<Entry> res = out;
-            post(() -> {
-                if (my != gen) return;
-                listDenied = false;
-                setShown(res);
-                loading(false);
+            final Map<String, Entry> made = new HashMap<>();
+            FsSearch.run(fsCache, dir, q, hidden, MAX_SEARCH, () -> my == gen, (paths, done) -> {
+                List<Entry> out = new ArrayList<>(paths.size());
+                for (String p : paths) {
+                    Entry e = made.get(p);
+                    if (e == null) {
+                        e = new Entry(new File(p));
+                        made.put(p, e);
+                    }
+                    out.add(e);
+                }
+                Collections.sort(out, comparator());
+                post(() -> {
+                    if (my != gen) return;
+                    listDenied = false;
+                    setShown(out, false);
+                    if (done) loading(false);
+                });
             });
         });
-    }
-
-    private void walkSearch(File dir, String q, List<Entry> out, long my, int depth, int[] budget) {
-        if (my != gen || out.size() >= MAX_SEARCH || depth > 14 || budget[0] <= 0) return;
-        File[] arr = dir.listFiles();
-        if (arr == null) return;
-        for (File f : arr) {
-            if (my != gen || out.size() >= MAX_SEARCH || budget[0] <= 0) return;
-            String n = f.getName();
-            if (!showHidden && n.startsWith(".")) continue;
-            budget[0]--;
-            if (n.toLowerCase(Locale.ROOT).contains(q)) out.add(new Entry(f));
-            if (f.isDirectory() && !isLink(f)) walkSearch(f, q, out, my, depth + 1, budget);
-        }
     }
 
     private void showFavorites() {
@@ -853,7 +938,7 @@ public class FileManagerActivity extends BaseActivity {
         io.execute(() -> {
             PriorityQueue<Entry> heap = new PriorityQueue<>(MAX_LARGEST + 1, (a, b) -> Long.compare(a.size, b.size));
             int[] budget = {250000};
-            walkLargest(dir, heap, budget, my, 0);
+            walkLargest(dir.getAbsolutePath(), heap, budget, my, 0);
             final List<Entry> res = new ArrayList<>(heap);
             Collections.sort(res, (a, b) -> Long.compare(b.size, a.size));
             post(() -> {
@@ -865,20 +950,24 @@ public class FileManagerActivity extends BaseActivity {
         });
     }
 
-    private void walkLargest(File dir, PriorityQueue<Entry> heap, int[] budget, long my, int depth) {
+    private void walkLargest(String dir, PriorityQueue<Entry> heap, int[] budget, long my, int depth) {
         if (my != gen || budget[0] <= 0 || depth > 20) return;
-        File[] arr = dir.listFiles();
-        if (arr == null) return;
-        for (File f : arr) {
+        File parent = new File(dir);
+        FsCache.Snap s = fsCache.scan(parent, null);
+        if (s == null) return;
+        fsCache.put(s);
+        for (int i = 0; i < s.count(); i++) {
             if (my != gen || budget[0] <= 0) return;
-            if (!showHidden && f.getName().startsWith(".")) continue;
+            String n = s.name[i];
+            if (!showHidden && n.startsWith(".")) continue;
             budget[0]--;
-            if (f.isDirectory()) {
-                if (!isLink(f)) walkLargest(f, heap, budget, my, depth + 1);
+            int fl = s.flag[i];
+            if ((fl & FsCache.F_DIR) != 0) {
+                if ((fl & FsCache.F_LINK) == 0) walkLargest(FsCache.child(dir, n), heap, budget, my, depth + 1);
             } else {
-                long len = f.length();
+                long len = s.size[i];
                 if (heap.size() < MAX_LARGEST || len > heap.peek().size) {
-                    heap.add(new Entry(f));
+                    heap.add(new Entry(parent, s, i));
                     if (heap.size() > MAX_LARGEST) heap.poll();
                 }
             }
@@ -894,7 +983,7 @@ public class FileManagerActivity extends BaseActivity {
             int cap = Cats.RECENT.equals(cat) ? 100 : MAX_CAT;
             PriorityQueue<Cats.Hit> heap = new PriorityQueue<>(cap + 1, Cats.HIT_OLDEST);
             int[] budget = {250000};
-            walkCat(dir, cat, heap, cap, budget, my, 0);
+            walkCat(dir.getAbsolutePath(), cat, heap, cap, budget, my, 0);
             List<Cats.Hit> files = new ArrayList<>(heap);
             Collections.sort(files, Cats.HIT_NEWEST);
             final List<Entry> res = new ArrayList<>();
@@ -908,22 +997,25 @@ public class FileManagerActivity extends BaseActivity {
         });
     }
 
-    private void walkCat(File dir, String cat, PriorityQueue<Cats.Hit> heap, int cap, int[] budget, long my, int depth) {
+    private void walkCat(String dir, String cat, PriorityQueue<Cats.Hit> heap, int cap, int[] budget, long my, int depth) {
         if (my != gen || budget[0] <= 0 || depth > 20) return;
-        File[] arr = dir.listFiles();
-        if (arr == null) return;
-        for (File f : arr) {
+        File parent = new File(dir);
+        FsCache.Snap s = fsCache.scan(parent, null);
+        if (s == null) return;
+        fsCache.put(s);
+        for (int i = 0; i < s.count(); i++) {
             if (my != gen || budget[0] <= 0) return;
-            String n = f.getName();
+            String n = s.name[i];
             if (!showHidden && n.startsWith(".")) continue;
             if (depth == 0 && n.equals("Android")) continue;
             budget[0]--;
-            if (f.isDirectory()) {
-                if (!isLink(f)) walkCat(f, cat, heap, cap, budget, my, depth + 1);
+            int fl = s.flag[i];
+            if ((fl & FsCache.F_DIR) != 0) {
+                if ((fl & FsCache.F_LINK) == 0) walkCat(FsCache.child(dir, n), cat, heap, cap, budget, my, depth + 1);
             } else if (Cats.RECENT.equals(cat) || Cats.matches(cat, extOf(n))) {
-                long mod = f.lastModified();
+                long mod = s.mod[i];
                 if (heap.size() < cap || mod > heap.peek().mod) {
-                    heap.add(new Cats.Hit(f));
+                    heap.add(new Cats.Hit(new File(parent, n)));
                     if (heap.size() > cap) heap.poll();
                 }
             }
@@ -935,12 +1027,16 @@ public class FileManagerActivity extends BaseActivity {
         for (int i = 0; i < a.size(); i++) {
             Entry x = a.get(i);
             Entry y = b.get(i);
-            if (!x.f.equals(y.f) || x.mod != y.mod || x.size != y.size || x.kids != y.kids || x.dir != y.dir) return false;
+            if (!x.f.equals(y.f) || x.mod != y.mod || x.size != y.size || x.dir != y.dir) return false;
         }
         return true;
     }
 
     private void setShown(List<Entry> list) {
+        setShown(list, quiet);
+    }
+
+    private void setShown(List<Entry> list, boolean quiet) {
         int prevMode = shownMode;
         boolean same = sameList(shown, list) && shownDenied == listDenied && prevMode == mode;
         shownDenied = listDenied;
@@ -965,6 +1061,8 @@ public class FileManagerActivity extends BaseActivity {
         selected.retainAll(alive);
         updateChrome();   // notifies the adapter once
         updateEmptyView();
+        fillKids();
+        if (mode == M_DIR && cur != null) fsCache.warm(cur, showHidden, 200);
     }
 
     private void updateEmptyView() {
@@ -1299,8 +1397,10 @@ public class FileManagerActivity extends BaseActivity {
                 getString(R.string.home_analysis)};
         new Dlg(this).setTitle(R.string.more).setItems(items, new int[]{R.drawable.ic_refresh, R.drawable.ic_add,
                 R.drawable.ic_check_circle, R.drawable.ic_chart}, (d, which) -> {
-            if (which == 0) refresh();
-            else if (which == 1) newMenu();
+            if (which == 0) {
+                if (cur != null) fsCache.invalidateDir(cur);
+                refresh();
+            } else if (which == 1) newMenu();
             else if (which == 2) selectAll();
             else startActivity(new Intent(this, StorageActivity.class));
         }).show();
@@ -1393,9 +1493,12 @@ public class FileManagerActivity extends BaseActivity {
             ImageView icon = v.findViewById(R.id.icon);
             ImageView thumb = v.findViewById(R.id.thumb);
             icon.setImageResource(iconFor(type));
-            Ui.outlineIcon(FileManagerActivity.this, icon, 10);
-            thumb.setBackground(Ui.outlineBox(FileManagerActivity.this, Ui.dp(FileManagerActivity.this, 10)));
-            thumb.setClipToOutline(true);
+            if (icon.getTag(R.id.tag_shape) == null) {
+                icon.setTag(R.id.tag_shape, Boolean.TRUE);
+                Ui.outlineIcon(FileManagerActivity.this, icon, 10);
+                thumb.setBackground(Ui.outlineBox(FileManagerActivity.this, Ui.dp(FileManagerActivity.this, 10)));
+                thumb.setClipToOutline(true);
+            }
             thumb.setTag(path);
             Bitmap cached = (type == T_IMG || type == T_APK || type == T_VID) ? thumbs.get(path + "|" + e.mod) : null;
             if (cached != null) {
@@ -1411,16 +1514,18 @@ public class FileManagerActivity extends BaseActivity {
             ((TextView) v.findViewById(R.id.title)).setText(e.name);
             StringBuilder sub = new StringBuilder();
             if (e.dir) {
-                sub.append(e.kids < 0 ? getString(R.string.fm_unreadable) : getString(R.string.fm_items_n, e.kids));
+                int k = e.kids;
+                if (k != FsCache.KIDS_UNKNOWN) sub.append(k < 0 ? getString(R.string.fm_unreadable) : getString(R.string.fm_items_n, k));
             } else {
                 sub.append(Fmt.size(e.size));
             }
             if (mode != M_DIR) {
                 File p = e.f.getParentFile();
-                if (p != null) sub.append(" · ").append(p.getAbsolutePath());
+                if (p != null) sub.append(sub.length() > 0 ? " · " : "").append(p.getAbsolutePath());
             }
             ((TextView) v.findViewById(R.id.sub)).setText(sub.toString());
-            ((TextView) v.findViewById(R.id.date)).setText(dateFmt.format(new Date(e.mod)));
+            if (e.dateStr == null) e.dateStr = dateFmt.format(new Date(e.mod));
+            ((TextView) v.findViewById(R.id.date)).setText(e.dateStr);
 
             v.findViewById(R.id.pin).setVisibility(pinSet().contains(path) ? View.VISIBLE : View.GONE);
             v.findViewById(R.id.fav).setVisibility(favSet().contains(path) ? View.VISIBLE : View.GONE);
@@ -1734,6 +1839,7 @@ public class FileManagerActivity extends BaseActivity {
                         ok = false;
                     }
                     if (!ok) toast(R.string.fm_create_failed);
+                    fsCache.invalidateDir(cur);
                     refresh();
                 })
                 .setNegativeButton(R.string.cancel, null)
@@ -1893,9 +1999,14 @@ public class FileManagerActivity extends BaseActivity {
     }
 
     private void setBusy(final String t) {
-        post(() -> {
-            if (busyText != null) busyText.setText(t);
-        });
+        busyPending = t;
+        if (busyQueued.compareAndSet(false, true)) {
+            ui.postDelayed(() -> {
+                busyQueued.set(false);
+                String s = busyPending;
+                if (s != null && busyText != null && !isFinishing() && !isDestroyed()) busyText.setText(s);
+            }, 120);
+        }
     }
 
     private void hideBusy() {
@@ -1930,6 +2041,7 @@ public class FileManagerActivity extends BaseActivity {
             final Exception er = err;
             post(() -> {
                 hideBusy();
+                if (cur != null) fsCache.invalidateDir(cur);
                 if (er != null) error(er);
                 else if (m != null) toast(m);
                 refresh();
@@ -1971,24 +2083,28 @@ public class FileManagerActivity extends BaseActivity {
         } else {
             setBusy(src.getName());
             try (InputStream in = new FileInputStream(src); OutputStream out = new FileOutputStream(dst)) {
-                byte[] buf = new byte[64 * 1024];
+                byte[] buf = new byte[256 * 1024];
                 int n;
                 while ((n = in.read(buf)) != -1) {
                     if (cancelled) throw new Cancel();
                     out.write(buf, 0, n);
                 }
             }
+            //noinspection ResultOfMethodCallIgnored
+            dst.setLastModified(src.lastModified());
         }
     }
 
     private void deleteTree(File f) throws IOException {
+        deleteAll(Collections.singletonList(f));
+    }
+
+    private void deleteAll(List<File> files) throws IOException {
         if (cancelled) throw new Cancel();
-        if (f.isDirectory() && !isLink(f)) {
-            File[] kids = f.listFiles();
-            if (kids != null) for (File k : kids) deleteTree(k);
-        }
-        setBusy(f.getName());
-        if (!f.delete() && f.exists()) throw new IOException(getString(R.string.fm_err_delete, f.getName()));
+        FastDelete.Result r = FastDelete.run(files, () -> cancelled, (n, name) -> setBusy(n + " · " + name));
+        for (File f : files) fsCache.changed(f);
+        if (r.cancelled) throw new Cancel();
+        if (r.failed > 0) throw new IOException(getString(R.string.fm_err_delete, r.firstFail));
     }
 
     private void paste() {
@@ -2006,6 +2122,7 @@ public class FileManagerActivity extends BaseActivity {
                 if (f.isDirectory() && isInside(dest, f)) throw new IOException(getString(R.string.fm_err_into_self));
                 if (cut && dest.equals(f.getParentFile())) continue;
                 File target = unique(dest, f.getName());
+                if (cut) fsCache.changed(f);
                 if (cut) {
                     if (!f.renameTo(target)) {
                         copyTree(f, target);
@@ -2029,8 +2146,15 @@ public class FileManagerActivity extends BaseActivity {
         new Dlg(this).setTitle(R.string.delete_title).setMessage(msg)
                 .setPositiveButton(R.string.delete, (d, w) -> {
                     selected.clear();
+                    final Set<String> gone = new java.util.HashSet<>(paths(files));
+                    for (java.util.Iterator<Entry> it = shown.iterator(); it.hasNext(); ) {
+                        if (gone.contains(it.next().f.getAbsolutePath())) it.remove();
+                    }
+                    gen++;
+                    updateChrome();
+                    updateEmptyView();
                     runTask(getString(R.string.fm_deleting), () -> {
-                        for (File f : files) deleteTree(f);
+                        deleteAll(files);
                         Set<String> fv = favs();
                         if (fv.removeAll(paths(files))) Store.setFavorites(this, fv);
                         Set<String> pv = Store.pins(this);
@@ -2072,6 +2196,7 @@ public class FileManagerActivity extends BaseActivity {
                             pinCache = null;
                         }
                     }
+                    fsCache.changed(f);
                     clearSelection();
                     refresh();
                 })
