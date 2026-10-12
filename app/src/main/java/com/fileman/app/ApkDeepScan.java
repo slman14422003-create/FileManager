@@ -299,7 +299,7 @@ final class ApkDeepScan {
         Set<String> openProviders = new LinkedHashSet<>();
         if (pi.providers != null) {
             for (ProviderInfo p : pi.providers) {
-                if (p.exported && p.permission == null && p.readPermission == null && p.writePermission == null
+                if (p.exported && p.readPermission == null && p.writePermission == null
                         && (p.authority == null || !p.authority.endsWith(".androidx-startup"))) {
                     openProviders.add(p.name == null ? "?" : p.name.substring(p.name.lastIndexOf('.') + 1));
                 }
