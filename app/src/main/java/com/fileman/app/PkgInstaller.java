@@ -74,6 +74,7 @@ final class PkgInstaller {
         long installBytes;                            // bytes that will be written to the install session
         File original;                                // the file the user picked (null for shared streams)
         String fileSha = "";
+        boolean debuggable;
 
         boolean installed;
         String installedName = "";
@@ -168,6 +169,7 @@ final class PkgInstaller {
         in.versionCode = codeOf(pi);
         in.minSdk = pi.applicationInfo.minSdkVersion;
         in.targetSdk = pi.applicationInfo.targetSdkVersion;
+        in.debuggable = (pi.applicationInfo.flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
         try {
             CharSequence l = pi.applicationInfo.loadLabel(pm);
             in.label = l == null ? in.pkg : l.toString();

@@ -95,6 +95,38 @@ public final class Store {
         sp(c).edit().putStringSet("fav", new LinkedHashSet<>(s)).apply();
     }
 
+    // ------------------------------------------------------------------ installer security (beta 5)
+
+    private static Set<String> getSet(Context c, String key) {
+        return new LinkedHashSet<>(sp(c).getStringSet(key, new LinkedHashSet<String>()));
+    }
+
+    private static void putSet(Context c, String key, Set<String> s) {
+        sp(c).edit().putStringSet(key, new LinkedHashSet<>(s)).apply();
+    }
+
+    public static Set<String> blockedPkgs(Context c) {
+        return getSet(c, "inst_blocked");
+    }
+
+    public static void setBlocked(Context c, String pkg, boolean on) {
+        Set<String> s = blockedPkgs(c);
+        if (on) s.add(pkg);
+        else s.remove(pkg);
+        putSet(c, "inst_blocked", s);
+    }
+
+    public static Set<String> trustedCerts(Context c) {
+        return getSet(c, "inst_trusted");
+    }
+
+    public static void setTrusted(Context c, String cert, boolean on) {
+        Set<String> s = trustedCerts(c);
+        if (on) s.add(cert);
+        else s.remove(cert);
+        putSet(c, "inst_trusted", s);
+    }
+
     // ------------------------------------------------------------------ places drawer: recently visited folders
 
     private static final int MAX_RECENT_PLACES = 20;

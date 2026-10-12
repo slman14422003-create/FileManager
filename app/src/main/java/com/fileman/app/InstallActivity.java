@@ -453,6 +453,8 @@ public class InstallActivity extends BaseActivity {
             }
         }
 
+        addSecurity(in);
+
         // ---- facts
         details.addView(Ui.sectionTitle(this, getString(R.string.pk_details)));
         if (in.installed) {
@@ -514,6 +516,107 @@ public class InstallActivity extends BaseActivity {
         Ui.group(this, details);
     }
 
+    // ------------------------------------------------------------------ security (beta 5)
+
+    private void addSecurity(final PkgInstaller.Info in) {
+        final SecurityScan.Result sr = SecurityScan.scan(this, in);
+        details.addView(Ui.sectionTitle(this, getString(R.string.sec_title)));
+        int lvl = sr.level == SecurityScan.HIGH ? R.string.sec_level_high
+                : sr.level == SecurityScan.CAUTION ? R.string.sec_level_caution : R.string.sec_level_safe;
+        String sub = sr.findings.isEmpty() ? getString(R.string.sec_summary_none)
+                : getString(R.string.sec_summary_n, sr.findings.size());
+        details.addView(row(R.drawable.ic_shield, getString(lvl), sub, v -> showSecurity(sr)));
+
+        final String cert = in.certs.isEmpty() ? "" : in.certs.iterator().next();
+        if (!cert.isEmpty()) {
+            final boolean trusted = Store.trustedCerts(this).contains(cert);
+            details.addView(row(R.drawable.ic_lock, getString(trusted ? R.string.sec_untrust : R.string.sec_trust),
+                    getString(trusted ? R.string.sec_trusted_now : R.string.sec_trust_sub), v -> {
+                        Store.setTrusted(this, cert, !trusted);
+                        Toast.makeText(this, trusted ? R.string.sec_untrusted : R.string.sec_trusted_toast,
+                                Toast.LENGTH_SHORT).show();
+                        renderReady();
+                    }));
+        }
+        final boolean blocked = Store.blockedPkgs(this).contains(in.pkg);
+        details.addView(row(R.drawable.ic_cancel, getString(blocked ? R.string.sec_unblock : R.string.sec_block),
+                getString(R.string.sec_block_sub), v -> {
+                    Store.setBlocked(this, in.pkg, !blocked);
+                    Toast.makeText(this, blocked ? R.string.sec_unblocked : R.string.sec_blocked_toast,
+                            Toast.LENGTH_SHORT).show();
+                    renderReady();
+                }));
+        details.addView(row(R.drawable.ic_copy, getString(R.string.sec_verify), getString(R.string.sec_verify_sub),
+                v -> verifyHash(in)));
+    }
+
+    private void showSecurity(SecurityScan.Result sr) {
+        StringBuilder sb = new StringBuilder();
+        if (sr.findings.isEmpty()) sb.append(getString(R.string.sec_summary_none));
+        for (SecurityScan.Finding f : sr.findings) {
+            if (sb.length() > 0) sb.append("\n\n");
+            String mark = f.level == 2 ? "⛔  " : f.level == 1 ? "⚠  " : "✓  ";
+            sb.append(mark).append(f.arg > 0 ? getString(f.titleRes, f.arg) : getString(f.titleRes))
+                    .append("\n").append(getString(f.bodyRes));
+        }
+        new Dlg(this).setTitle(getString(R.string.sec_details_title)).setMessage(sb.toString())
+                .setPositiveButton(android.R.string.ok, null).show();
+    }
+
+    private static String normHash(String s) {
+        return s == null ? "" : s.replaceAll("[^0-9a-fA-F]", "").toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /** Compares the file's SHA-256 with the one the developer published. */
+    private void verifyHash(final PkgInstaller.Info in) {
+        final android.widget.EditText ed = new android.widget.EditText(this);
+        ed.setHint(R.string.sec_verify_hint);
+        ed.setBackgroundResource(R.drawable.bg_input);
+        ed.setTypeface(android.graphics.Typeface.MONOSPACE);
+        ed.setTextSize(13);
+        ed.setTextColor(Ui.color(this, R.color.text_primary));
+        ed.setHintTextColor(Ui.color(this, R.color.text_hint));
+        ed.setPadding(Ui.dp(this, 16), Ui.dp(this, 12), Ui.dp(this, 16), Ui.dp(this, 12));
+        try {
+            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (cm != null && cm.hasPrimaryClip() && cm.getPrimaryClip() != null && cm.getPrimaryClip().getItemCount() > 0) {
+                CharSequence t = cm.getPrimaryClip().getItemAt(0).getText();
+                if (t != null && normHash(t.toString()).length() == 64) ed.setText(t.toString().trim());
+            }
+        } catch (Throwable ignored) {
+        }
+        android.widget.FrameLayout box = new android.widget.FrameLayout(this);
+        box.setPadding(Ui.dp(this, 24), Ui.dp(this, 8), Ui.dp(this, 24), Ui.dp(this, 14));
+        box.addView(ed);
+        new Dlg(this).setTitle(getString(R.string.sec_verify_title)).setView(box)
+                .setPositiveButton(R.string.sec_verify_btn, (d, w) -> {
+                    final String want = normHash(ed.getText().toString());
+                    if (want.length() < 32) {
+                        Toast.makeText(this, R.string.sec_verify_hint, Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    Toast.makeText(this, R.string.pk_d_calc, Toast.LENGTH_SHORT).show();
+                    io.execute(() -> {
+                        String h = in.fileSha;
+                        try {
+                            if (h.isEmpty()) h = PkgInstaller.fileSha256(in.source, null);
+                        } catch (Throwable e) {
+                            h = "";
+                        }
+                        final String hash = h;
+                        ui.post(() -> {
+                            if (destroyed) return;
+                            if (!hash.isEmpty()) in.fileSha = hash;
+                            boolean ok = !hash.isEmpty() && (hash.equals(want) || (want.length() >= 32 && hash.startsWith(want)));
+                            Dlg.result(this, ok, getString(ok ? R.string.sec_verify_ok_t : R.string.sec_verify_bad_t),
+                                    getString(ok ? R.string.sec_verify_ok_m : R.string.sec_verify_bad_m));
+                        });
+                    });
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
     private void showPerms(PkgInstaller.Info in) {
         int n = Math.min(in.perms.size(), 120);
         String[] items = new String[n];
@@ -529,7 +632,28 @@ public class InstallActivity extends BaseActivity {
 
     // ------------------------------------------------------------------ installing
 
+    /** Safety gate in front of every install: block list, high-risk confirmation, then the optional lock. */
     private void startInstall() {
+        final PkgInstaller.Info in = info;
+        if (in == null) return;
+        SecurityScan.Result sr = SecurityScan.scan(this, in);
+        if (sr.blocked) {
+            Dlg.result(this, false, getString(R.string.sec_blocked_t), getString(R.string.sec_blocked_m));
+            return;
+        }
+        final Runnable go = () -> AuthGate.require(this, this::doInstall);
+        if (sr.level == SecurityScan.HIGH && Store.instBool(this, "warn_high", true)) {
+            new Dlg(this).setTitle(getString(R.string.sec_high_title))
+                    .setMessage(getString(R.string.sec_high_msg, in.label.isEmpty() ? in.pkg : in.label))
+                    .setPositiveButton(R.string.sec_install_anyway, (d, w) -> go.run())
+                    .setNegativeButton(R.string.cancel, null)
+                    .show();
+        } else {
+            go.run();
+        }
+    }
+
+    private void doInstall() {
         final PkgInstaller.Info in = info;
         if (in == null) return;
         installStarted = true;

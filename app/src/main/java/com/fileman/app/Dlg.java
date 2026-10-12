@@ -244,7 +244,7 @@ public class Dlg extends AlertDialog.Builder {
         return this;
     }
 
-    private static final int[] DESTRUCTIVE = {R.string.delete};
+    private static final int[] DESTRUCTIVE = {R.string.delete, R.string.sec_install_anyway};
 
     /** True for labels of actions that remove or abort something (shown in red). */
     static boolean destructive(Context c, CharSequence label) {

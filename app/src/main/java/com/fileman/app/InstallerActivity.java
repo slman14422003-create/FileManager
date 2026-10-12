@@ -292,6 +292,29 @@ public class InstallerActivity extends BaseActivity {
                 getString(R.string.pk_perm_installer), getString(R.string.pk_perm_installer_sub), false, false)
                 .badge(getString(R.string.perm_granted), Ui.color(this, R.color.ok)), null));
 
+        // ---- security (beta 5)
+        content.addView(Ui.sectionTitle(this, getString(R.string.sec_section)));
+        addOption("warn_high", true, R.string.sec_opt_warn, R.string.sec_opt_warn_sub);
+        addOption("lock", false, R.string.sec_opt_lock, R.string.sec_opt_lock_sub);
+        boolean secure = AuthGate.isSecure(this);
+        Row rlock = new Row(R.drawable.ic_lock, true, getString(R.string.sec_perm_lock),
+                getString(R.string.sec_perm_lock_sub), false, !secure);
+        rlock.badge(getString(secure ? R.string.pk_default_yes : R.string.pk_default_no),
+                Ui.color(this, secure ? R.color.ok : R.color.bad));
+        content.addView(Ui.rowView(this, content, rlock, v -> {
+            try {
+                startActivity(new Intent(Settings.ACTION_SECURITY_SETTINGS));
+            } catch (Exception e) {
+                Perms.openAppSettings(this);
+            }
+        }));
+        content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_cancel, false,
+                getString(R.string.sec_blocked_list, Store.blockedPkgs(this).size()),
+                getString(R.string.sec_list_sub), false, true), v -> manageSecurityList(true)));
+        content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_lock, false,
+                getString(R.string.sec_trusted_list, Store.trustedCerts(this).size()),
+                getString(R.string.sec_list_sub), false, true), v -> manageSecurityList(false)));
+
         // ---- integration: make this the app that opens APK files
         final String apkMime = "application/vnd.android.package-archive";
         boolean isDef = Perms.isDefaultFor(this, apkMime, "apk");
@@ -322,6 +345,38 @@ public class InstallerActivity extends BaseActivity {
                 v -> showHistory()));
     }
 
+    /** Block list (package names) or trusted signers (certificate fingerprints): tap one to remove it. */
+    private void manageSecurityList(final boolean blocked) {
+        final List<String> keys = new ArrayList<>(blocked ? Store.blockedPkgs(this) : Store.trustedCerts(this));
+        if (keys.isEmpty()) {
+            toast(R.string.sec_empty);
+            return;
+        }
+        String[] labels = new String[keys.size()];
+        for (int i = 0; i < labels.length; i++) {
+            String k = keys.get(i);
+            if (blocked) {
+                labels[i] = k;
+            } else {
+                StringBuilder sb = new StringBuilder();
+                for (int j = 0; j + 2 <= Math.min(k.length(), 16); j += 2) {
+                    if (sb.length() > 0) sb.append(':');
+                    sb.append(k, j, j + 2);
+                }
+                labels[i] = sb.toString().toUpperCase(java.util.Locale.ROOT) + "…";
+            }
+        }
+        Dlg dlg = new Dlg(this);
+        dlg.setTitle(getString(blocked ? R.string.sec_blocked_list_t : R.string.sec_trusted_list_t));
+        dlg.setItems(labels, (d, w) -> {
+            if (blocked) Store.setBlocked(this, keys.get(w), false);
+            else Store.setTrusted(this, keys.get(w), false);
+            toast(blocked ? R.string.sec_unblocked : R.string.sec_untrusted);
+            showHome();
+        });
+        dlg.show();
+    }
+
     private static int optionIcon(String key) {
         switch (key) {
             case "smart":
@@ -332,6 +387,8 @@ public class InstallerActivity extends BaseActivity {
                 return R.drawable.ic_delete;
             case "notify":
                 return R.drawable.ic_info;
+            case "warn_high":
+                return R.drawable.ic_shield;
             case "awake":
                 return R.drawable.ic_timer;
             default:
@@ -588,6 +645,33 @@ public class InstallerActivity extends BaseActivity {
     // ------------------------------------------------------------------ installing
 
     private void runInstall(final File f, final PkgInstaller.Info known) {
+        AuthGate.require(this, () -> runInstallNow(f, known));
+    }
+
+    /** Blocks the worker thread until the person answers the high-risk question. */
+    private boolean askHighRisk(final PkgInstaller.Info in) throws InterruptedException {
+        final boolean[] ok = {false};
+        final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        ui.post(() -> {
+            if (destroyed) {
+                latch.countDown();
+                return;
+            }
+            new Dlg(this).setTitle(getString(R.string.sec_high_title))
+                    .setMessage(getString(R.string.sec_high_msg, in.label.isEmpty() ? in.pkg : in.label))
+                    .setPositiveButton(R.string.sec_install_anyway, (d, w) -> {
+                        ok[0] = true;
+                        latch.countDown();
+                    })
+                    .setNegativeButton(R.string.cancel, (d, w) -> latch.countDown())
+                    .setOnCancelListener(d -> latch.countDown())
+                    .show();
+        });
+        latch.await();
+        return ok[0];
+    }
+
+    private void runInstallNow(final File f, final PkgInstaller.Info known) {
         if (Store.instBool(this, "awake", true)) {
             getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
@@ -597,6 +681,15 @@ public class InstallerActivity extends BaseActivity {
             try {
                 PkgInstaller.Info in = known != null ? known : PkgInstaller.inspect(this, f);
                 installing = in;
+                SecurityScan.Result sr = SecurityScan.scan(this, in);
+                if (sr.blocked) {
+                    ui.post(() -> onInstallResult(false, getString(R.string.sec_blocked_m)));
+                    return;
+                }
+                if (sr.level == SecurityScan.HIGH && Store.instBool(this, "warn_high", true) && !askHighRisk(in)) {
+                    ui.post(() -> onInstallResult(false, getString(R.string.sec_cancelled)));
+                    return;
+                }
                 ui.post(() -> setStatus(getString(R.string.pk_installing, 0)));
                 PkgInstaller.install(this, in, (done, total) -> ui.post(() -> {
                     int pct = (int) Math.min(100, done * 100 / Math.max(1, total));
@@ -936,7 +1029,11 @@ public class InstallerActivity extends BaseActivity {
         }
     }
 
-    private void uninstall(String pkg) {
+    private void uninstall(final String pkg) {
+        AuthGate.require(this, () -> uninstallNow(pkg));
+    }
+
+    private void uninstallNow(String pkg) {
         dirty = true;
         try {
             startActivity(new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + pkg)));
