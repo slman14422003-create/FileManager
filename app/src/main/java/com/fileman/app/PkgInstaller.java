@@ -75,6 +75,8 @@ final class PkgInstaller {
         File original;                                // the file the user picked (null for shared streams)
         String fileSha = "";
         boolean debuggable;
+        List<ApkDeepScan.Hit> deep = new ArrayList<>();
+        int layers;
 
         boolean installed;
         String installedName = "";
@@ -159,7 +161,8 @@ final class PkgInstaller {
             }
         }
         PackageManager pm = c.getPackageManager();
-        PackageInfo pi = pm.getPackageArchiveInfo(apk.getAbsolutePath(), sigFlags() | PackageManager.GET_PERMISSIONS);
+        PackageInfo pi = pm.getPackageArchiveInfo(apk.getAbsolutePath(), sigFlags() | PackageManager.GET_PERMISSIONS
+                | PackageManager.GET_ACTIVITIES | PackageManager.GET_SERVICES | PackageManager.GET_PROVIDERS);
         if (pi == null || pi.applicationInfo == null) throw new IOException("not an apk");
         pi.applicationInfo.sourceDir = apk.getAbsolutePath();
         pi.applicationInfo.publicSourceDir = apk.getAbsolutePath();
@@ -182,6 +185,7 @@ final class PkgInstaller {
             for (String p : pi.requestedPermissions) if (p != null) in.perms.add(p);
         }
         in.abis = abisOf(apk, in);
+        if (Store.instBool(c, "deep", true)) ApkDeepScan.run(c, apk, pi, in);
         applySelection(c, in, Store.instBool(c, "smart", true));
 
         try {

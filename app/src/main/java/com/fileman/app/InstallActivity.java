@@ -433,6 +433,11 @@ public class InstallActivity extends BaseActivity {
         tv.withIcon(R.drawable.ic_shield);
             tv.onChange((b, on) -> Store.setInstBool(this, "verify", on));
             details.addView(tv.view);
+            Ui.Toggle td = Ui.toggle(this, details, R.string.pk_opt_deep, R.string.pk_opt_deep_sub,
+                    Store.instBool(this, "deep", true));
+            td.withIcon(R.drawable.ic_shield);
+            td.onChange((b, on) -> Store.setInstBool(this, "deep", on));
+            details.addView(td.view);
             if (canSmart) {
                 Ui.Toggle t = Ui.toggle(this, details, R.string.pk_opt_smart, R.string.pk_opt_smart_sub,
                         Store.instBool(this, "smart", true));
@@ -552,12 +557,14 @@ public class InstallActivity extends BaseActivity {
 
     private void showSecurity(SecurityScan.Result sr) {
         StringBuilder sb = new StringBuilder();
+        if (sr.layers > 0) sb.append(getString(R.string.sec_layers, sr.layers)).append("\n\n");
         if (sr.findings.isEmpty()) sb.append(getString(R.string.sec_summary_none));
         for (SecurityScan.Finding f : sr.findings) {
             if (sb.length() > 0) sb.append("\n\n");
             String mark = f.level == 2 ? "⛔  " : f.level == 1 ? "⚠  " : "✓  ";
             sb.append(mark).append(f.arg > 0 ? getString(f.titleRes, f.arg) : getString(f.titleRes))
                     .append("\n").append(getString(f.bodyRes));
+            if (f.detail != null && !f.detail.isEmpty()) sb.append("\n").append(f.detail);
         }
         new Dlg(this).setTitle(getString(R.string.sec_details_title)).setMessage(sb.toString())
                 .setPositiveButton(android.R.string.ok, null).show();

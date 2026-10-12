@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Pre-install safety check (installer beta 5). Looks at what the package asks for and how it is signed and
+ * Pre-install safety check . Looks at what the package asks for and how it is signed and
  * named, and turns it into a level (low risk / needs attention / high risk) with a plain explanation of each
  * finding. It never blocks by itself except for packages the user put on the block list.
  */
@@ -21,12 +21,18 @@ final class SecurityScan {
     static final class Finding {
         final int level;      // 0 informational / good, 1 caution, 2 high
         final int titleRes, bodyRes, arg;
+        final String detail;
 
         Finding(int level, int titleRes, int bodyRes, int arg) {
+            this(level, titleRes, bodyRes, arg, null);
+        }
+
+        Finding(int level, int titleRes, int bodyRes, int arg, String detail) {
             this.level = level;
             this.titleRes = titleRes;
             this.bodyRes = bodyRes;
             this.arg = arg;
+            this.detail = detail;
         }
     }
 
@@ -34,6 +40,7 @@ final class SecurityScan {
         int level = SAFE;
         int score;
         boolean blocked, trusted;
+        int layers;
         final List<Finding> findings = new ArrayList<>();
     }
 
@@ -129,6 +136,11 @@ final class SecurityScan {
             f.add(new Finding(1, R.string.sec_f_debug, R.string.sec_f_debug_b, 0));
             r.score += 2;
         }
+        for (ApkDeepScan.Hit h : in.deep) {
+            f.add(new Finding(h.level, h.titleRes, h.bodyRes, h.arg, h.detail));
+            r.score += h.score;
+        }
+        r.layers = in.layers;
         Set<String> trusted = Store.trustedCerts(c);
         for (String cert : in.certs) {
             if (trusted.contains(cert)) {

@@ -656,7 +656,11 @@ public class FileManagerActivity extends BaseActivity {
     private Comparator<Entry> comparator() {
         final int m = sortMode;
         final boolean d = sortDesc;
+        final Set<String> pinned = Store.pins(this);
         return (a, b) -> {
+            boolean pa = pinned.contains(a.f.getAbsolutePath());
+            boolean pb = pinned.contains(b.f.getAbsolutePath());
+            if (pa != pb) return pa ? -1 : 1;
             if (a.dir != b.dir) return a.dir ? -1 : 1;
             int r;
             switch (m) {
@@ -1246,6 +1250,24 @@ public class FileManagerActivity extends BaseActivity {
         return Store.favorites(this);
     }
 
+    private Set<String> pinCache;
+
+    private Set<String> pinSet() {
+        if (pinCache == null) pinCache = Store.pins(this);
+        return pinCache;
+    }
+
+    private void togglePin(List<File> files, boolean remove) {
+        Set<String> s = Store.pins(this);
+        if (remove) s.removeAll(paths(files));
+        else s.addAll(paths(files));
+        Store.setPins(this, s);
+        pinCache = null;
+        clearSelection();
+        refresh();
+        toast(remove ? R.string.fm_unpinned : R.string.fm_pinned);
+    }
+
     private Set<String> favSet() {
         if (favCache == null) favCache = Store.favorites(this);
         return favCache;
@@ -1310,6 +1332,7 @@ public class FileManagerActivity extends BaseActivity {
             ((TextView) v.findViewById(R.id.sub)).setText(sub.toString());
             ((TextView) v.findViewById(R.id.date)).setText(dateFmt.format(new Date(e.mod)));
 
+            v.findViewById(R.id.pin).setVisibility(pinSet().contains(path) ? View.VISIBLE : View.GONE);
             v.findViewById(R.id.fav).setVisibility(favSet().contains(path) ? View.VISIBLE : View.GONE);
             v.findViewById(R.id.check).setVisibility(sel ? View.VISIBLE : View.GONE);
             Ui.shapeRow(FileManagerActivity.this, v, pos == 0, pos == shown.size() - 1,
@@ -1639,6 +1662,7 @@ public class FileManagerActivity extends BaseActivity {
         final boolean isZip = single && !one.isDirectory() && Arc.browsable(one.getName());
         final boolean anyFile = hasFile(files);
         final boolean allFav = favs().containsAll(paths(files));
+        final boolean allPinned = Store.pins(this).containsAll(paths(files));
 
         final List<String> labels = new ArrayList<>();
         final List<Integer> ids = new ArrayList<>();
@@ -1651,6 +1675,7 @@ public class FileManagerActivity extends BaseActivity {
             add(labels, ids, getString(R.string.fm_extract_here), 5);
             add(labels, ids, getString(R.string.fm_extract_folder), 6);
         }
+        add(labels, ids, getString(allPinned ? R.string.fm_unpin : R.string.fm_pin), 9);
         add(labels, ids, getString(allFav ? R.string.fm_unfavorite : R.string.fm_favorite), 7);
         if (single) add(labels, ids, getString(R.string.fm_copy_path), 8);
 
@@ -1683,6 +1708,9 @@ public class FileManagerActivity extends BaseActivity {
                         case 7:
                             toggleFav(files, allFav);
                             break;
+                        case 9:
+                            togglePin(files, allPinned);
+                            break;
                         default:
                             copyText(one.getAbsolutePath());
                             break;
@@ -1708,6 +1736,8 @@ public class FileManagerActivity extends BaseActivity {
                 return R.drawable.ic_folder;
             case 7:
                 return R.drawable.ic_star;
+            case 9:
+                return R.drawable.ic_pin;
             default:
                 return R.drawable.ic_copy;
         }
@@ -1913,6 +1943,11 @@ public class FileManagerActivity extends BaseActivity {
                         for (File f : files) deleteTree(f);
                         Set<String> fv = favs();
                         if (fv.removeAll(paths(files))) Store.setFavorites(this, fv);
+                        Set<String> pv = Store.pins(this);
+                        if (pv.removeAll(paths(files))) {
+                            Store.setPins(this, pv);
+                            pinCache = null;
+                        }
                         return getString(R.string.fm_done_n, files.size());
                     });
                 })
@@ -1937,7 +1972,16 @@ public class FileManagerActivity extends BaseActivity {
                         toast(R.string.fm_exists);
                         return;
                     }
-                    if (!f.renameTo(t)) toast(R.string.fm_rename_failed);
+                    if (!f.renameTo(t)) {
+                        toast(R.string.fm_rename_failed);
+                    } else {
+                        Set<String> pv = Store.pins(this);
+                        if (pv.remove(f.getAbsolutePath())) {
+                            pv.add(t.getAbsolutePath());
+                            Store.setPins(this, pv);
+                            pinCache = null;
+                        }
+                    }
                     clearSelection();
                     refresh();
                 })

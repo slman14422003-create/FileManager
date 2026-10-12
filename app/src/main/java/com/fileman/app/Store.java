@@ -91,6 +91,14 @@ public final class Store {
         return new LinkedHashSet<>(sp(c).getStringSet("fav", new LinkedHashSet<String>()));
     }
 
+    public static Set<String> pins(Context c) {
+        return new LinkedHashSet<>(sp(c).getStringSet("pins", new LinkedHashSet<String>()));
+    }
+
+    public static void setPins(Context c, Set<String> s) {
+        sp(c).edit().putStringSet("pins", new LinkedHashSet<>(s)).apply();
+    }
+
     public static void setFavorites(Context c, Set<String> s) {
         sp(c).edit().putStringSet("fav", new LinkedHashSet<>(s)).apply();
     }

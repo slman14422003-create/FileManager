@@ -328,6 +328,7 @@ public class InstallerActivity extends BaseActivity {
         content.addView(Ui.sectionTitle(this, getString(R.string.pk_h_settings)));
         addOption("smart", true, R.string.pk_opt_smart, R.string.pk_opt_smart_sub);
         addOption("verify", true, R.string.pk_opt_verify, R.string.pk_opt_verify_sub);
+        addOption("deep", true, R.string.pk_opt_deep, R.string.pk_opt_deep_sub);
         addOption("delete_after", false, R.string.pk_opt_delete, R.string.pk_opt_delete_sub);
         addOption("notify", true, R.string.pk_opt_notify, R.string.pk_opt_notify_sub);
         addOption("awake", true, R.string.pk_opt_awake, R.string.pk_opt_awake_sub);
@@ -382,6 +383,7 @@ public class InstallerActivity extends BaseActivity {
             case "smart":
                 return R.drawable.ic_package;
             case "verify":
+            case "deep":
                 return R.drawable.ic_shield;
             case "delete_after":
                 return R.drawable.ic_delete;
