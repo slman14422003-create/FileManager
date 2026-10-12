@@ -42,6 +42,14 @@
             android:text="@string/pk_beta2"
             android:textSize="11sp"
             android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/btnInfo"
+            style="@style/IconButton"
+            android:layout_marginStart="8dp"
+            android:contentDescription="@string/pk_info_sheet"
+            android:src="@drawable/ic_info"
+            android:visibility="gone" />
     </LinearLayout>
 
     <ScrollView
@@ -170,7 +178,7 @@
             </LinearLayout>
 
             <LinearLayout
-                android:id="@+id/details"
+                android:id="@+id/alerts"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />

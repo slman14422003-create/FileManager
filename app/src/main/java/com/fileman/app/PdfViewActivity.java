@@ -50,8 +50,10 @@ public class PdfViewActivity extends BaseActivity {
         return false;
     }
 
-    private static final float[] ZOOMS = {1f, 1.5f, 2f, 3f, 5f, 8f, 12f};
-    private static final float MAX_ZOOM = 16f;
+    private static final float[] ZOOMS = {1f, 1.5f, 2f, 3f, 5f, 8f, 12f, 16f, 24f, 32f};
+    private static final float ZOOM_CAP = 32f;
+    private static final float MAX_PAGE_PX = 60000f;
+    private float maxZoom = ZOOM_CAP;
     private static final int MAX_BITMAP_W = 1800;
     private static final int MAX_TILE_DIM = 4096;
     private static final int MAX_TILE_PIXELS = 6_000_000;
@@ -70,12 +72,32 @@ public class PdfViewActivity extends BaseActivity {
     private float defaultRatio = 1.414f;
     private float zoom = 1f;
     private HorizontalScrollView hsv;
+    private FixedWidthFrame content;
     private PinchZoomLayout pinch;
     /** Last bitmap drawn for each page: shown (stretched) while a sharper one renders after a zoom. */
     private final SparseArray<WeakReference<Bitmap>> lastBmp = new SparseArray<>();
     private final SparseArray<Tile> tiles = new SparseArray<>();
     private int tileGen = 0;
     private final Runnable tileRunner = this::startTiles;
+
+    /** Forces its width: a HorizontalScrollView measures children unbounded and would ignore the zoomed width. */
+    private static final class FixedWidthFrame extends FrameLayout {
+        private int fixedW = 1;
+
+        FixedWidthFrame(Context c) {
+            super(c);
+        }
+
+        void setFixedWidth(int w) {
+            fixedW = Math.max(1, w);
+            requestLayout();
+        }
+
+        @Override
+        protected void onMeasure(int widthSpec, int heightSpec) {
+            super.onMeasure(MeasureSpec.makeMeasureSpec(fixedW, MeasureSpec.EXACTLY), heightSpec);
+        }
+    }
 
     private static final class Tile {
         Bitmap bmp;
@@ -306,9 +328,14 @@ public class PdfViewActivity extends BaseActivity {
                     scheduleTiles();
                 }
             });
-            hsv.addView(list, new FrameLayout.LayoutParams(listWidth(), ViewGroup.LayoutParams.MATCH_PARENT));
+            content = new FixedWidthFrame(this);
+            content.setFixedWidth(listWidth());
+            content.addView(list, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            hsv.addView(content, new FrameLayout.LayoutParams(listWidth(), ViewGroup.LayoutParams.MATCH_PARENT));
+            maxZoom = Math.max(4f, Math.min(ZOOM_CAP, MAX_PAGE_PX / Math.max(1f, viewW * Math.max(1f, defaultRatio))));
             pinch = new PinchZoomLayout(this);
-            pinch.setZoomRange(1f, MAX_ZOOM, 2.5f, 5f, 10f);
+            pinch.setZoomRange(1f, maxZoom, 2.5f, 5f, 10f);
             pinch.setPanner(new PinchZoomLayout.Panner() {
                 @Override
                 public boolean active() {
@@ -445,7 +472,7 @@ public class PdfViewActivity extends BaseActivity {
         if (list == null || pinch == null) return;
         float next = ZOOMS[0];
         for (float z : ZOOMS) {
-            if (z > zoom + 0.05f) {
+            if (z > zoom + 0.05f && z <= maxZoom + 0.01f) {
                 next = z;
                 break;
             }
@@ -462,7 +489,7 @@ public class PdfViewActivity extends BaseActivity {
      */
     private void commitZoom(float newZoom, float sx, float sy, float ex, float ey) {
         if (list == null || hsv == null || adapter == null) return;
-        newZoom = Math.max(1f, Math.min(MAX_ZOOM, newZoom));
+        newZoom = Math.max(1f, Math.min(maxZoom, newZoom));
         if (Math.abs(newZoom - zoom) < 0.005f) return;
         final float ratio = newZoom / zoom;
         final int margin = Ui.dp(this, 8);
@@ -484,9 +511,7 @@ public class PdfViewActivity extends BaseActivity {
         zoom = newZoom;
         invalidateTiles();
         final int newW = listWidth();
-        ViewGroup.LayoutParams lp = list.getLayoutParams();
-        lp.width = newW;
-        list.setLayoutParams(lp);
+        content.setFixedWidth(newW);
         adapter.notifyDataSetChanged();
 
         float rt = anchorPos < ratios.length && ratios[anchorPos] > 0 ? ratios[anchorPos] : defaultRatio;
@@ -518,9 +543,7 @@ public class PdfViewActivity extends BaseActivity {
             if (holder.getWidth() <= 0 || holder.getWidth() == viewW) return;
             viewW = holder.getWidth();
             invalidateTiles();
-            ViewGroup.LayoutParams lp = list.getLayoutParams();
-            lp.width = listWidth();
-            list.setLayoutParams(lp);
+            content.setFixedWidth(listWidth());
             adapter.notifyDataSetChanged();
             scheduleTiles();
         });

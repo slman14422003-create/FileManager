@@ -16,11 +16,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -53,7 +55,9 @@ public class InstallActivity extends BaseActivity {
     private TextView name, pkgView, version, chip, message, progressText;
     private ProgressBar spin, progress;
     private Button primary, secondary;
-    private LinearLayout details;
+    private LinearLayout details, alerts;
+    private ImageView infoBtn;
+    private android.app.Dialog sheet;
 
     private int state = S_LOADING;
     private PkgInstaller.Info info;
@@ -84,7 +88,11 @@ public class InstallActivity extends BaseActivity {
         progress = findViewById(R.id.progress);
         primary = findViewById(R.id.primary);
         secondary = findViewById(R.id.secondary);
-        details = findViewById(R.id.details);
+        alerts = findViewById(R.id.alerts);
+        details = new LinearLayout(this);
+        details.setOrientation(LinearLayout.VERTICAL);
+        infoBtn = findViewById(R.id.btnInfo);
+        infoBtn.setOnClickListener(v -> openSheet());
         Ui.tint(this, spin);
         Ui.tint(this, progress);
         Ui.press(this, primary);
@@ -289,7 +297,12 @@ public class InstallActivity extends BaseActivity {
         spin.setVisibility(state == S_LOADING ? View.VISIBLE : View.GONE);
         progress.setVisibility(state == S_INSTALLING ? View.VISIBLE : View.GONE);
         progressText.setVisibility(state == S_INSTALLING ? View.VISIBLE : View.GONE);
-        if (state != S_READY) details.removeAllViews();
+        alerts.removeAllViews();
+        infoBtn.setVisibility(state == S_READY ? View.VISIBLE : View.GONE);
+        if (state != S_READY) {
+            details.removeAllViews();
+            if (sheet != null) sheet.dismiss();
+        }
         switch (state) {
             case S_LOADING:
                 icon.setImageDrawable(null);
@@ -314,7 +327,7 @@ public class InstallActivity extends BaseActivity {
                 pill(getString(R.string.in_installed), R.color.ok);
                 note(getString(R.string.pk_ok_msg, info != null ? name.getText().toString() : ""));
                 if (obbNote != null) {
-                    details.addView(Ui.noteCard(this, obbNote, obbWarn ? R.color.warn : R.color.info));
+                    alerts.addView(Ui.noteCard(this, obbNote, obbWarn ? R.color.warn : R.color.info));
                 }
                 final boolean canOpen = info != null && getPackageManager().getLaunchIntentForPackage(info.pkg) != null;
                 buttons(canOpen ? getString(R.string.pk_open_app) : getString(R.string.in_done),
@@ -331,7 +344,7 @@ public class InstallActivity extends BaseActivity {
                 showInfo();
                 pill(getString(R.string.pk_fail_title), R.color.bad);
                 if (!lastTech.isEmpty()) {
-                    details.addView(Ui.body(this, getString(R.string.pk_fail_code, lastTech), 12, R.color.text_hint));
+                    alerts.addView(Ui.body(this, getString(R.string.pk_fail_code, lastTech), 12, R.color.text_hint));
                 }
                 final boolean offerAll = info != null && info.bundle && info.smart;
                 View.OnClickListener second;
@@ -361,6 +374,7 @@ public class InstallActivity extends BaseActivity {
         if (in == null) return;
         showInfo();
         details.removeAllViews();
+        alerts.removeAllViews();
 
         final List<PkgInstaller.Issue> issues = PkgInstaller.preflight(this, in);
         boolean blocked = false;
@@ -420,7 +434,7 @@ public class InstallActivity extends BaseActivity {
         for (PkgInstaller.Issue is : issues) {
             int c = is.level == PkgInstaller.LV_ERROR ? R.color.bad
                     : is.level == PkgInstaller.LV_WARN ? R.color.warn : R.color.info;
-            details.addView(Ui.noteCard(this, is.text, c));
+            (is.level == PkgInstaller.LV_ERROR ? alerts : details).addView(Ui.noteCard(this, is.text, c));
         }
 
         // ---- options
@@ -519,6 +533,89 @@ public class InstallActivity extends BaseActivity {
             });
         }));
         Ui.group(this, details);
+    }
+
+    // ------------------------------------------------------------------ options sheet
+
+    /** Opens every install option and detail in one styled bottom sheet (the info icon in the header). */
+    private void openSheet() {
+        if (state != S_READY || destroyed || (sheet != null && sheet.isShowing())) return;
+        final android.app.Dialog d = new android.app.Dialog(this);
+        d.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(Ui.dp(this, 10), 0, Ui.dp(this, 10), Ui.dp(this, 10));
+
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable pg = new GradientDrawable();
+        pg.setCornerRadius(Ui.dp(this, 28));
+        pg.setColor(Ui.color(this, R.color.bg_group));
+        panel.setBackground(pg);
+        panel.setClipToOutline(true);
+
+        LinearLayout grab = new LinearLayout(this);
+        grab.setOrientation(LinearLayout.VERTICAL);
+        grab.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+        View handle = new View(this);
+        GradientDrawable hg = new GradientDrawable();
+        hg.setCornerRadius(Ui.dp(this, 3));
+        hg.setColor(Ui.color(this, R.color.stroke));
+        handle.setBackground(hg);
+        LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(Ui.dp(this, 38), Ui.dp(this, 5));
+        hp.topMargin = Ui.dp(this, 10);
+        hp.bottomMargin = Ui.dp(this, 6);
+        grab.addView(handle, hp);
+
+        TextView title = new TextView(this);
+        title.setText(R.string.pk_info_sheet);
+        title.setTextSize(19);
+        title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        title.setTextColor(Ui.color(this, R.color.text_primary));
+        title.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        title.setGravity(android.view.Gravity.START);
+        title.setPaddingRelative(Ui.dp(this, 24), Ui.dp(this, 6), Ui.dp(this, 24), Ui.dp(this, 8));
+        grab.addView(title, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        panel.addView(grab, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        final int maxH = Math.round(getResources().getDisplayMetrics().heightPixels * 0.72f);
+        final ScrollView sv = new ScrollView(this) {
+            @Override
+            protected void onMeasure(int w, int h) {
+                super.onMeasure(w, View.MeasureSpec.makeMeasureSpec(maxH, View.MeasureSpec.AT_MOST));
+            }
+        };
+        sv.setVerticalScrollBarEnabled(false);
+        sv.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        if (details.getParent() instanceof ViewGroup) ((ViewGroup) details.getParent()).removeView(details);
+        sv.addView(details, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        panel.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        View pad = new View(this);
+        panel.addView(pad, new LinearLayout.LayoutParams(1, Ui.dp(this, 12)));
+
+        root.addView(panel, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        d.setContentView(root);
+        d.setCanceledOnTouchOutside(true);
+        d.setOnDismissListener(x -> {
+            sv.removeAllViews();
+            if (sheet == d) sheet = null;
+        });
+        android.view.Window w = d.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0));
+            w.setGravity(android.view.Gravity.BOTTOM | android.view.Gravity.CENTER_HORIZONTAL);
+            w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            w.setWindowAnimations(R.style.SheetAnim);
+            w.setDimAmount(0.5f);
+        }
+        sheet = d;
+        d.show();
     }
 
     // ------------------------------------------------------------------ security (beta 5)

@@ -277,6 +277,7 @@
     <string name="pk_st_same">The same version is installed (%1$s): it will be rewritten</string>
     <string name="pk_st_older">Older version (%1$s) than the installed one (%2$s): the system will refuse it</string>
     <string name="pk_st_cert">Signed differently from the installed copy, so it cannot update it. Uninstalling the current copy deletes its data</string>
+    <string name="pk_info_sheet">Options and details</string>
     <string name="pk_details">Details</string>
     <string name="pk_d_version">Version</string>
     <string name="pk_d_size">Size</string>

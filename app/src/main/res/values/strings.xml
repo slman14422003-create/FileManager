@@ -277,6 +277,7 @@
     <string name="pk_st_same">الإصدار نفسه مثبّت (%1$s): ستُعاد كتابته</string>
     <string name="pk_st_older">إصدار أقدم (%1$s) من المثبّت (%2$s): سيرفضه النظام</string>
     <string name="pk_st_cert">التوقيع مختلف عن النسخة المثبّتة فلا يمكن التحديث فوقها. إلغاء تثبيت النسخة الحالية يحذف بياناتها</string>
+    <string name="pk_info_sheet">الخيارات والتفاصيل</string>
     <string name="pk_details">التفاصيل</string>
     <string name="pk_d_version">الإصدار</string>
     <string name="pk_d_size">الحجم</string>
