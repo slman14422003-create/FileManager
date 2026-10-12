@@ -11,16 +11,17 @@
     <color name="text_primary">#000000</color>
     <color name="text_secondary">#6C6C70</color>
     <color name="text_hint">#AEAEB2</color>
-    <color name="accent">#007AFF</color>
-    <color name="accent_text">#007AFF</color>
-    <color name="accent_soft">#E5F1FF</color>
+    <color name="accent">#1C1C1E</color>
+    <color name="accent_text">#1C1C1E</color>
+    <color name="accent_soft">#1F1C1C1E</color>
     <color name="neutral_soft">#E9E9EB</color>
     <color name="on_accent">#FFFFFF</color>
+    <color name="on_bad">#FFFFFF</color>
     <color name="ripple">#12000000</color>
     <color name="ripple_on_accent">#22000000</color>
-    <color name="brand_start">#007AFF</color>
-    <color name="brand_mid">#007AFF</color>
-    <color name="brand_end">#007AFF</color>
+    <color name="brand_start">#3A3A3F</color>
+    <color name="brand_mid">#2A2A2E</color>
+    <color name="brand_end">#1C1C1E</color>
     <color name="ok">#34C759</color>
     <color name="bad">#FF3B30</color>
     <color name="warn">#FF9500</color>
@@ -37,7 +38,40 @@
     <color name="gray_text_primary">#F5F5F7</color>
     <color name="gray_text_secondary">#C0C0C8</color>
     <color name="gray_text_hint">#8F8F99</color>
-    <color name="gray_accent">#4DA3FF</color>
-    <color name="gray_accent_text">#7DBDFF</color>
-    <color name="gray_accent_soft">#3E5570</color>
+
+    <color name="amoled_bg">#000000</color>
+    <color name="amoled_group">#000000</color>
+    <color name="amoled_surface">#0E0E10</color>
+    <color name="amoled_surface_high">#1A1A1D</color>
+    <color name="amoled_field">#0E0E10</color>
+    <color name="amoled_stroke">#2A2A2E</color>
+    <color name="amoled_stroke_soft">#1A1A1D</color>
+    <color name="amoled_text_primary">#FFFFFF</color>
+    <color name="amoled_text_secondary">#A0A0A8</color>
+    <color name="amoled_text_hint">#6E6E78</color>
+    <color name="amoled_neutral_soft">#1A1A1D</color>
+
+    <color name="midnight_bg">#0B1020</color>
+    <color name="midnight_group">#0B1020</color>
+    <color name="midnight_surface">#141B2E</color>
+    <color name="midnight_surface_high">#1D2640</color>
+    <color name="midnight_field">#141B2E</color>
+    <color name="midnight_stroke">#2A3558</color>
+    <color name="midnight_stroke_soft">#1D2640</color>
+    <color name="midnight_text_primary">#F2F5FF</color>
+    <color name="midnight_text_secondary">#9AA6C4</color>
+    <color name="midnight_text_hint">#66719A</color>
+    <color name="midnight_neutral_soft">#1D2640</color>
+
+    <color name="sand_bg">#FAF7F2</color>
+    <color name="sand_group">#F1ECE3</color>
+    <color name="sand_surface">#FFFDF9</color>
+    <color name="sand_surface_high">#EAE4D8</color>
+    <color name="sand_field">#F1ECE3</color>
+    <color name="sand_stroke">#D9D1C2</color>
+    <color name="sand_stroke_soft">#EAE4D8</color>
+    <color name="sand_text_primary">#1F1B16</color>
+    <color name="sand_text_secondary">#6F675A</color>
+    <color name="sand_text_hint">#A89F90</color>
+    <color name="sand_neutral_soft">#ECE6DB</color>
 </resources>

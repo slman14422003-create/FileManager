@@ -670,7 +670,7 @@ public class MediaActivity extends BaseActivity {
         lockBtn.setOnClickListener(v -> setLocked(true));
         prevBtn = round(R.drawable.ic_skip_prev, 46, 0, 0xFFFFFFFF, R.string.mp_prev);
         ImageButton back10 = round(R.drawable.ic_rewind, 46, 0, 0xFFFFFFFF, R.string.v_back10);
-        playBtn = round(R.drawable.ic_play_fill, 62, Ui.color(this, R.color.accent), 0xFFFFFFFF, R.string.v_play);
+        playBtn = round(R.drawable.ic_play_fill, 62, Ui.color(this, R.color.accent), Ui.color(this, R.color.on_accent), R.string.v_play);
         ImageButton fwd10 = round(R.drawable.ic_forward, 46, 0, 0xFFFFFFFF, R.string.v_fwd10);
         nextBtn = round(R.drawable.ic_skip_next, 46, 0, 0xFFFFFFFF, R.string.mp_next);
         ImageButton rot = round(R.drawable.ic_rotate, 42, 0, 0xFFFFFFFF, R.string.mp_rotate);

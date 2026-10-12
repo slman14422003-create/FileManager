@@ -3,6 +3,8 @@ package com.fileman.app;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.Matrix;
+import android.graphics.Rect;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Outline;
@@ -36,6 +38,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -46,8 +50,12 @@ public class PdfViewActivity extends BaseActivity {
         return false;
     }
 
-    private static final float[] ZOOMS = {1f, 1.5f, 2f, 3f};
-    private static final int MAX_BITMAP_W = 2600;
+    private static final float[] ZOOMS = {1f, 1.5f, 2f, 3f, 5f, 8f, 12f};
+    private static final float MAX_ZOOM = 16f;
+    private static final int MAX_BITMAP_W = 1800;
+    private static final int MAX_TILE_DIM = 4096;
+    private static final int MAX_TILE_PIXELS = 6_000_000;
+    private static final long TILE_DELAY = 140;
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -65,6 +73,18 @@ public class PdfViewActivity extends BaseActivity {
     private PinchZoomLayout pinch;
     /** Last bitmap drawn for each page: shown (stretched) while a sharper one renders after a zoom. */
     private final SparseArray<WeakReference<Bitmap>> lastBmp = new SparseArray<>();
+    private final SparseArray<Tile> tiles = new SparseArray<>();
+    private int tileGen = 0;
+    private final Runnable tileRunner = this::startTiles;
+
+    private static final class Tile {
+        Bitmap bmp;
+        int pageW, left, top;
+    }
+
+    private static final class TileJob {
+        int position, pageW, left, top, right, bottom;
+    }
     private int viewW = 0;
     private boolean night = false;
     private int firstVisible = 0;
@@ -111,6 +131,7 @@ public class PdfViewActivity extends BaseActivity {
         more.setOnClickListener(v -> Opener.moreMenu(this, file,
                 new String[]{getString(R.string.rd_night) + (night ? "  ✓" : ""), getString(R.string.rd_page_jump),
                         getString(R.string.v_print)},
+                new int[]{R.drawable.ic_night, R.drawable.ic_list_play, R.drawable.ic_file_text},
                 new Runnable[]{this::toggleNight, this::askPage, this::printPdf}));
         night = Store.intPref(this, "pdf_night", 0) == 1;
 
@@ -263,6 +284,7 @@ public class PdfViewActivity extends BaseActivity {
             viewW = holder.getWidth();
             hsv = new HorizontalScrollView(this);
             hsv.setHorizontalScrollBarEnabled(false);
+            hsv.setOnScrollChangeListener((v, x, y, ox, oy) -> scheduleTiles());
             list = new ListView(this);
             list.setDivider(null);
             list.setDividerHeight(0);
@@ -281,15 +303,39 @@ public class PdfViewActivity extends BaseActivity {
                 @Override
                 public void onScroll(AbsListView v, int first, int visible, int total) {
                     updateSubtitle(first);
+                    scheduleTiles();
                 }
             });
             hsv.addView(list, new FrameLayout.LayoutParams(listWidth(), ViewGroup.LayoutParams.MATCH_PARENT));
             pinch = new PinchZoomLayout(this);
-            pinch.setZoomRange(1f, ZOOMS[ZOOMS.length - 1] + 1f, 2.5f);
+            pinch.setZoomRange(1f, MAX_ZOOM, 2.5f, 5f, 10f);
+            pinch.setPanner(new PinchZoomLayout.Panner() {
+                @Override
+                public boolean active() {
+                    return zoom > 1.05f;
+                }
+
+                @Override
+                public void pan(float dx, float dy) {
+                    if (hsv != null) hsv.scrollBy(Math.round(-dx), 0);
+                    if (list != null) list.scrollListBy(Math.round(-dy));
+                }
+
+                @Override
+                public void fling(float vx, float vy) {
+                    if (hsv != null) hsv.fling(Math.round(-vx));
+                    if (list != null) list.fling(Math.round(-vy));
+                }
+            });
             pinch.setListener(new PinchZoomLayout.Listener() {
                 @Override
                 public float zoom() {
                     return zoom;
+                }
+
+                @Override
+                public void onZoomPreview(float z) {
+                    showZoomPill(z);
                 }
 
                 @Override
@@ -360,7 +406,18 @@ public class PdfViewActivity extends BaseActivity {
 
     private void showPill(int firstVisible) {
         if (pill == null) return;
-        pill.setText(getString(R.string.v_page_of, Math.min(firstVisible + 1, pageCount), pageCount));
+        String label = getString(R.string.v_page_of, Math.min(firstVisible + 1, pageCount), pageCount);
+        if (zoom > 1.02f) label += "  ·  " + Math.round(zoom * 100) + "%";
+        pill.setText(label);
+        pill.animate().cancel();
+        pill.setAlpha(1f);
+        ui.removeCallbacks(hidePill);
+        ui.postDelayed(hidePill, 1600);
+    }
+
+    private void showZoomPill(float z) {
+        if (pill == null) return;
+        pill.setText(Math.round(z * 100) + "%");
         pill.animate().cancel();
         pill.setAlpha(1f);
         ui.removeCallbacks(hidePill);
@@ -405,7 +462,7 @@ public class PdfViewActivity extends BaseActivity {
      */
     private void commitZoom(float newZoom, float sx, float sy, float ex, float ey) {
         if (list == null || hsv == null || adapter == null) return;
-        newZoom = Math.max(1f, Math.min(ZOOMS[ZOOMS.length - 1] + 1f, newZoom));
+        newZoom = Math.max(1f, Math.min(MAX_ZOOM, newZoom));
         if (Math.abs(newZoom - zoom) < 0.005f) return;
         final float ratio = newZoom / zoom;
         final int margin = Ui.dp(this, 8);
@@ -425,6 +482,7 @@ public class PdfViewActivity extends BaseActivity {
         final float contentX = hsv.getScrollX() + sx;   // horizontal position inside the content
 
         zoom = newZoom;
+        invalidateTiles();
         final int newW = listWidth();
         ViewGroup.LayoutParams lp = list.getLayoutParams();
         lp.width = newW;
@@ -447,6 +505,7 @@ public class PdfViewActivity extends BaseActivity {
             }
         });
         showPill(firstVisible);
+        scheduleTiles();
     }
 
     /** Rotation, split screen or a foldable opening: refit the pages to the new width. */
@@ -458,10 +517,12 @@ public class PdfViewActivity extends BaseActivity {
             if (destroyed || list == null) return;
             if (holder.getWidth() <= 0 || holder.getWidth() == viewW) return;
             viewW = holder.getWidth();
+            invalidateTiles();
             ViewGroup.LayoutParams lp = list.getLayoutParams();
             lp.width = listWidth();
             list.setLayoutParams(lp);
             adapter.notifyDataSetChanged();
+            scheduleTiles();
         });
     }
 
@@ -487,25 +548,36 @@ public class PdfViewActivity extends BaseActivity {
         public View getView(int position, View convertView, ViewGroup parent) {
             int margin = Ui.dp(PdfViewActivity.this, 8);
             FrameLayout row;
+            FrameLayout page;
             ImageView iv;
-            if (convertView instanceof FrameLayout) {
+            ImageView detail;
+            if (convertView instanceof FrameLayout && ((FrameLayout) convertView).getChildCount() == 1) {
                 row = (FrameLayout) convertView;
-                iv = (ImageView) row.getChildAt(0);
+                page = (FrameLayout) row.getChildAt(0);
+                iv = (ImageView) page.getChildAt(0);
+                detail = (ImageView) page.getChildAt(1);
             } else {
                 row = new FrameLayout(PdfViewActivity.this);
                 row.setPadding(margin, margin / 2, margin, margin / 2);
-                iv = new ImageView(PdfViewActivity.this);
-                iv.setScaleType(ImageView.ScaleType.FIT_XY);
-                iv.setBackgroundColor(Color.WHITE);
+                page = new FrameLayout(PdfViewActivity.this);
+                page.setBackgroundColor(Color.WHITE);
                 final float rad = Ui.dp(PdfViewActivity.this, 10);
-                iv.setClipToOutline(true);
-                iv.setOutlineProvider(new ViewOutlineProvider() {
+                page.setClipToOutline(true);
+                page.setOutlineProvider(new ViewOutlineProvider() {
                     @Override
                     public void getOutline(View v, Outline o) {
                         o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), rad);
                     }
                 });
-                row.addView(iv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 100));
+                iv = new ImageView(PdfViewActivity.this);
+                iv.setScaleType(ImageView.ScaleType.FIT_XY);
+                page.addView(iv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 100));
+                detail = new ImageView(PdfViewActivity.this);
+                detail.setScaleType(ImageView.ScaleType.FIT_XY);
+                detail.setVisibility(View.GONE);
+                page.addView(detail, new FrameLayout.LayoutParams(1, 1, Gravity.TOP | Gravity.LEFT));
+                row.addView(page, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT));
                 row.setLayoutParams(new AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT));
             }
@@ -515,9 +587,154 @@ public class PdfViewActivity extends BaseActivity {
             lp.height = Math.round(pageW * ratio);
             iv.setLayoutParams(lp);
             iv.setColorFilter(night ? INVERT : null);
+            detail.setColorFilter(night ? INVERT : null);
             bind(position, pageW, iv);
+            showTile(position, pageW, detail);
             return row;
         }
+    }
+
+    private void showTile(int position, int pageW, ImageView detail) {
+        Tile t = tiles.get(position);
+        if (t == null || t.bmp == null || t.pageW != pageW) {
+            detail.setImageDrawable(null);
+            detail.setVisibility(View.GONE);
+            return;
+        }
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) detail.getLayoutParams();
+        lp.gravity = Gravity.TOP | Gravity.LEFT;
+        lp.leftMargin = t.left;
+        lp.topMargin = t.top;
+        lp.width = t.bmp.getWidth();
+        lp.height = t.bmp.getHeight();
+        detail.setLayoutParams(lp);
+        detail.setImageBitmap(t.bmp);
+        detail.setVisibility(View.VISIBLE);
+    }
+
+    private void invalidateTiles() {
+        tileGen++;
+        tiles.clear();
+        ui.removeCallbacks(tileRunner);
+    }
+
+    private void scheduleTiles() {
+        if (list == null || destroyed) return;
+        ui.removeCallbacks(tileRunner);
+        ui.postDelayed(tileRunner, TILE_DELAY);
+    }
+
+    private ImageView pageViewAt(int childIndex) {
+        View row = list.getChildAt(childIndex);
+        if (!(row instanceof FrameLayout) || ((FrameLayout) row).getChildCount() == 0) return null;
+        View page = ((FrameLayout) row).getChildAt(0);
+        if (!(page instanceof FrameLayout) || ((FrameLayout) page).getChildCount() < 2) return null;
+        View iv = ((FrameLayout) page).getChildAt(0);
+        return iv instanceof ImageView ? (ImageView) iv : null;
+    }
+
+    private void startTiles() {
+        if (list == null || destroyed || adapter == null) return;
+        final int first = list.getFirstVisiblePosition();
+        final int count = list.getChildCount();
+        final List<TileJob> jobs = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            ImageView iv = pageViewAt(i);
+            if (iv == null) continue;
+            int pos = first + i;
+            int pageW = iv.getWidth();
+            int pageH = iv.getHeight();
+            if (pageW <= MAX_BITMAP_W || pageH <= 0) continue;
+            Rect vis = new Rect();
+            if (!iv.getLocalVisibleRect(vis) || vis.width() <= 0 || vis.height() <= 0) continue;
+            int padX = vis.width() / 5;
+            int padY = vis.height() / 5;
+            int l = Math.max(0, vis.left - padX);
+            int t = Math.max(0, vis.top - padY);
+            int r = Math.min(pageW, vis.right + padX);
+            int b = Math.min(pageH, vis.bottom + padY);
+            for (int k = 0; k < 6 && (r - l > MAX_TILE_DIM || b - t > MAX_TILE_DIM
+                    || (long) (r - l) * (b - t) > MAX_TILE_PIXELS); k++) {
+                l = Math.max(0, l + (vis.left - l) / 2);
+                t = Math.max(0, t + (vis.top - t) / 2);
+                r = Math.min(pageW, r - (r - vis.right) / 2);
+                b = Math.min(pageH, b - (b - vis.bottom) / 2);
+            }
+            if (r - l > MAX_TILE_DIM || b - t > MAX_TILE_DIM || (long) (r - l) * (b - t) > MAX_TILE_PIXELS) {
+                int cx = (vis.left + vis.right) / 2;
+                int cy = (vis.top + vis.bottom) / 2;
+                int w = Math.min(MAX_TILE_DIM, 2400);
+                int h = Math.min(MAX_TILE_DIM, MAX_TILE_PIXELS / w);
+                l = Math.max(0, Math.min(pageW - w, cx - w / 2));
+                t = Math.max(0, Math.min(pageH - h, cy - h / 2));
+                r = Math.min(pageW, l + w);
+                b = Math.min(pageH, t + h);
+            }
+            Tile have = tiles.get(pos);
+            if (have != null && have.pageW == pageW && have.left <= vis.left && have.top <= vis.top
+                    && have.left + have.bmp.getWidth() >= vis.right && have.top + have.bmp.getHeight() >= vis.bottom) {
+                continue;
+            }
+            TileJob job = new TileJob();
+            job.position = pos;
+            job.pageW = pageW;
+            job.left = l;
+            job.top = t;
+            job.right = r;
+            job.bottom = b;
+            jobs.add(job);
+        }
+        for (int i = tiles.size() - 1; i >= 0; i--) {
+            int pos = tiles.keyAt(i);
+            if (pos < first - 1 || pos > first + count) tiles.removeAt(i);
+        }
+        if (jobs.isEmpty()) return;
+        final int gen = ++tileGen;
+        io.execute(() -> {
+            for (TileJob job : jobs) {
+                if (destroyed || gen != tileGen) return;
+                Bitmap b = null;
+                synchronized (lock) {
+                    if (destroyed || renderer == null) return;
+                    try {
+                        PdfRenderer.Page p = renderer.openPage(job.position);
+                        try {
+                            int w = job.right - job.left;
+                            int h = job.bottom - job.top;
+                            float scale = (float) job.pageW / Math.max(1, p.getWidth());
+                            b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+                            b.eraseColor(Color.WHITE);
+                            Matrix m = new Matrix();
+                            m.setScale(scale, scale);
+                            m.postTranslate(-job.left, -job.top);
+                            p.render(b, null, m, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+                        } finally {
+                            p.close();
+                        }
+                    } catch (Throwable t) {
+                        b = null;
+                    }
+                }
+                if (b == null) continue;
+                final Tile tile = new Tile();
+                tile.bmp = b;
+                tile.pageW = job.pageW;
+                tile.left = job.left;
+                tile.top = job.top;
+                final int position = job.position;
+                ui.post(() -> {
+                    if (destroyed || gen != tileGen || list == null) return;
+                    tiles.put(position, tile);
+                    int firstNow = list.getFirstVisiblePosition();
+                    int idx = position - firstNow;
+                    if (idx < 0 || idx >= list.getChildCount()) return;
+                    ImageView iv = pageViewAt(idx);
+                    if (iv == null) return;
+                    ViewGroup pageGroup = (ViewGroup) iv.getParent();
+                    showTile(position, iv.getWidth(), (ImageView) pageGroup.getChildAt(1));
+                });
+            }
+        });
     }
 
     private void bind(final int position, final int pageW, final ImageView iv) {

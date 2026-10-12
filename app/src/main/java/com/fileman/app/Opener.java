@@ -163,7 +163,7 @@ public final class Opener {
     /** The "more" menu shown by every viewer. */
     public static void moreMenu(final Activity a, final File f) {
         String[] items = {a.getString(R.string.fm_open_with), a.getString(R.string.share)};
-        new Dlg(a).setTitle(f.getName()).setItems(items, (d, which) -> {
+        new Dlg(a).setTitle(f.getName()).setItems(items, new int[]{R.drawable.ic_open, R.drawable.ic_share}, (d, which) -> {
             if (which == 0) external(a, f, true);
             else share(a, f);
         }).show();
@@ -171,11 +171,20 @@ public final class Opener {
 
     /** The "more" menu with viewer-specific entries listed first. */
     public static void moreMenu(final Activity a, final File f, final String[] extra, final Runnable[] actions) {
+        moreMenu(a, f, extra, null, actions);
+    }
+
+    public static void moreMenu(final Activity a, final File f, final String[] extra, final int[] extraIcons,
+                                final Runnable[] actions) {
         final String[] items = new String[extra.length + 2];
         System.arraycopy(extra, 0, items, 0, extra.length);
         items[extra.length] = a.getString(R.string.fm_open_with);
         items[extra.length + 1] = a.getString(R.string.share);
-        new Dlg(a).setTitle(f.getName()).setItems(items, (d, which) -> {
+        final int[] icons = new int[items.length];
+        if (extraIcons != null) System.arraycopy(extraIcons, 0, icons, 0, Math.min(extraIcons.length, extra.length));
+        icons[extra.length] = R.drawable.ic_open;
+        icons[extra.length + 1] = R.drawable.ic_share;
+        new Dlg(a).setTitle(f.getName()).setItems(items, icons, (d, which) -> {
             if (which < extra.length) actions[which].run();
             else if (which == extra.length) external(a, f, true);
             else share(a, f);

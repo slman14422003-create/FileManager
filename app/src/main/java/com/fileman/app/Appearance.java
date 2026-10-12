@@ -3,26 +3,22 @@ package com.fileman.app;
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.view.ContextThemeWrapper;
 
 import androidx.appcompat.app.AppCompatDelegate;
 
-/**
- * App themes. Two independent choices, both saved in {@link Store}:
- * <ul>
- *   <li><b>mode</b>: light, dark (pure-black AMOLED) or auto (follows the system). Implemented with the
- *   normal resource qualifiers (values / values-night) plus {@link AppCompatDelegate#setDefaultNightMode}.</li>
- *   <li><b>colour theme</b>: a set of accent colours (accent, soft tint and the brand gradient) applied on top of
- *   AppTheme through the Palette.* styles, so every screen, drawable and dialog follows it.</li>
- * </ul>
- */
 public final class Appearance {
     private Appearance() {
     }
 
-    public static final String LIGHT = "light", DARK = "dark", GRAY = "gray", AUTO = "auto";
+    public static final String LIGHT = "light", SAND = "sand", DARK = "dark", AMOLED = "amoled",
+            MIDNIGHT = "midnight", GRAY = "gray", AUTO = "auto";
 
-    /** One selectable colour theme. */
+    public static final String[] MODES = {LIGHT, SAND, DARK, AMOLED, MIDNIGHT, GRAY, AUTO};
+
+    public static final String DEFAULT_PALETTE = "mono";
+
     public static final class Palette {
         public final String id;
         public final int name;
@@ -36,7 +32,19 @@ public final class Appearance {
     }
 
     public static final Palette[] PALETTES = {
-            new Palette("ios", R.string.theme_title, R.style.Palette_Ios),
+            new Palette("mono", R.string.pal_mono, R.style.Palette_Mono),
+            new Palette("ocean", R.string.pal_ocean, R.style.Palette_Ocean),
+            new Palette("emerald", R.string.pal_emerald, R.style.Palette_Emerald),
+            new Palette("sunset", R.string.pal_sunset, R.style.Palette_Sunset),
+            new Palette("rose", R.string.pal_rose, R.style.Palette_Rose),
+            new Palette("violet", R.string.pal_violet, R.style.Palette_Violet),
+            new Palette("teal", R.string.pal_teal, R.style.Palette_Teal),
+            new Palette("gold", R.string.pal_gold, R.style.Palette_Gold),
+            new Palette("crimson", R.string.pal_crimson, R.style.Palette_Crimson),
+            new Palette("indigo", R.string.pal_indigo, R.style.Palette_Indigo),
+            new Palette("aurora", R.string.pal_aurora, R.style.Palette_Aurora),
+            new Palette("fuchsia", R.string.pal_fuchsia, R.style.Palette_Fuchsia),
+            new Palette("graphite", R.string.pal_graphite, R.style.Palette_Graphite),
     };
 
     public static int paletteIndex(String id) {
@@ -48,39 +56,57 @@ public final class Appearance {
         return PALETTES[paletteIndex(Store.palette(c))];
     }
 
-    /** Pushes the saved mode to AppCompat. Open screens recreate themselves when the effective mode changes. */
+    public static String normalize(String mode) {
+        for (String m : MODES) if (m.equals(mode)) return m;
+        return LIGHT;
+    }
+
+    public static int overlayStyle(String mode) {
+        if (GRAY.equals(mode)) return R.style.GrayMode;
+        if (AMOLED.equals(mode)) return R.style.AmoledMode;
+        if (MIDNIGHT.equals(mode)) return R.style.MidnightMode;
+        if (SAND.equals(mode)) return R.style.SandMode;
+        return 0;
+    }
+
+    public static void applyTo(Resources.Theme theme, Context c) {
+        theme.applyStyle(current(c).style, true);
+        int overlay = overlayStyle(Store.themeMode(c));
+        if (overlay != 0) theme.applyStyle(overlay, true);
+    }
+
     public static void applyMode(Context c) {
         String m = Store.themeMode(c);
-        int mode = DARK.equals(m) || GRAY.equals(m) ? AppCompatDelegate.MODE_NIGHT_YES
-                : AUTO.equals(m) ? AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        int mode = AUTO.equals(m) ? AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                : nightFor(m) ? AppCompatDelegate.MODE_NIGHT_YES
                 : AppCompatDelegate.MODE_NIGHT_NO;
         AppCompatDelegate.setDefaultNightMode(mode);
     }
 
     public static int modeName(String mode) {
+        if (SAND.equals(mode)) return R.string.theme_sand;
         if (DARK.equals(mode)) return R.string.theme_dark;
+        if (AMOLED.equals(mode)) return R.string.theme_amoled;
+        if (MIDNIGHT.equals(mode)) return R.string.theme_midnight;
         if (GRAY.equals(mode)) return R.string.theme_gray;
         if (AUTO.equals(mode)) return R.string.theme_auto;
         return R.string.theme_light;
     }
 
-    /** True when the given saved mode is drawn with the night resources. */
     public static boolean nightFor(String mode) {
-        if (DARK.equals(mode) || GRAY.equals(mode)) return true;
+        if (DARK.equals(mode) || AMOLED.equals(mode) || MIDNIGHT.equals(mode) || GRAY.equals(mode)) return true;
         if (AUTO.equals(mode)) {
-            return (android.content.res.Resources.getSystem().getConfiguration().uiMode
+            return (Resources.getSystem().getConfiguration().uiMode
                     & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
         }
         return false;
     }
 
-    /** True when this context is currently drawn with the night resources. */
     public static boolean isNight(Context c) {
         return (c.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
                 == Configuration.UI_MODE_NIGHT_YES;
     }
 
-    /** Recreates every open screen so a new colour theme shows immediately. */
     public static void recreateAll() {
         for (Activity a : App.openActivities()) {
             try {
@@ -90,15 +116,8 @@ public final class Appearance {
         }
     }
 
-    /**
-     * A context that renders in the given mode with the given colour theme, whatever the app is showing now.
-     * Used by the theme previews so each tile shows its own real colours.
-     */
-    public static Context themed(Context base, boolean night, int paletteIndex) {
-        return themed(base, night, paletteIndex, false);
-    }
-
-    public static Context themed(Context base, boolean night, int paletteIndex, boolean gray) {
+    public static Context themed(Context base, String mode, int paletteIndex) {
+        boolean night = nightFor(AUTO.equals(mode) ? DARK : mode);
         Context app = base.getApplicationContext();
         Configuration cfg = new Configuration(app.getResources().getConfiguration());
         cfg.uiMode = (cfg.uiMode & ~Configuration.UI_MODE_NIGHT_MASK)
@@ -106,7 +125,8 @@ public final class Appearance {
         Context cc = app.createConfigurationContext(cfg);
         ContextThemeWrapper w = new ContextThemeWrapper(cc, R.style.AppTheme);
         w.getTheme().applyStyle(PALETTES[paletteIndex].style, true);
-        if (gray) w.getTheme().applyStyle(R.style.GrayMode, true);
+        int overlay = overlayStyle(mode);
+        if (overlay != 0) w.getTheme().applyStyle(overlay, true);
         return w;
     }
 }

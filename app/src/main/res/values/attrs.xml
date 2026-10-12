@@ -4,6 +4,7 @@
     <attr name="cAccent" format="color" />
     <attr name="cAccentText" format="color" />
     <attr name="cAccentSoft" format="color" />
+    <attr name="cOnAccent" format="color" />
     <attr name="cBrandStart" format="color" />
     <attr name="cBrandMid" format="color" />
     <attr name="cBrandEnd" format="color" />

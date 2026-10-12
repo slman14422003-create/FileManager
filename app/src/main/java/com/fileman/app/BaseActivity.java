@@ -17,8 +17,7 @@ public abstract class BaseActivity extends AppCompatActivity {
     protected void onApplyThemeResource(Resources.Theme theme, int resid, boolean first) {
         super.onApplyThemeResource(theme, resid, first);
         try {
-            theme.applyStyle(Appearance.current(this).style, true);
-            if (Appearance.GRAY.equals(Store.themeMode(this))) theme.applyStyle(R.style.GrayMode, true);
+            Appearance.applyTo(theme, this);
         } catch (Throwable ignored) {
         }
     }

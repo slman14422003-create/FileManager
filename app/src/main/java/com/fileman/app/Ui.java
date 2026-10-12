@@ -89,6 +89,7 @@ public final class Ui {
         if (res == R.color.accent) attr = R.attr.cAccent;
         else if (res == R.color.accent_text) attr = R.attr.cAccentText;
         else if (res == R.color.accent_soft) attr = R.attr.cAccentSoft;
+        else if (res == R.color.on_accent) attr = R.attr.cOnAccent;
         else if (res == R.color.brand_start) attr = R.attr.cBrandStart;
         else if (res == R.color.brand_mid) attr = R.attr.cBrandMid;
         else if (res == R.color.brand_end) attr = R.attr.cBrandEnd;

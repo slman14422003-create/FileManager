@@ -30,20 +30,20 @@ public final class Store {
 
     /** "light" (default, white), "dark" or "auto" (follows the system). */
     public static String themeMode(Context c) {
-        return sp(c).getString("theme_mode", "light");
+        return Appearance.normalize(sp(c).getString("theme_mode", "light"));
     }
 
     public static void setThemeMode(Context c, String v) {
-        sp(c).edit().putString("theme_mode", v == null ? "light" : v).apply();
+        sp(c).edit().putString("theme_mode", Appearance.normalize(v)).apply();
     }
 
     /** Id of the colour theme ("ocean" by default); see {@link Appearance}. */
     public static String palette(Context c) {
-        return sp(c).getString("theme_palette", "ocean");
+        return sp(c).getString("theme_palette", Appearance.DEFAULT_PALETTE);
     }
 
     public static void setPalette(Context c, String v) {
-        sp(c).edit().putString("theme_palette", v == null ? "ocean" : v).apply();
+        sp(c).edit().putString("theme_palette", v == null ? Appearance.DEFAULT_PALETTE : v).apply();
     }
 
     // ------------------------------------------------------------------ package installer (beta 2)

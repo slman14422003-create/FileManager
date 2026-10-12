@@ -652,7 +652,7 @@ public class StorageActivity extends BaseActivity {
         del.setText(R.string.delete);
         del.setAllCaps(false);
         del.setTypeface(Typeface.DEFAULT_BOLD);
-        del.setTextColor(Ui.color(this, R.color.on_accent));
+        del.setTextColor(Ui.color(this, R.color.on_bad));
         del.setBackgroundResource(R.drawable.dlg_btn_danger);
         del.setStateListAnimator(null);
         del.setOnClickListener(v -> confirmDelete());

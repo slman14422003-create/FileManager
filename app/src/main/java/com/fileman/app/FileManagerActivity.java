@@ -1203,7 +1203,8 @@ public class FileManagerActivity extends BaseActivity {
     private void overflowMenu() {
         String[] items = {getString(R.string.refresh), getString(R.string.fm_new), getString(R.string.fm_select_all),
                 getString(R.string.home_analysis)};
-        new Dlg(this).setTitle(R.string.more).setItems(items, (d, which) -> {
+        new Dlg(this).setTitle(R.string.more).setItems(items, new int[]{R.drawable.ic_refresh, R.drawable.ic_add,
+                R.drawable.ic_check_circle, R.drawable.ic_chart}, (d, which) -> {
             if (which == 0) refresh();
             else if (which == 1) newMenu();
             else if (which == 2) selectAll();
@@ -1488,7 +1489,8 @@ public class FileManagerActivity extends BaseActivity {
     private void zipMenu(final File zip) {
         String[] items = {getString(R.string.fm_zip_view), getString(R.string.fm_extract_here),
                 getString(R.string.fm_extract_folder), getString(R.string.fm_open_with)};
-        new Dlg(this).setTitle(zip.getName()).setItems(items, (d, which) -> {
+        new Dlg(this).setTitle(zip.getName()).setItems(items, new int[]{R.drawable.ic_archive, R.drawable.ic_download,
+                R.drawable.ic_folder, R.drawable.ic_open}, (d, which) -> {
             if (which == 0) listZip(zip);
             else if (which == 1) extract(zip, false);
             else if (which == 2) extract(zip, true);
@@ -1652,8 +1654,10 @@ public class FileManagerActivity extends BaseActivity {
         add(labels, ids, getString(allFav ? R.string.fm_unfavorite : R.string.fm_favorite), 7);
         if (single) add(labels, ids, getString(R.string.fm_copy_path), 8);
 
+        final int[] icons = new int[ids.size()];
+        for (int i = 0; i < icons.length; i++) icons[i] = actionIcon(ids.get(i));
         new Dlg(this).setTitle(getString(R.string.fm_selected_n, files.size()))
-                .setItems(labels.toArray(new String[0]), (d, which) -> {
+                .setItems(labels.toArray(new String[0]), icons, (d, which) -> {
                     switch (ids.get(which)) {
                         case 0:
                             openExternal(one, true);
@@ -1684,6 +1688,29 @@ public class FileManagerActivity extends BaseActivity {
                             break;
                     }
                 }).show();
+    }
+
+    private static int actionIcon(int id) {
+        switch (id) {
+            case 0:
+                return R.drawable.ic_open;
+            case 1:
+                return R.drawable.ic_file_text;
+            case 2:
+                return R.drawable.ic_info;
+            case 3:
+                return R.drawable.ic_share;
+            case 4:
+                return R.drawable.ic_archive;
+            case 5:
+                return R.drawable.ic_download;
+            case 6:
+                return R.drawable.ic_folder;
+            case 7:
+                return R.drawable.ic_star;
+            default:
+                return R.drawable.ic_copy;
+        }
     }
 
     private static void add(List<String> labels, List<Integer> ids, String l, int id) {
