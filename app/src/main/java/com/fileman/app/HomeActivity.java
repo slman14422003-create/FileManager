@@ -364,10 +364,15 @@ public class HomeActivity extends BaseActivity {
         View v = LayoutInflater.from(this).inflate(R.layout.item_home_tile, content, false);
         ImageView iv = v.findViewById(R.id.icon);
         iv.setImageResource(icon);
-        v.findViewById(R.id.box).setBackground(
-                Ui.iconTile(this, getResources().getDimensionPixelSize(R.dimen.tile_box)));
-        iv.setImageTintList(android.content.res.ColorStateList.valueOf(
-                solid ? Ui.OUTLINE_GLYPH : Ui.color(this, colorRes)));
+        if (solid) {
+            v.findViewById(R.id.box).setBackground(
+                    Ui.iconTile(this, getResources().getDimensionPixelSize(R.dimen.tile_box)));
+            iv.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.OUTLINE_GLYPH));
+        } else {
+            v.findViewById(R.id.box).setBackground(
+                    Ui.iconTile(this, getResources().getDimensionPixelSize(R.dimen.tile_box)));
+            iv.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, colorRes)));
+        }
         ((TextView) v.findViewById(R.id.title)).setText(title);
         ((TextView) v.findViewById(R.id.sub)).setText(sub);
         v.setContentDescription(title);
