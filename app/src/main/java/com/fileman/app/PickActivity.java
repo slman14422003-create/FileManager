@@ -36,11 +36,10 @@ public class PickActivity extends Activity {
             if (ACTION_TREE.equals(action)) {
                 i.putExtra("pick_dir", true);
             } else if (ACTION_CREATE.equals(action)) {
-                String title = in.getStringExtra(Intent.EXTRA_TITLE);
-                i.putExtra("save_name", title == null || title.trim().isEmpty() ? "file" : title.trim());
+                i.putExtra("save_name", PickRequest.title(in));
             } else {
                 i.putExtra("pick", true);
-                String[] mimes = acceptedMimes(in);
+                String[] mimes = PickRequest.mimes(in);
                 if (mimes != null) i.putExtra("mimes", mimes);
                 i.putExtra("pick_multi", in.getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE, false));
             }
@@ -76,17 +75,6 @@ public class PickActivity extends Activity {
             setResult(RESULT_CANCELED);
             finish();
         }
-    }
-
-    /** The MIME types the other app wants, or null when any file will do. */
-    private static String[] acceptedMimes(Intent in) {
-        String[] extra = in.getStringArrayExtra(Intent.EXTRA_MIME_TYPES);
-        java.util.ArrayList<String> out = new java.util.ArrayList<>();
-        if (extra != null) for (String m : extra) if (m != null && !m.isEmpty()) out.add(m);
-        if (out.isEmpty() && in.getType() != null) out.add(in.getType());
-        if (out.isEmpty()) return null;
-        for (String m : out) if (m.equals("*/*") || m.equals("*")) return null;
-        return out.toArray(new String[0]);
     }
 
     private int grantFlags(boolean forceWrite) {

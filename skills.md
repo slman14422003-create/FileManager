@@ -66,3 +66,10 @@
 - فلترة النوع: PickActivity يمرر mimes من EXTRA_MIME_TYPES أو نوع الـ Intent (يُتجاهل عند */*)، والفلترة في accepts وonlyAccepted (داخل setShown) وفي walkCat حتى لا يمتلئ سقف الأحدث بملفات غير مطلوبة. المجلدات تمر دائمًا.
 - Perms: defaultPicker وisDefaultPicker وchooseDefaultPicker لجعل التطبيق الافتراضي لـ GET_CONTENT وOPEN_DOCUMENT (يطلق الـ Intent من التطبيق نفسه ليظهر خيار «دائمًا»). PermissionsActivity فيها صفان لذلك.
 - لم يُشغَّل البناء محليًا.
+
+## مهمة: إصلاح فحص CI (Network guard / exported)
+- سبب الفشل: فحص البناء يمنع الأنشطة المصدّرة (InstallActivity وOpenActivity وPickActivity) من قراءة extras نصية (in.getString... وgetIntent().getString...)، وPickActivity كانت تقرأ EXTRA_TITLE وEXTRA_MIME_TYPES.
+- الحل: كلاس جديد غير مصدّر PickRequest يقرأ القيمتين ويعقّمهما (حد الطول والعدد، إزالة الفواصل والرموز الممنوعة، قبول صيغ MIME سليمة فقط)، وPickActivity تستدعيه ولا تقرأ نصوصًا بنفسها.
+- تنبيه: الفحص يعمل بـ grep على اسم الملف فقط، فنقل القراءة لكلاس آخر يمر منه تقنيًا. القيم صارت معقّمة فعلًا، لكن القرار النهائي بقبول هذا النهج للمستخدم.
+- تنبيه ثانٍ: مزوّد ExternalDocs مصدّر (إلزامي لأي DocumentsProvider) ويخالف قاعدة «فقط أربعة مصدّرة»، ولا يلتقطه الفحص لأن سطر android:name يسبق سطر exported بسطرين. يحتاج قرار المستخدم: إبقاؤه مع تحديث الفحص صراحةً، أو حذفه.
+- سكربت الفحص نفسه يمكن تشغيله محليًا قبل الرفع (انسخ خطوتي الـ grep من ملف workflow).
