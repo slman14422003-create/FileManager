@@ -50,8 +50,8 @@ public class PdfViewActivity extends BaseActivity {
         return false;
     }
 
-    private static final float[] ZOOMS = {1f, 1.5f, 2f, 3f, 4f, 5f};
-    private static final float ZOOM_CAP = 5f;
+    private static final float[] ZOOMS = {1f, 1.25f, 1.5f, 2f, 3f, 4f, 6f, 8f};
+    private static final float ZOOM_CAP = 8f;
     private static final float MAX_PAGE_PX = 60000f;
     private float maxZoom = ZOOM_CAP;
     private static final int MAX_BITMAP_W = 1800;
@@ -336,7 +336,7 @@ public class PdfViewActivity extends BaseActivity {
             hsv.addView(content, new FrameLayout.LayoutParams(listWidth(), ViewGroup.LayoutParams.MATCH_PARENT));
             maxZoom = Math.min(ZOOM_CAP, MAX_PAGE_PX / Math.max(1f, viewW * Math.max(1f, defaultRatio)));
             pinch = new PinchZoomLayout(this);
-            pinch.setZoomRange(1f, maxZoom, 2.5f, 5f);
+            pinch.setZoomRange(1f, maxZoom, 2f, 4f, 8f);
             pinch.setLive(true);
             pinch.setPanner(new PinchZoomLayout.Panner() {
                 @Override
