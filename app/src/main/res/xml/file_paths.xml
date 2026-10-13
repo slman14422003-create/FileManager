@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<paths>
-    <!-- Any file the in-app file manager shows (needs all-files access to be readable). -->
-    <root-path name="root" path="." />
-    <cache-path name="cache" path="." />
-</paths>

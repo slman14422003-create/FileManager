@@ -1,4 +1,0 @@
-plugins {
-    // AGP 8.13 supports compileSdk 36 (Android 16) and Gradle 8.13+
-    id 'com.android.application' version '8.13.2' apply false
-}
