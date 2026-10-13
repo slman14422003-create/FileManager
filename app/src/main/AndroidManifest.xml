@@ -35,6 +35,8 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- reading the location stored in photos and videos (returned to other apps with the file) -->
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
     <!-- Lets the file manager browse and manage every file on the device (Android 11+). -->
     <uses-permission
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
@@ -157,6 +159,17 @@
                 <action android:name="android.intent.action.VIEW_DOWNLOADS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <!-- "open in Files" for a storage root (Android 12+) -->
+            <intent-filter>
+                <action android:name="android.provider.action.BROWSE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="vnd.android.document/root" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.provider.action.BROWSE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
 
         <!-- Stands in for the system file picker used by other apps. -->
@@ -177,6 +190,18 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="*/*" />
             </intent-filter>
+            <!-- choose a folder -->
+            <intent-filter>
+                <action android:name="android.intent.action.OPEN_DOCUMENT_TREE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <!-- choose where to save a new file -->
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_DOCUMENT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.OPENABLE" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
         </activity>
         <activity android:name=".StorageActivity" android:exported="false" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />
         <activity android:name=".ToolsActivity" android:exported="false" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />
@@ -190,6 +215,14 @@
                 android:name="autoStoreLocales"
                 android:value="true" />
         </service>
+
+        <!-- Shared storage as a documents provider: lets other apps keep their access to a chosen file or folder. Not advertised as a root, so system pickers never enumerate it. -->
+        <provider
+            android:name=".ExternalDocs"
+            android:authorities="${applicationId}.docs"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

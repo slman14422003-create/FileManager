@@ -32,6 +32,10 @@ public class OpenActivity extends Activity {
             openDir(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
             return;
         }
+        if ("android.provider.action.BROWSE".equals(in.getAction())) {
+            openDir(Environment.getExternalStorageDirectory());
+            return;
+        }
         Uri data = in.getData();
         if (data == null) {
             ClipData cd = in.getClipData();

@@ -842,4 +842,10 @@
     <string name="sec_layers">The package was checked in five layers: signature, archive integrity, manifest and components, hidden payloads, and code. (%d)</string>
     <string name="pk_opt_deep">Deep security scan</string>
     <string name="pk_opt_deep_sub">Five layers: signature, archive, components, payloads, code; may add time for large packages</string>
+    <string name="pick_dir_hint">Open the folder you want, then tap the confirm button</string>
+    <string name="pick_save_hint">Open the folder to save the file in, then tap the confirm button</string>
+    <string name="pick_this_folder">Choose this folder</string>
+    <string name="def_picker_get">Choose a file for another app</string>
+    <string name="def_picker_open">Open a document for another app</string>
+    <string name="def_picker_sub">Tap, then pick this app and “Always” so it opens whenever a file is uploaded</string>
 </resources>

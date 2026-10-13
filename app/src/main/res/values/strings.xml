@@ -842,4 +842,10 @@
     <string name="sec_layers">فُحصت الحزمة بخمس طبقات: التوقيع، سلامة الأرشيف، المانيفست والمكوّنات، الحمولات المخفية، والشيفرة. (%d)</string>
     <string name="pk_opt_deep">فحص حماية عميق</string>
     <string name="pk_opt_deep_sub">خمس طبقات: التوقيع، الأرشيف، المكوّنات، الحمولات، الشيفرة؛ قد يزيد وقت التحليل للحزم الكبيرة</string>
+    <string name="pick_dir_hint">اختر المجلد المطلوب ثم اضغط زر التأكيد</string>
+    <string name="pick_save_hint">اختر المجلد الذي سيُحفظ فيه الملف ثم اضغط زر التأكيد</string>
+    <string name="pick_this_folder">اختيار هذا المجلد</string>
+    <string name="def_picker_get">اختيار ملف من تطبيق آخر</string>
+    <string name="def_picker_open">فتح مستند من تطبيق آخر</string>
+    <string name="def_picker_sub">اضغط ثم اختر هذا التطبيق و«دائمًا» ليظهر دائمًا عند رفع الملفات</string>
 </resources>

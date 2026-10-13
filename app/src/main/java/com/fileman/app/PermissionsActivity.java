@@ -37,7 +37,8 @@ public class PermissionsActivity extends BaseActivity {
         content.addView(Ui.body(this, getString(R.string.perm_intro), 14, R.color.text_secondary));
         content.addView(Ui.sectionTitle(this, getString(R.string.perm_section_needed)));
 
-        final boolean missing = !Perms.hasAllFiles(this) || !Perms.hasMedia(this) || !Perms.canInstall(this);
+        final boolean missing = !Perms.hasAllFiles(this) || !Perms.hasMedia(this) || !Perms.canInstall(this)
+                || !Perms.hasNotifications(this);
         Row fix = new Row(R.drawable.ic_check_circle, missing, getString(R.string.perm_fix_title),
                 getString(missing ? R.string.perm_fix_sub : R.string.perm_all_ok), false, missing);
         content.addView(Ui.rowView(this, content, fix, (View v) -> Perms.fixNext(this)));
@@ -73,6 +74,16 @@ public class PermissionsActivity extends BaseActivity {
             else Perms.requestInstall(this);
         }));
 
+        boolean notif = Perms.hasNotifications(this);
+        Row rn = new Row(R.drawable.ic_shield, true, getString(R.string.pk_perm_notif),
+                getString(R.string.pk_perm_notif_sub), false, !notif);
+        rn.badge(getString(notif ? R.string.perm_granted : R.string.perm_denied),
+                Ui.color(this, notif ? R.color.ok : R.color.bad));
+        content.addView(Ui.rowView(this, content, rn, (View v) -> {
+            if (Perms.hasNotifications(this)) Perms.openAppSettings(this);
+            else Perms.requestNotifications(this);
+        }));
+
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_shield, false,
                 getString(R.string.pk_perm_installer), getString(R.string.pk_perm_installer_sub), false, false)
                 .badge(getString(R.string.perm_granted), Ui.color(this, R.color.ok)), null));
@@ -96,6 +107,17 @@ public class PermissionsActivity extends BaseActivity {
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_settings, false,
                 getString(R.string.def_system), getString(R.string.def_system_sub), false, true),
                 v -> Perms.openDefaultAppsSettings(this)));
+
+        final String[] pickerActions = {Intent.ACTION_GET_CONTENT, Intent.ACTION_OPEN_DOCUMENT};
+        final int[] pickerNames = {R.string.def_picker_get, R.string.def_picker_open};
+        for (int k = 0; k < pickerActions.length; k++) {
+            final String act = pickerActions[k];
+            boolean def = Perms.isDefaultPicker(this, act);
+            Row pr = new Row(R.drawable.ic_folder, def, getString(pickerNames[k]),
+                    getString(R.string.def_picker_sub), false, !def);
+            pr.badge(getString(def ? R.string.def_yes : R.string.def_no), Ui.color(this, def ? R.color.ok : R.color.bad));
+            content.addView(Ui.rowView(this, content, pr, (View v) -> Perms.chooseDefaultPicker(this, act)));
+        }
 
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_search, false,
                 getString(R.string.pt_title), getString(R.string.pt_sub), false, true),

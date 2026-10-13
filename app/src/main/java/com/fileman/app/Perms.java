@@ -111,7 +111,8 @@ public final class Perms {
         ActivityCompat.requestPermissions(a, new String[]{
                 Manifest.permission.READ_MEDIA_IMAGES,
                 Manifest.permission.READ_MEDIA_VIDEO,
-                Manifest.permission.READ_MEDIA_AUDIO}, REQ_STORAGE);
+                Manifest.permission.READ_MEDIA_AUDIO,
+                Manifest.permission.ACCESS_MEDIA_LOCATION}, REQ_STORAGE);
     }
 
     /** Asks for the first permission that is still missing (files, then media, then installing). True if one was missing. */
@@ -126,6 +127,10 @@ public final class Perms {
         }
         if (!canInstall(a)) {
             requestInstall(a);
+            return true;
+        }
+        if (!hasNotifications(a)) {
+            requestNotifications(a);
             return true;
         }
         return false;
@@ -328,6 +333,56 @@ public final class Perms {
         }
         try {
             a.startActivity(probeIntent(a, mime, ext));
+        } catch (Exception e) {
+            android.widget.Toast.makeText(a, R.string.fm_no_app, android.widget.Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private static Intent pickerProbe(String action) {
+        Intent i = new Intent(action).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE);
+        return i;
+    }
+
+    /** Package that Android would use for this picker action right now, or null when it would ask. */
+    static String defaultPicker(Context c, String action) {
+        try {
+            android.content.pm.ResolveInfo ri = c.getPackageManager()
+                    .resolveActivity(pickerProbe(action), PackageManager.MATCH_DEFAULT_ONLY);
+            if (ri == null || ri.activityInfo == null) return null;
+            String pkg = ri.activityInfo.packageName;
+            return "android".equals(pkg) ? null : pkg;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static boolean isDefaultPicker(Context c, String action) {
+        return c.getPackageName().equals(defaultPicker(c, action));
+    }
+
+    /**
+     * Fires the picker intent from this app so the system shows its "choose an app" list with the
+     * "Always" option. When another app is already the default, opens the page where it is cleared.
+     */
+    public static void chooseDefaultPicker(final Activity a, final String action) {
+        final String other = defaultPicker(a, action);
+        if (other != null && !a.getPackageName().equals(other)) {
+            new Dlg(a)
+                    .setTitle(R.string.def_other_title)
+                    .setMessage(R.string.def_other_msg)
+                    .setPositiveButton(R.string.def_open_other, (d, w) -> {
+                        try {
+                            a.startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                    Uri.parse("package:" + other)));
+                        } catch (Exception ignored) {
+                        }
+                    })
+                    .setNegativeButton(R.string.cancel, null)
+                    .show();
+            return;
+        }
+        try {
+            a.startActivityForResult(pickerProbe(action), 4023);
         } catch (Exception e) {
             android.widget.Toast.makeText(a, R.string.fm_no_app, android.widget.Toast.LENGTH_SHORT).show();
         }

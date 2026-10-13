@@ -42,3 +42,27 @@
 - animateZoom: النقر المزدوج وزر التكبير يكبّران بحركة ناعمة (220 مللي ثانية) حول النقطة نفسها، والقرص يبقى حيًا بخطوات مباشرة (liveZoom).
 - prefetchRatios: قراءة أبعاد كل الصفحات في الخلفية (حتى 3000 صفحة) ثم تحديث الارتفاعات مع حفظ موضع التمرير، فلا تقفز الصفحات أثناء التكبير.
 - لم يُشغَّل البناء محليًا.
+
+## مهمة: جعل التطبيق بديل تطبيق الملفات في أندرويد 16
+- ExternalDocs (جديد): DocumentsProvider يعرض التخزين المشترك، معرّف المستند هو المسار الكامل، ويرفض أي مسار خارج التخزين أو داخل بيانات التطبيق الخاصة (Safe.mayExpose). السلطة: applicationId + ".docs". يعطي التطبيقات الأخرى صلاحية دائمة (persistable) على ملف أو مجلد.
+- PickActivity: صار يدعم OPEN_DOCUMENT_TREE (اختيار مجلد) وCREATE_DOCUMENT (حفظ ملف جديد) بالإضافة إلى GET_CONTENT وOPEN_DOCUMENT وPICK. نتيجة OPEN_DOCUMENT ونتيجة المجلد والحفظ تُرجع روابط ExternalDocs، وGET_CONTENT وPICK يبقيان على FileProvider.
+- FileManagerActivity: وضعان جديدان pick_dir وsave_name، والزر العائم يتحول إلى زر تأكيد يرجع المجلد المفتوح (finishDir)، ولمس الملفات لا يفعل شيئًا فيهما.
+- AndroidManifest: أذونات ACCESS_MEDIA_LOCATION، فلاتر OPEN_DOCUMENT_TREE وCREATE_DOCUMENT وandroid.provider.action.BROWSE، وتسجيل ExternalDocs (مصدّر وبإذن MANAGE_DOCUMENTS).
+- Perms وPermissionsActivity: طلب ACCESS_MEDIA_LOCATION مع إذن الوسائط، وإضافة الإشعارات إلى زر الإصلاح السريع وإلى قائمة الأذونات.
+- OpenActivity: معالجة BROWSE بفتح جذر التخزين.
+- قيود معروفة: لا يوجد تصفية للقائمة حسب EXTRA_MIME_TYPES، ومجلدا Android/data وAndroid/obb محجوبان من النظام نفسه في أندرويد 11 فأحدث (وبالكامل في 14 فأحدث) حتى مع إذن كل الملفات.
+- لم يُشغَّل البناء محليًا (لا يوجد gradle هنا)، يجب التحقق من نجاحه على GitHub Actions.
+- خطوة المستخدم بعد التثبيت: من شاشة الأذونات اضغط الإصلاح السريع، ثم عيّن التطبيق افتراضيًا لكل نوع ملف.
+
+## مهمة: انهيار الواجهة عند رفع ملف من تطبيق آخر
+- لم يُعرف السبب بعد (لا يوجد logcat ولا أمكن البناء محليًا). التغييرات احتياطية وتشخيصية:
+- CrashLog (جديد) مُثبَّت من App.onCreate: يكتب أي انهيار في Download/FileManager-crash.txt (أو الكاش إن تعذر)، وPickActivity يسجل فشل تشغيل المنتقي.
+- ExternalDocs لم يعد معلنًا كجذر للمنتقيات (حُذف intent-filter الخاص بـ DOCUMENTS_PROVIDER)، وروابط المنح تعمل كما هي.
+- شريط التنقل السفلي مخفي في أوضاع الاختيار (pick وpick_dir وsave_name) حتى لا ينتقل المستخدم لشاشة أخرى والتطبيق الآخر ينتظر النتيجة.
+- الخطوة التالية: قراءة ملف الانهيار بعد تكرار المشكلة وإصلاح السبب الفعلي.
+
+## مهمة: تحسينات منتقي الملفات
+- FileManagerActivity في وضع pick: يبدأ من عرض الأحدث (Cats.RECENT) إن لم يُحدَّد مسار، ويرتب بالتاريخ تنازليًا دون حفظ الاختيار في prefs.
+- فلترة النوع: PickActivity يمرر mimes من EXTRA_MIME_TYPES أو نوع الـ Intent (يُتجاهل عند */*)، والفلترة في accepts وonlyAccepted (داخل setShown) وفي walkCat حتى لا يمتلئ سقف الأحدث بملفات غير مطلوبة. المجلدات تمر دائمًا.
+- Perms: defaultPicker وisDefaultPicker وchooseDefaultPicker لجعل التطبيق الافتراضي لـ GET_CONTENT وOPEN_DOCUMENT (يطلق الـ Intent من التطبيق نفسه ليظهر خيار «دائمًا»). PermissionsActivity فيها صفان لذلك.
+- لم يُشغَّل البناء محليًا.

@@ -30,6 +30,7 @@ public class App extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        CrashLog.install(this);
         Lang.init(this);
         Appearance.applyMode(this);
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
