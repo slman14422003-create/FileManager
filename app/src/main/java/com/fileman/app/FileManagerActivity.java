@@ -657,7 +657,16 @@ public class FileManagerActivity extends BaseActivity {
         cur = dir;
         prefs.edit().putString("last", dir.getAbsolutePath()).apply();
         if (!isVolumeRoot(dir)) Store.addRecentPlace(this, dir.getAbsolutePath());
+        listView.setSelectionAfterHeaderView();   // new folder always opens at the top, never at the old scroll offset
         refresh();
+        fadeInList();
+    }
+
+    /** A quick, soft crossfade so a folder's content doesn't just pop in when it changes. */
+    private void fadeInList() {
+        listView.animate().cancel();
+        listView.setAlpha(0.35f);
+        listView.animate().alpha(1f).setDuration(Motion.DUR_SHORT).setInterpolator(Motion.OUT).start();
     }
 
     /** The search field stays out of the way until the toolbar's search button is pressed. */
