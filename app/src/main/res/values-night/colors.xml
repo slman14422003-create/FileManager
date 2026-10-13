@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- NIGHT palette: iOS dark system colours on true AMOLED black. -->
+    <color name="bg">#141416</color>
+    <color name="bg_group">#141416</color>
+    <color name="surface">#222226</color>
+    <color name="surface_high">#2D2D32</color>
+    <color name="field">#222226</color>
+    <color name="stroke">#3B3B41</color>
+    <color name="stroke_soft">#2D2D32</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#A6A6AE</color>
+    <color name="text_hint">#7B7B85</color>
+    <color name="accent">#FFFFFF</color>
+    <color name="accent_text">#FFFFFF</color>
+    <color name="accent_soft">#38FFFFFF</color>
+    <color name="neutral_soft">#2D2D32</color>
+    <color name="on_accent">#000000</color>
+    <color name="on_bad">#FFFFFF</color>
+    <color name="ripple">#22FFFFFF</color>
+    <color name="ripple_on_accent">#22000000</color>
+    <color name="brand_start">#FFFFFF</color>
+    <color name="brand_mid">#E5E5EA</color>
+    <color name="brand_end">#C7C7CC</color>
+    <color name="ok">#30D158</color>
+    <color name="bad">#FF453A</color>
+    <color name="warn">#FF9F0A</color>
+    <color name="info">#0A84FF</color>
+    <color name="violet">#BF5AF2</color>
+    <color name="lime">#FFD60A</color>
+    <color name="ic_launcher_bg">#141416</color>
+</resources>

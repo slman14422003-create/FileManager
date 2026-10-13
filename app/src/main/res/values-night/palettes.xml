@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Palette" />
+    <style name="Palette.Mono" parent="Palette">
+        <item name="cAccent">#FFFFFFFF</item>
+        <item name="cAccentText">#FFFFFFFF</item>
+        <item name="cAccentSoft">#38FFFFFF</item>
+        <item name="cOnAccent">#FF000000</item>
+        <item name="cBrandStart">#FFFFFFFF</item>
+        <item name="cBrandMid">#FFE5E5EA</item>
+        <item name="cBrandEnd">#FFC7C7CC</item>
+    </style>
+    <style name="Palette.Ocean" parent="Palette">
+        <item name="cAccent">#FF0A84FF</item>
+        <item name="cAccentText">#FF4DA3FF</item>
+        <item name="cAccentSoft">#380A84FF</item>
+        <item name="cOnAccent">#FFFFFFFF</item>
+        <item name="cBrandStart">#FF3395FF</item>
+        <item name="cBrandMid">#FF0A84FF</item>
+        <item name="cBrandEnd">#FF1F5FE0</item>
+    </style>
+    <style name="Palette.Emerald" parent="Palette">
+        <item name="cAccent">#FF30D158</item>
+        <item name="cAccentText">#FF5BE584</item>
+        <item name="cAccentSoft">#3830D158</item>
+        <item name="cOnAccent">#FF04210F</item>
+        <item name="cBrandStart">#FF5BE584</item>
+        <item name="cBrandMid">#FF30D158</item>
+        <item name="cBrandEnd">#FF1FAA45</item>
+    </style>
+    <style name="Palette.Sunset" parent="Palette">
+        <item name="cAccent">#FFFF9F43</item>
+        <item name="cAccentText">#FFFFB066</item>
+        <item name="cAccentSoft">#38FF9F43</item>
+        <item name="cOnAccent">#FF2A1500</item>
+        <item name="cBrandStart">#FFFFB066</item>
+        <item name="cBrandMid">#FFFF8F3D</item>
+        <item name="cBrandEnd">#FFF2603A</item>
+    </style>
+    <style name="Palette.Rose" parent="Palette">
+        <item name="cAccent">#FFFF4D6D</item>
+        <item name="cAccentText">#FFFF8FA3</item>
+        <item name="cAccentSoft">#38FF4D6D</item>
+        <item name="cOnAccent">#FFFFFFFF</item>
+        <item name="cBrandStart">#FFFF6B88</item>
+        <item name="cBrandMid">#FFFF4D6D</item>
+        <item name="cBrandEnd">#FFE11D48</item>
+    </style>
+    <style name="Palette.Violet" parent="Palette">
+        <item name="cAccent">#FFA78BFA</item>
+        <item name="cAccentText">#FFC4B5FD</item>
+        <item name="cAccentSoft">#38A78BFA</item>
+        <item name="cOnAccent">#FF1B0B3D</item>
+        <item name="cBrandStart">#FFC4B5FD</item>
+        <item name="cBrandMid">#FFA78BFA</item>
+        <item name="cBrandEnd">#FF7C3AED</item>
+    </style>
+    <style name="Palette.Teal" parent="Palette">
+        <item name="cAccent">#FF22D3EE</item>
+        <item name="cAccentText">#FF67E8F9</item>
+        <item name="cAccentSoft">#3822D3EE</item>
+        <item name="cOnAccent">#FF00262E</item>
+        <item name="cBrandStart">#FF67E8F9</item>
+        <item name="cBrandMid">#FF22D3EE</item>
+        <item name="cBrandEnd">#FF0891B2</item>
+    </style>
+    <style name="Palette.Gold" parent="Palette">
+        <item name="cAccent">#FFFFD60A</item>
+        <item name="cAccentText">#FFFFE066</item>
+        <item name="cAccentSoft">#38FFD60A</item>
+        <item name="cOnAccent">#FF2A2000</item>
+        <item name="cBrandStart">#FFFFE066</item>
+        <item name="cBrandMid">#FFFFD60A</item>
+        <item name="cBrandEnd">#FFE0A800</item>
+    </style>
+    <style name="Palette.Crimson" parent="Palette">
+        <item name="cAccent">#FFFF453A</item>
+        <item name="cAccentText">#FFFF8A80</item>
+        <item name="cAccentSoft">#38FF453A</item>
+        <item name="cOnAccent">#FFFFFFFF</item>
+        <item name="cBrandStart">#FFFF6B61</item>
+        <item name="cBrandMid">#FFFF453A</item>
+        <item name="cBrandEnd">#FFDC2626</item>
+    </style>
+    <style name="Palette.Indigo" parent="Palette">
+        <item name="cAccent">#FF818CF8</item>
+        <item name="cAccentText">#FFA5B4FC</item>
+        <item name="cAccentSoft">#38818CF8</item>
+        <item name="cOnAccent">#FF0E1033</item>
+        <item name="cBrandStart">#FFA5B4FC</item>
+        <item name="cBrandMid">#FF818CF8</item>
+        <item name="cBrandEnd">#FF4F46E5</item>
+    </style>
+    <style name="Palette.Aurora" parent="Palette">
+        <item name="cAccent">#FF38BDF8</item>
+        <item name="cAccentText">#FF7DD3FC</item>
+        <item name="cAccentSoft">#3838BDF8</item>
+        <item name="cOnAccent">#FF00202E</item>
+        <item name="cBrandStart">#FF2DD4BF</item>
+        <item name="cBrandMid">#FF60A5FA</item>
+        <item name="cBrandEnd">#FFA78BFA</item>
+    </style>
+    <style name="Palette.Fuchsia" parent="Palette">
+        <item name="cAccent">#FFE879F9</item>
+        <item name="cAccentText">#FFF0ABFC</item>
+        <item name="cAccentSoft">#38E879F9</item>
+        <item name="cOnAccent">#FF2E0036</item>
+        <item name="cBrandStart">#FFF0ABFC</item>
+        <item name="cBrandMid">#FFE879F9</item>
+        <item name="cBrandEnd">#FFC026D3</item>
+    </style>
+    <style name="Palette.Graphite" parent="Palette">
+        <item name="cAccent">#FF94A3B8</item>
+        <item name="cAccentText">#FFCBD5E1</item>
+        <item name="cAccentSoft">#3894A3B8</item>
+        <item name="cOnAccent">#FF0B1220</item>
+        <item name="cBrandStart">#FFCBD5E1</item>
+        <item name="cBrandMid">#FF94A3B8</item>
+        <item name="cBrandEnd">#FF64748B</item>
+    </style>
+</resources>
