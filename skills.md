@@ -1,6 +1,7 @@
 # skills — FileManager
 
 ## آخر مهمة
+- إصلاح فشل البناء: ثوابت Motion الناقصة (التفاصيل في آخر قسم مهمة).
 - إصلاح فشل البناء (assembleRelease) في ApkDeepScan.java السطر 302.
 - السبب: الكلاس ProviderInfo لا يحتوي الحقل permission (موجود فقط في ServiceInfo وActivityInfo).
 - الحل: استخدام readPermission وwritePermission فقط للـ providers.
@@ -137,3 +138,9 @@
 - network_security_config: أضيف script.google.com.
 - تسجيل الخروج لا يستدعي revoke (لأن إلغاء توكن السكربت يلغي صلاحيته كلها)، بل يحذف الإعدادات المحلية فقط.
 - لم يُشغَّل البناء ولا الاتصال بـ Google محليًا، يجب التحقق من نجاح البناء على GitHub Actions ومن عمل السكربت على الجهاز.
+
+## مهمة: إصلاح فشل البناء (cannot find symbol في Motion)
+- السبب: كلاس Motion لا يحتوي الثوابت OUT وEASE وDUR وDUR_SHORT المستخدمة في StorageActivity وNavBar وZoomImageView وDlg وImageViewActivity وUi (15 خطأ).
+- الحل: إضافتها في Motion.java بنفس قيم المنحنيات في res/interpolator (ios_out وios_ease) ومدة 380ms للطويلة و220ms للقصيرة.
+- لم يُشغَّل البناء محليًا.
+
