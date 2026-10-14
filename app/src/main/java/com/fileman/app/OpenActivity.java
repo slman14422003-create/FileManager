@@ -33,9 +33,10 @@ public class OpenActivity extends Activity {
             return;
         }
         if (Semo.ACTION_SHOW_IN_FILES.equals(in.getAction())) {
-            // another Semo app (Gallery / Music) asks to see where a file lives
-            String p = in.getStringExtra("path");
-            File f = p == null || p.isEmpty() ? null : new File(p);
+            // another Semo app (Gallery / Music) asks to see where a file lives: the path is in the data Uri only
+            Uri d = in.getData();
+            String q = d != null && Semo.SCHEME_FILES.equals(d.getScheme()) ? d.getQueryParameter("p") : null;
+            File f = q == null || q.isEmpty() ? null : new File(q);
             openDir(f == null ? null : (f.isDirectory() ? f : f.getParentFile()));
             return;
         }

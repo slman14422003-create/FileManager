@@ -177,6 +177,7 @@
             <intent-filter>
                 <action android:name="app.semo.SHOW_IN_FILES" />
                 <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="semo-files" android:host="open" />
             </intent-filter>
             <!-- "open in Files" for a storage root (Android 12+) -->
             <intent-filter>

@@ -121,14 +121,17 @@ final class Semo {
         }
     }
 
+    /** Scheme used to ask the Files app to open a folder; the path rides in the data Uri (no extras). */
+    static final String SCHEME_FILES = "semo-files";
+
     /** Asks the Files app (if installed) to open the folder that holds {@code path}. */
     static boolean showInFiles(Context c, String path) {
         if (path == null || path.isEmpty()) return false;
         Sibling s = byRole(c, ROLE_FILES);
         if (s == null) return false;
         try {
-            Intent i = new Intent(ACTION_SHOW_IN_FILES).setPackage(s.pkg);
-            i.putExtra("path", path);
+            Uri u = new Uri.Builder().scheme(SCHEME_FILES).authority("open").appendQueryParameter("p", path).build();
+            Intent i = new Intent(ACTION_SHOW_IN_FILES, u).setPackage(s.pkg);
             if (!(c instanceof android.app.Activity)) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             c.startActivity(i);
             return true;
