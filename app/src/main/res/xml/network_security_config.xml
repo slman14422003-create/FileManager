@@ -2,8 +2,8 @@
 <network-security-config>
     <!--
       HTTPS only, system certificate authorities only (no user-installed CAs, so a proxy certificate
-      cannot intercept traffic). The app contacts nothing but GitHub, and only for the update check;
-      Net.java enforces the host list in code.
+      cannot intercept traffic). The app contacts GitHub (update check, Net.java) and Google (the Drive
+      screen, DriveHttp.java); both classes enforce their host lists in code.
     -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
@@ -14,6 +14,15 @@
         <domain includeSubdomains="false">api.github.com</domain>
         <domain includeSubdomains="false">github.com</domain>
         <domain includeSubdomains="true">githubusercontent.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">www.googleapis.com</domain>
+        <domain includeSubdomains="false">script.google.com</domain>
+        <domain includeSubdomains="false">oauth2.googleapis.com</domain>
+        <domain includeSubdomains="true">googleusercontent.com</domain>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>

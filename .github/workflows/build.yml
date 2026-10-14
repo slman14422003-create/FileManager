@@ -81,10 +81,10 @@ jobs:
       - name: Security guard (network and file exposure)
         run: |
           SRC=app/src/main/java
-          # 1) network classes may only appear in Net.java (Updater.java only uses its connection type)
+          # 1) network classes may only appear in Net.java (update check) and DriveHttp.java (Google Drive screen); Updater.java only uses its connection type
           if grep -rEn "java\.net\.|HttpURLConnection|HttpsURLConnection|okhttp|android\.net\.http|javax\.net|loadUrl\(|DownloadManager" $SRC \
-               | grep -v -E "/(Net|Updater)\.java:"; then
-            echo "::error title=Network guard::network code outside Net.java"; exit 1
+               | grep -v -E "/(Net|Updater|DriveHttp)\.java:"; then
+            echo "::error title=Network guard::network code outside Net.java / DriveHttp.java"; exit 1
           fi
           # 2) only the launcher and the screens that replace the system installer / Files app (install, open link, file picker) may be exported
           M=app/src/main/AndroidManifest.xml
