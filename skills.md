@@ -97,7 +97,7 @@
 - فحص مطابقة البصمة مع الحافظة وقائمة الحظر والتوقيعات الموثوقة كانت موجودة سابقًا، لم تتغير.
 - فحص CI: لم تُضَف قراءة extras نصية في الأنشطة المصدّرة.
 ### صيغ الملفات
-- Cats: امتدادات نصية وبرمجية كثيرة جديدة (سكربتات، ويب، إعدادات، ترجمة وترجمات الفيديو srt وvtt، تقويم ics، eml، gpx وkml، ipynb وغيرها)، وأسماء بلا امتداد (Makefile وDockerfile وLICENSE وغيرها) عبر isTextName. صور: avif وico وjfif وjpe. صوت: mid وmidi وoga وm4b وm4r وmka وweba و٣ga. فيديو: 3g2. أرشيف: cbz وcbr وcb7 وwar وaar وtbz2 وtxz.
+- Cats: امتدادات نصية وبرمجية كثيرة جديدة (سكربتات، ويب، إعدادات، ترجمة وترجمات الفيديو srt وvtt، تقويم ics، eml، gpx وkml، ipynb وغيرها)، وأسماء بلا امتداد (Makefile وDockerfile وLICENSE وغيرها) عبر isTextName. صور: avif وico وjfif وjpe. صوت: mid وmidi وoga وm4b وm4r وmka وweba و3ga. فيديو: 3g2. أرشيف: cbz وcbr وcb7 وwar وaar وtbz2 وtxz.
 - Opener.sniffKind: عند امتداد مجهول أو غائب يقرأ أول 4096 بايت ويختار القارئ حسب المحتوى (PDF، صورة، صوت وفيديو، نص)، والأرشيف يبقى في متصفح الأرشيف، وغير ذلك يُسلَّم لتطبيق آخر.
 ### قارئ الكود (FileEditActivity)
 - السبب: كان EditText واحدًا يحمل النص كله (حتى 2MB) فيتجمد الرسم والتمرير.
