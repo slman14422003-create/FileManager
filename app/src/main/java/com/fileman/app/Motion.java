@@ -1,16 +1,22 @@
 package com.fileman.app;
 
-import android.view.animation.Interpolator;
-import android.view.animation.PathInterpolator;
+import android.app.Activity;
+import android.content.Intent;
+import android.content.res.TypedArray;
+import android.os.Build;
 
-/** The app's single motion language (iOS curves): every code-driven animation takes its curve from here. */
 final class Motion {
     private Motion() {
     }
 
-    static final long DUR = 320, DUR_SHORT = 200;
-    /** Things arriving / settling (iOS push and sheet curve). */
-    static final Interpolator OUT = new PathInterpolator(0.32f, 0.72f, 0f, 1f);
-    /** Things leaving or fading. */
-    static final Interpolator EASE = new PathInterpolator(0.25f, 0.1f, 0.25f, 1f);
+    static void install(Activity a) {
+        if (Build.VERSION.SDK_INT < 34) return;
+        if ((a.getIntent().getFlags() & Intent.FLAG_ACTIVITY_NO_ANIMATION) != 0) return;
+        TypedArray t = a.getTheme().obtainStyledAttributes(new int[]{android.R.attr.windowIsFloating, android.R.attr.windowIsTranslucent});
+        boolean skip = t.getBoolean(0, false) || t.getBoolean(1, false);
+        t.recycle();
+        if (skip) return;
+        a.overrideActivityTransition(Activity.OVERRIDE_TRANSITION_OPEN, R.anim.act_open_enter, R.anim.act_open_exit);
+        a.overrideActivityTransition(Activity.OVERRIDE_TRANSITION_CLOSE, R.anim.act_close_enter, R.anim.act_close_exit);
+    }
 }

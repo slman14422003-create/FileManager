@@ -74,6 +74,12 @@ public class ContactsActivity extends BaseActivity {
     private final List<Contacts.Card> shown = new ArrayList<>();
     private LinkedHashMap<Integer, Integer> fixes = new LinkedHashMap<>();
     private boolean dirty = false;
+    private OnBackPressedCallback dirtyBack;
+
+    private void setDirty(boolean d) {
+        dirty = d;
+        if (dirtyBack != null) dirtyBack.setEnabled(d);
+    }
 
     private View loading;
     private TextView subtitle, summary, empty;
@@ -117,19 +123,16 @@ public class ContactsActivity extends BaseActivity {
                 new Runnable[]{this::showReport, this::dedupe, this::sortAz, () -> save(true)}));
         buildBody();
 
-        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+        dirtyBack = new OnBackPressedCallback(false) {
             @Override
             public void handleOnBackPressed() {
-                if (dirty) {
-                    confirmDiscard(() -> {
-                        dirty = false;
-                        finish();
-                    });
-                } else {
+                confirmDiscard(() -> {
+                    setDirty(false);
                     finish();
-                }
+                });
             }
-        });
+        };
+        getOnBackPressedDispatcher().addCallback(this, dirtyBack);
         load();
     }
 
@@ -238,7 +241,7 @@ public class ContactsActivity extends BaseActivity {
                 all.clear();
                 all.addAll(r.cards);
                 fixes = r.fixes;
-                dirty = r.fixCount() > 0;   // repaired in memory: offer to save
+                setDirty(r.fixCount() > 0);   // repaired in memory: offer to save
                 refresh();
             });
         });
@@ -285,7 +288,7 @@ public class ContactsActivity extends BaseActivity {
                     return;
                 }
                 if (!asCopy) {
-                    dirty = false;
+                    setDirty(false);
                     fixes.clear();
                     refresh();
                 }
@@ -613,7 +616,7 @@ public class ContactsActivity extends BaseActivity {
                 .setMessage(getString(R.string.ct_delete_msg, n.isEmpty() ? getString(R.string.ct_no_name) : n))
                 .setPositiveButton(R.string.delete, (d, w) -> {
                     all.remove(c);
-                    dirty = true;
+                    setDirty(true);
                     refresh();
                 })
                 .setNegativeButton(R.string.cancel, null).show();
@@ -740,7 +743,7 @@ public class ContactsActivity extends BaseActivity {
                 c.version = "3.0";
                 all.add(0, c);
             }
-            dirty = true;
+            setDirty(true);
             refresh();
             if (isNew) list.setSelection(0);
             d.dismiss();
@@ -771,7 +774,7 @@ public class ContactsActivity extends BaseActivity {
     private void dedupe() {
         int n = Contacts.removeDuplicates(all);
         if (n > 0) {
-            dirty = true;
+            setDirty(true);
             refresh();
             Toast.makeText(this, getString(R.string.ct_dedupe_done, n), Toast.LENGTH_LONG).show();
         } else {
@@ -781,7 +784,7 @@ public class ContactsActivity extends BaseActivity {
 
     private void sortAz() {
         Contacts.sortByName(all);
-        dirty = true;
+        setDirty(true);
         refresh();
     }
 

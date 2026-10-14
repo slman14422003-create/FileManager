@@ -81,6 +81,7 @@ public class FileEditActivity extends BaseActivity {
     private boolean dirty = false;
     private boolean suppress = false;
     private boolean editMode = false;
+    private OnBackPressedCallback editBack;
     private int hilite = -1;
     private int numWidthPx;
     private String lastQuery = "";
@@ -164,17 +165,14 @@ public class FileEditActivity extends BaseActivity {
             }
         });
 
-        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+        editBack = new OnBackPressedCallback(false) {
             @Override
             public void handleOnBackPressed() {
-                if (editMode) {
-                    if (dirty) confirmDiscard(FileEditActivity.this::leaveEdit);
-                    else leaveEdit();
-                } else {
-                    finish();
-                }
+                if (dirty) confirmDiscard(FileEditActivity.this::leaveEdit);
+                else leaveEdit();
             }
-        });
+        };
+        getOnBackPressedDispatcher().addCallback(this, editBack);
         load();
     }
 
@@ -365,6 +363,7 @@ public class FileEditActivity extends BaseActivity {
         suppress = false;
         dirty = false;
         editMode = true;
+        if (editBack != null) editBack.setEnabled(true);
         codeList.setVisibility(View.GONE);
         bar.setVisibility(View.GONE);
         editor.setVisibility(View.VISIBLE);
@@ -376,6 +375,7 @@ public class FileEditActivity extends BaseActivity {
     private void leaveEdit() {
         dirty = false;
         editMode = false;
+        if (editBack != null) editBack.setEnabled(false);
         InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
         if (imm != null) imm.hideSoftInputFromWindow(editor.getWindowToken(), 0);
         editor.setVisibility(View.GONE);
