@@ -43,7 +43,29 @@ public final class Cats {
         return in(x, "txt", "md", "json", "xml", "yml", "yaml", "java", "kt", "kts", "gradle",
                 "properties", "js", "ts", "html", "htm", "css", "py", "sh", "c", "cpp", "h", "hpp", "cs",
                 "go", "rs", "php", "rb", "sql", "csv", "log", "ini", "cfg", "conf", "toml", "gitignore",
-                "pro", "bat", "svg", "tsx", "jsx", "dart", "swift", "lua", "env", "gitattributes");
+                "pro", "bat", "svg", "tsx", "jsx", "dart", "swift", "lua", "env", "gitattributes")
+                || in(x, "cmd", "ps1", "psm1", "bash", "zsh", "fish", "tf", "hcl", "scala", "groovy", "r", "m", "mm",
+                "pl", "pm", "vb", "vbs", "fs", "ex", "exs", "erl", "hs", "clj", "cljs", "elm", "nim", "zig", "v", "sv",
+                "vhd", "vhdl", "asm", "s", "cmake", "mk", "dockerfile", "lock", "scss", "sass", "less", "vue", "svelte",
+                "astro", "graphql", "gql", "proto", "sol", "smali", "aidl", "kt", "xaml", "xsd", "xsl", "xslt", "plist",
+                "strings", "json5", "jsonc", "jsonl", "ndjson", "ipynb", "tex", "bib", "rst", "adoc", "org", "nfo",
+                "diff", "patch", "ics", "vcs", "eml", "srt", "vtt", "ass", "ssa", "lrc", "m3u", "m3u8", "pls", "cue",
+                "gpx", "kml", "tcx", "reg", "inf", "editorconfig", "bashrc", "zshrc", "profile", "npmrc", "dockerignore",
+                "prettierrc", "eslintrc", "babelrc", "csproj", "sln", "vcxproj", "pom", "manifest", "rules", "tpl",
+                "twig", "jsp", "asp", "aspx", "cshtml", "erb", "ejs", "hbs", "mustache", "j2", "jinja", "wsdl");
+    }
+
+    /** Extension-less (or dotted) file names that are plain text and worth opening in the reader. */
+    public static boolean isTextName(String name) {
+        switch (name.toLowerCase(Locale.ROOT)) {
+            case "makefile": case "dockerfile": case "gemfile": case "rakefile": case "procfile": case "podfile":
+            case "vagrantfile": case "jenkinsfile": case "brewfile": case "license": case "licence": case "readme":
+            case "changelog": case "notice": case "authors": case "contributors": case "codeowners": case "copying":
+            case "todo": case "gradlew": case "cmakelists": case "manifest": case "version": case "install":
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static boolean isOfficeExt(String x) {
@@ -53,10 +75,10 @@ public final class Cats {
 
     /** Type of a file from its lower-case extension (directories are handled by the caller). */
     public static int typeOfExt(String x) {
-        if (in(x, "jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif")) return T_IMG;
-        if (in(x, "mp4", "mkv", "webm", "3gp", "avi", "mov", "m4v")) return T_VID;
-        if (in(x, "mp3", "wav", "ogg", "m4a", "aac", "flac", "opus", "amr")) return T_AUD;
-        if (in(x, "zip", "rar", "7z", "tar", "gz", "tgz", "xz", "bz2", "jar")) return T_ARC;
+        if (in(x, "jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "avif", "ico", "jfif", "jpe")) return T_IMG;
+        if (in(x, "mp4", "mkv", "webm", "3gp", "3g2", "avi", "mov", "m4v")) return T_VID;
+        if (in(x, "mp3", "wav", "ogg", "oga", "m4a", "m4b", "m4r", "aac", "flac", "opus", "amr", "mid", "midi", "mka", "weba", "3ga")) return T_AUD;
+        if (in(x, "zip", "rar", "7z", "tar", "gz", "tgz", "xz", "bz2", "jar", "tbz2", "txz", "cbz", "cbr", "cb7", "war", "aar")) return T_ARC;
         if (x.equals("apk") || x.equals("apks") || x.equals("xapk") || x.equals("apkm")) return T_APK;
         if (x.equals("pdf")) return T_PDF;
         if (x.equals("vcf") || x.equals("vcard")) return T_CONTACT;

@@ -242,7 +242,7 @@
     <!-- package installer (beta) and advanced tools -->
     <string name="pk_title">مثبّت الحزم</string>
     <string name="pk_beta">مستقر</string>
-    <string name="pk_subtitle">1.0 · تثبيت APK والحزم المقسّمة مع فحص حماية عميق بخمس طبقات وبصمة وقائمة حظر وتوقيعات موثوقة</string>
+    <string name="pk_subtitle">2.0 · تثبيت APK والحزم المقسّمة مع فحص حماية عميق بخمس طبقات، فحص المصدر والصلاحيات الحساسة، مهلة أمان قبل الحزم الخطرة، بصمة وقائمة حظر وتوقيعات موثوقة</string>
     <string name="pk_beta_note">الإصدار المستقر 1.0: يثبّت APK وAPKS وXAPK وAPKM عبر مثبّت النظام الرسمي مع فحص السلامة والتوقيع والمعمارية والمساحة. فحص الحماية العميق بخمس طبقات قبل كل تثبيت: التوقيع (خوارزمية وطول المفتاح والصلاحية وJanus)، سلامة الأرشيف (Master Key وZip Slip)، المانيفست والمكوّنات المكشوفة واختطاف المهام وانتحال الأسماء، الحمولات المخفية والمكتبات المحمية، وفحص شيفرة DEX (تعدين، تحكم عن بعد، قنوات تسريب، أسرار مضمّنة، تشفير ضعيف). مع مستوى مخاطر وشرح لكل ملاحظة، والتحقق من بصمة SHA-256، وقائمة حظر وتوقيعات موثوقة، وقفل اختياري بالبصمة. التثبيت الصامت دون موافقة غير متاح لأي تطبيق عادي، لذلك قد يطلب النظام تأكيدك.</string>
     <string name="pk_tools">الأدوات</string>
     <string name="pk_found">حزم على الجهاز</string>
@@ -848,4 +848,29 @@
     <string name="def_picker_get">اختيار ملف من تطبيق آخر</string>
     <string name="def_picker_open">فتح مستند من تطبيق آخر</string>
     <string name="def_picker_sub">اضغط ثم اختر هذا التطبيق و«دائمًا» ليظهر دائمًا عند رفع الملفات</string>
+    <string name="sec_f_source">وصلت عبر تطبيق مراسلة أو مشاركة</string>
+    <string name="sec_f_source_b">أغلب البرمجيات الخبيثة تنتشر بملفات APK مرسلة في واتساب وتيليجرام وأدوات المشاركة. تأكد أنك تعرف المرسل وأنك طلبت هذا التطبيق.</string>
+    <string name="sec_f_keyboard">يعمل كلوحة مفاتيح</string>
+    <string name="sec_f_keyboard_b">لوحة المفاتيح ترى كل ما تكتبه بما فيه كلمات المرور. ثبّته فقط إذا كنت تريد فعلًا لوحة مفاتيح جديدة.</string>
+    <string name="sec_f_secset">يطلب تعديل إعدادات النظام الآمنة</string>
+    <string name="sec_f_secset_b">هذه الصلاحية لا يمنحها النظام إلا عبر أوامر خاصة، ويطلبها غالبًا من يريد التحكم في جهازك.</string>
+    <string name="sec_f_tiny">حزمة صغيرة جدًا بصلاحيات كثيرة (%d)</string>
+    <string name="sec_f_tiny_b">هذا النمط شائع في برامج تنزيل البرمجيات الخبيثة: ملف صغير يطلب صلاحيات حساسة ثم يجلب الباقي لاحقًا.</string>
+    <string name="sec_f_many">يطلب عددًا كبيرًا من الصلاحيات الحساسة (%d)</string>
+    <string name="sec_f_many_b">راجع قائمة الصلاحيات وتأكد أن التطبيق يحتاجها فعلًا لعمله.</string>
+    <string name="sec_f_shareduid">يشارك معرّف المستخدم مع تطبيقات أخرى</string>
+    <string name="sec_f_shareduid_b">هذه الآلية قديمة وتجعل التطبيقات المشاركة تصل إلى بيانات بعضها.</string>
+    <string name="sec_f_testonly">مخصص للاختبار فقط</string>
+    <string name="sec_f_testonly_b">الحزم المعلّمة للاختبار لا تُوزَّع عادةً للمستخدمين، وقد تكون نسخة غير مكتملة أو معدّلة.</string>
+    <string name="code_find">بحث في الملف</string>
+    <string name="code_find_hint">النص المطلوب</string>
+    <string name="code_goto">الذهاب إلى سطر</string>
+    <string name="code_line_hint">رقم السطر</string>
+    <string name="code_top">إلى البداية</string>
+    <string name="code_bottom">إلى النهاية</string>
+    <string name="code_edit">تحرير</string>
+    <string name="code_view">إنهاء التحرير</string>
+    <string name="code_not_found">لا توجد نتيجة</string>
+    <string name="code_view_only">الملف كبير على التحرير، فُتح للقراءة فقط</string>
+    <string name="code_status">%1$d سطر  ·  %2$s</string>
 </resources>

@@ -102,24 +102,61 @@ public class FileManagerActivity extends BaseActivity {
         final boolean dir;
         final long size;
         final long mod;
-        final int kids;
+        /** Number of items in a folder: KIDS_UNKNOWN until it has been counted in the background, -1 when unreadable. */
+        volatile int kids;
         final String ext;
 
         Entry(File f) {
             this.f = f;
             this.name = f.getName();
-            this.dir = f.isDirectory();
-            this.mod = f.lastModified();
-            if (dir) {
-                String[] l = f.list();
-                kids = l == null ? -1 : l.length;
+            boolean d;
+            long m;
+            long s;
+            try {
+                // one stat call for type, date and size (each File.isDirectory / lastModified / length is a separate call)
+                java.nio.file.attribute.BasicFileAttributes a = java.nio.file.Files.readAttributes(
+                        f.toPath(), java.nio.file.attribute.BasicFileAttributes.class);
+                d = a.isDirectory();
+                m = a.lastModifiedTime().toMillis();
+                s = a.size();
+            } catch (Throwable t) {
+                d = f.isDirectory();
+                m = f.lastModified();
+                s = f.length();
+            }
+            this.dir = d;
+            this.mod = m;
+            if (d) {
                 size = 0;
                 ext = "";
+                kids = cachedKids(f.getAbsolutePath(), m);   // counting a folder's items is slow: never done on the listing path
             } else {
                 kids = 0;
-                size = f.length();
+                size = s;
                 ext = extOf(name);
             }
+        }
+    }
+
+    static final int KIDS_UNKNOWN = -2;
+    /** Item counts by folder path and modified time (a folder's time changes whenever its items do). */
+    private static final LinkedHashMap<String, long[]> KIDS_CACHE = new LinkedHashMap<String, long[]>(256, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, long[]> eldest) {
+            return size() > 3000;
+        }
+    };
+
+    static int cachedKids(String path, long mod) {
+        synchronized (KIDS_CACHE) {
+            long[] v = KIDS_CACHE.get(path);
+            return v != null && v[0] == mod ? (int) v[1] : KIDS_UNKNOWN;
+        }
+    }
+
+    static void cacheKids(String path, long mod, int n) {
+        synchronized (KIDS_CACHE) {
+            KIDS_CACHE.put(path, new long[]{mod, n});
         }
     }
 
@@ -135,6 +172,11 @@ public class FileManagerActivity extends BaseActivity {
 
     private final ExecutorService io = Executors.newFixedThreadPool(3);
     private final ExecutorService thumbIo = Executors.newFixedThreadPool(2);
+    private final ExecutorService kidsIo = Executors.newSingleThreadExecutor();
+    private long kidsGen;
+    private final Runnable kidsNotify = () -> {
+        if (!isFinishing() && !isDestroyed()) this.adapter.notifyDataSetChanged();   // field is declared further down
+    };
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final SimpleDateFormat dateFmt = new SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.US);
 
@@ -393,7 +435,14 @@ public class FileManagerActivity extends BaseActivity {
         if (start == null) start = defaultRoot();
         cur = start;
         String cat = getIntent().getStringExtra("cat");
-        if (cat == null && pick && fromIntent == null) cat = Cats.RECENT;   // like the system picker: recent files first
+        if (cat == null && pick && fromIntent == null) {
+            // choosing a file for another app: most files are in Downloads, so start there
+            File dl = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);
+            if (dl != null && dl.isDirectory()) {
+                start = dl;
+                cur = dl;
+            }
+        }
         if (cat != null) {
             fromCat = true;
             if (Cats.FAV.equals(cat)) {
@@ -500,7 +549,7 @@ public class FileManagerActivity extends BaseActivity {
             }
             if (idx >= 0) {
                 Entry old = shown.get(idx);
-                if (old.mod == ne.mod && old.size == ne.size && old.kids == ne.kids && old.dir == ne.dir) continue;
+                if (old.mod == ne.mod && old.size == ne.size && old.dir == ne.dir) continue;
                 shown.remove(idx);
             } else {
                 added.add(key);
@@ -521,6 +570,7 @@ public class FileManagerActivity extends BaseActivity {
         selected.retainAll(alive);
         updateChrome();
         updateEmptyView();
+        scheduleKids();
     }
 
     private void liveRefresh() {
@@ -568,6 +618,7 @@ public class FileManagerActivity extends BaseActivity {
         ui.removeCallbacksAndMessages(null);
         io.shutdownNow();
         thumbIo.shutdownNow();
+        kidsIo.shutdownNow();
     }
 
     private void action(ImageButton b, int icon, int desc, View.OnClickListener l) {
@@ -786,13 +837,10 @@ public class FileManagerActivity extends BaseActivity {
             if (arr != null) {
                 for (File f : arr) {
                     if (!showHidden && f.getName().startsWith(".")) continue;
+                    Entry ne = new Entry(f);
                     Entry old = prev.get(f.getAbsolutePath());
-                    if (old != null && old.mod == f.lastModified() && old.dir == f.isDirectory()
-                            && (old.dir || old.size == f.length())) {
-                        out.add(old);   // unchanged: keep it, no folder listing or thumbnail work again
-                    } else {
-                        out.add(new Entry(f));
-                    }
+                    boolean unchanged = old != null && old.mod == ne.mod && old.dir == ne.dir && (old.dir || old.size == ne.size);
+                    out.add(unchanged ? old : ne);   // unchanged: keep it, no thumbnail or count work again
                 }
             }
             Collections.sort(out, comparator());
@@ -948,7 +996,7 @@ public class FileManagerActivity extends BaseActivity {
         for (int i = 0; i < a.size(); i++) {
             Entry x = a.get(i);
             Entry y = b.get(i);
-            if (!x.f.equals(y.f) || x.mod != y.mod || x.size != y.size || x.kids != y.kids || x.dir != y.dir) return false;
+            if (!x.f.equals(y.f) || x.mod != y.mod || x.size != y.size || x.dir != y.dir) return false;
         }
         return true;
     }
@@ -1001,6 +1049,33 @@ public class FileManagerActivity extends BaseActivity {
         selected.retainAll(alive);
         updateChrome();   // notifies the adapter once
         updateEmptyView();
+        scheduleKids();
+    }
+
+    /** Counts the items of the shown folders one by one in the background and refreshes the rows as numbers arrive. */
+    private void scheduleKids() {
+        final List<Entry> todo = new ArrayList<>();
+        for (Entry e : shown) {
+            if (e.dir && e.kids == KIDS_UNKNOWN) {
+                todo.add(e);
+                if (todo.size() >= 600) break;
+            }
+        }
+        if (todo.isEmpty()) return;
+        final long my = ++kidsGen;
+        try {
+            kidsIo.execute(() -> {
+                for (Entry e : todo) {
+                    if (my != kidsGen) return;
+                    String[] l = e.f.list();
+                    e.kids = l == null ? -1 : l.length;
+                    cacheKids(e.f.getAbsolutePath(), e.mod, e.kids);
+                    ui.removeCallbacks(kidsNotify);
+                    ui.postDelayed(kidsNotify, 120);
+                }
+            });
+        } catch (Exception ignored) {
+        }
     }
 
     private void updateEmptyView() {
@@ -1447,7 +1522,7 @@ public class FileManagerActivity extends BaseActivity {
             ((TextView) v.findViewById(R.id.title)).setText(e.name);
             StringBuilder sub = new StringBuilder();
             if (e.dir) {
-                sub.append(e.kids < 0 ? getString(R.string.fm_unreadable) : getString(R.string.fm_items_n, e.kids));
+                sub.append(e.kids == KIDS_UNKNOWN ? "\u2026" : e.kids < 0 ? getString(R.string.fm_unreadable) : getString(R.string.fm_items_n, e.kids));
             } else {
                 sub.append(Fmt.size(e.size));
             }
@@ -1829,8 +1904,12 @@ public class FileManagerActivity extends BaseActivity {
 
         final int[] icons = new int[ids.size()];
         for (int i = 0; i < icons.length; i++) icons[i] = actionIcon(ids.get(i));
-        new Dlg(this).setTitle(getString(R.string.fm_selected_n, files.size()))
-                .setItems(labels.toArray(new String[0]), icons, (d, which) -> {
+        Dlg sheet = new Dlg(this).setTitle(single ? one.getName() : getString(R.string.fm_selected_n, files.size()));
+        if (single) {
+            sheet.setMessage(one.isDirectory() ? Fmt.date(one.lastModified())
+                    : Fmt.size(one.length()) + "  \u00B7  " + Fmt.date(one.lastModified()));
+        }
+        sheet.setItems(labels.toArray(new String[0]), icons, (d, which) -> {
                     switch (ids.get(which)) {
                         case 0:
                             openExternal(one, true);

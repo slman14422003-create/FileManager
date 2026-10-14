@@ -747,11 +747,11 @@ public class InstallActivity extends BaseActivity {
         }
         final Runnable go = () -> AuthGate.require(this, this::doInstall);
         if (sr.level == SecurityScan.HIGH && Store.instBool(this, "warn_high", true)) {
-            new Dlg(this).setTitle(getString(R.string.sec_high_title))
+            SecurityScan.hold(new Dlg(this).setTitle(getString(R.string.sec_high_title))
                     .setMessage(getString(R.string.sec_high_msg, in.label.isEmpty() ? in.pkg : in.label))
                     .setPositiveButton(R.string.sec_install_anyway, (d, w) -> go.run())
                     .setNegativeButton(R.string.cancel, null)
-                    .show();
+                    .show(), SecurityScan.HIGH_RISK_WAIT_S);
         } else {
             go.run();
         }

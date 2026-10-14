@@ -242,7 +242,7 @@
     <!-- package installer (beta) and advanced tools -->
     <string name="pk_title">Package installer</string>
     <string name="pk_beta">Stable</string>
-    <string name="pk_subtitle">1.0 · install APK and split bundles with a five-layer deep security scan, fingerprint lock, block list and trusted signers</string>
+    <string name="pk_subtitle">2.0 · install APK and split bundles with a five-layer deep security scan, source and sensitive-permission checks, a safety delay before risky packages, fingerprint lock, block list and trusted signers</string>
     <string name="pk_beta_note">Stable 1.0: installs APK, APKS, XAPK and APKM through the official system installer with integrity, signature, CPU and space checks. A five-layer deep security scan runs before every install: signature (algorithm, key size, validity, Janus), archive integrity (Master Key, Zip Slip), manifest and exposed components, task hijacking and name spoofing, hidden payloads and packers, and DEX code scanning (mining, remote control, leak channels, embedded secrets, weak crypto). Each finding has a risk level and explanation, plus SHA-256 checking, a block list, trusted signers and an optional fingerprint lock. Silent installs without consent are not available to any normal app, so the system may ask you to confirm.</string>
     <string name="pk_tools">Tools</string>
     <string name="pk_found">Packages on device</string>
@@ -848,4 +848,29 @@
     <string name="def_picker_get">Choose a file for another app</string>
     <string name="def_picker_open">Open a document for another app</string>
     <string name="def_picker_sub">Tap, then pick this app and “Always” so it opens whenever a file is uploaded</string>
+    <string name="sec_f_source">Arrived through a messaging or sharing app</string>
+    <string name="sec_f_source_b">Most malware spreads as APK files sent over WhatsApp, Telegram and file-sharing apps. Make sure you know the sender and asked for this app.</string>
+    <string name="sec_f_keyboard">Works as a keyboard</string>
+    <string name="sec_f_keyboard_b">A keyboard sees everything you type, including passwords. Install it only if you really want a new keyboard.</string>
+    <string name="sec_f_secset">Asks to change secure system settings</string>
+    <string name="sec_f_secset_b">The system grants this only through special commands, and it is usually requested by someone who wants control of your device.</string>
+    <string name="sec_f_tiny">Very small package with many permissions (%d)</string>
+    <string name="sec_f_tiny_b">This pattern is common in malware downloaders: a tiny file asks for sensitive permissions and fetches the rest later.</string>
+    <string name="sec_f_many">Asks for many sensitive permissions (%d)</string>
+    <string name="sec_f_many_b">Review the permission list and make sure the app really needs them to work.</string>
+    <string name="sec_f_shareduid">Shares a user ID with other apps</string>
+    <string name="sec_f_shareduid_b">This is an old mechanism that lets the shared apps reach each other\'s data.</string>
+    <string name="sec_f_testonly">Marked for testing only</string>
+    <string name="sec_f_testonly_b">Test-only packages are not normally distributed to users and may be incomplete or modified.</string>
+    <string name="code_find">Find in file</string>
+    <string name="code_find_hint">Text to find</string>
+    <string name="code_goto">Go to line</string>
+    <string name="code_line_hint">Line number</string>
+    <string name="code_top">To the top</string>
+    <string name="code_bottom">To the bottom</string>
+    <string name="code_edit">Edit</string>
+    <string name="code_view">Stop editing</string>
+    <string name="code_not_found">No match</string>
+    <string name="code_view_only">The file is too large to edit, opened for reading only</string>
+    <string name="code_status">%1$d lines  ·  %2$s</string>
 </resources>

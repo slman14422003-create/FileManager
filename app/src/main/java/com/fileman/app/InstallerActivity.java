@@ -669,7 +669,7 @@ public class InstallerActivity extends BaseActivity {
                 latch.countDown();
                 return;
             }
-            new Dlg(this).setTitle(getString(R.string.sec_high_title))
+            SecurityScan.hold(new Dlg(this).setTitle(getString(R.string.sec_high_title))
                     .setMessage(getString(R.string.sec_high_msg, in.label.isEmpty() ? in.pkg : in.label))
                     .setPositiveButton(R.string.sec_install_anyway, (d, w) -> {
                         ok[0] = true;
@@ -677,7 +677,7 @@ public class InstallerActivity extends BaseActivity {
                     })
                     .setNegativeButton(R.string.cancel, (d, w) -> latch.countDown())
                     .setOnCancelListener(d -> latch.countDown())
-                    .show();
+                    .show(), SecurityScan.HIGH_RISK_WAIT_S);
         });
         latch.await();
         return ok[0];

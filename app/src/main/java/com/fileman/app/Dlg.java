@@ -9,6 +9,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.InsetDrawable;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
@@ -35,6 +36,8 @@ import java.util.Set;
 public class Dlg extends AlertDialog.Builder {
     private static final int SHEET_MAX_WIDTH_DP = 560;
     private static final int CENTERED_MESSAGE_MAX = 140;
+    private static final float DIM = 0.5f;
+    private static final float SHEET_MAX_HEIGHT = 0.62f;
 
     private boolean hasItems, hasButton, hasView;
     private CharSequence titleText, messageText;
@@ -76,7 +79,12 @@ public class Dlg extends AlertDialog.Builder {
                 w.setGravity(Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
                 w.setWindowAnimations(R.style.SheetAnim);
                 w.setBackgroundDrawable(new ColorDrawable(0));
-                w.setDimAmount(0.5f);
+                w.setDimAmount(DIM);
+                // size the window before it is shown, so it is not re-laid out while the slide-in plays
+                int ww = Math.min(getContext().getResources().getDisplayMetrics().widthPixels,
+                        Ui.dp(getContext(), SHEET_MAX_WIDTH_DP));
+                w.setLayout(ww, ViewGroup.LayoutParams.WRAP_CONTENT);
+                w.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
             }
         }
         final boolean center = centered;
@@ -197,7 +205,6 @@ public class Dlg extends AlertDialog.Builder {
         LinearLayout panel = new LinearLayout(c);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setBackground(card(c, 28));
-        panel.setClipToOutline(true);
 
         LinearLayout grab = new LinearLayout(c);
         grab.setOrientation(LinearLayout.VERTICAL);
@@ -250,19 +257,33 @@ public class Dlg extends AlertDialog.Builder {
 
         boolean anyIcon = false;
         if (itemIcons != null) for (int r : itemIcons) if (r != 0) anyIcon = true;
-        ListView lv = new ListView(c);
-        lv.setAdapter(new ChoiceAdapter(c, itemLabels, itemIcons));
-        int inset = Ui.dp(c, anyIcon ? 78 : 24);
-        lv.setDivider(new InsetDrawable(new ColorDrawable(Ui.color(c, R.color.stroke_soft)), inset, 0, Ui.dp(c, 24), 0));
-        lv.setDividerHeight(hairline(c));
-        lv.setSelector(android.R.color.transparent);
-        lv.setVerticalScrollBarEnabled(false);
-        lv.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        lv.setOnItemClickListener((p, v, pos, id) -> {
-            if (ref[0] != null) ref[0].dismiss();
-            if (itemListener != null) itemListener.onClick(ref[0], pos);
-        });
-        panel.addView(lv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+        // the rows are built once and scroll inside a capped ScrollView: no adapter, no repeated measuring
+        final boolean icons = anyIcon;
+        MaxHeightScroll scroll = new MaxHeightScroll(c, (int) (c.getResources().getDisplayMetrics().heightPixels * SHEET_MAX_HEIGHT));
+        scroll.setVerticalScrollBarEnabled(false);
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        LinearLayout rows = new LinearLayout(c);
+        rows.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable line = new GradientDrawable();
+        line.setColor(Ui.color(c, R.color.stroke_soft));
+        line.setSize(1, hairline(c));
+        rows.setDividerDrawable(new InsetDrawable(line, Ui.dp(c, anyIcon ? 78 : 24), 0, Ui.dp(c, 24), 0));
+        rows.setShowDividers(LinearLayout.SHOW_DIVIDER_MIDDLE);
+        for (int k = 0; k < itemLabels.length; k++) {
+            final int pos = k;
+            int res = itemIcons != null && k < itemIcons.length ? itemIcons[k] : 0;
+            View row = choiceRow(c, itemLabels[k], res, icons, null);
+            row.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
+                if (ref[0] != null) ref[0].dismiss();
+                if (itemListener != null) itemListener.onClick(ref[0], pos);
+            });
+            rows.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+        scroll.addView(rows, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        panel.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView cancel = new TextView(c);
@@ -287,6 +308,10 @@ public class Dlg extends AlertDialog.Builder {
         return root;
     }
 
+    private static void dim(AlertDialog d, float amount) {
+        if (d != null && d.getWindow() != null) d.getWindow().setDimAmount(amount);
+    }
+
     private static void attachDrag(View grip, final View target, final AlertDialog[] ref) {
         final float limit = Ui.dp(grip.getContext(), 90);
         final float[] down = new float[1];
@@ -302,6 +327,7 @@ public class Dlg extends AlertDialog.Builder {
                     if (tracker[0] != null) tracker[0].addMovement(e);
                     float dy = Math.max(0f, e.getRawY() - down[0]);
                     target.setTranslationY(dy);
+                    dim(ref[0], DIM * (1f - Math.min(1f, dy / Math.max(1f, target.getHeight()))));
                     return true;
                 }
                 case MotionEvent.ACTION_UP:
@@ -319,6 +345,7 @@ public class Dlg extends AlertDialog.Builder {
                     if (close && ref[0] != null) {
                         ref[0].dismiss();
                     } else {
+                        dim(ref[0], DIM);
                         target.animate().translationY(0f).setDuration(Motion.DUR).setInterpolator(Motion.OUT).start();
                     }
                     return true;
@@ -418,48 +445,71 @@ public class Dlg extends AlertDialog.Builder {
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
-            Context c = getContext();
-            LinearLayout row;
-            if (convertView instanceof LinearLayout && "choice".equals(convertView.getTag())) {
-                row = (LinearLayout) convertView;
-            } else {
-                row = new LinearLayout(c);
-                row.setTag("choice");
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setGravity(Gravity.CENTER_VERTICAL);
-                row.setMinimumHeight(Ui.dp(c, 58));
-                row.setPaddingRelative(Ui.dp(c, 20), Ui.dp(c, 8), Ui.dp(c, 20), Ui.dp(c, 8));
-                row.setBackgroundResource(R.drawable.bg_tab_btn);
-                ImageView iv = new ImageView(c);
-                iv.setPadding(Ui.dp(c, 9), Ui.dp(c, 9), Ui.dp(c, 9), Ui.dp(c, 9));
-                iv.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-                LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 40));
-                ip.setMarginEnd(Ui.dp(c, 16));
-                row.addView(iv, ip);
-                TextView t = new TextView(c);
-                t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16.5f);
-                t.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-                t.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-                row.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            }
-            ImageView iv = (ImageView) row.getChildAt(0);
-            TextView t = (TextView) row.getChildAt(1);
-            CharSequence label = getItem(position);
-            boolean red = destructive(c, label);
-            t.setText(label);
-            t.setTextColor(Ui.color(c, red ? R.color.bad : R.color.text_primary));
             int res = icons != null && position < icons.length ? icons[position] : 0;
-            if (res != 0) {
-                iv.setImageResource(res);
-                Ui.outlineIcon(c, iv, 12);
-                if (red) iv.setImageTintList(ColorStateList.valueOf(Ui.color(c, R.color.bad)));
-                iv.setVisibility(View.VISIBLE);
-            } else {
-                iv.setImageDrawable(null);
-                iv.setBackground(null);
-                iv.setVisibility(anyIcon ? View.INVISIBLE : View.GONE);
+            return choiceRow(getContext(), getItem(position), res, anyIcon, convertView);
+        }
+    }
+
+    /** One tappable row of a choice list (shared by the sheet and the dialog list). */
+    private static View choiceRow(Context c, CharSequence label, int res, boolean anyIcon, View reuse) {
+        LinearLayout row;
+        if (reuse instanceof LinearLayout && "choice".equals(reuse.getTag())) {
+            row = (LinearLayout) reuse;
+        } else {
+            row = new LinearLayout(c);
+            row.setTag("choice");
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setMinimumHeight(Ui.dp(c, 58));
+            row.setPaddingRelative(Ui.dp(c, 20), Ui.dp(c, 8), Ui.dp(c, 20), Ui.dp(c, 8));
+            row.setBackgroundResource(R.drawable.bg_tab_btn);
+            ImageView iv = new ImageView(c);
+            iv.setPadding(Ui.dp(c, 9), Ui.dp(c, 9), Ui.dp(c, 9), Ui.dp(c, 9));
+            iv.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 40));
+            ip.setMarginEnd(Ui.dp(c, 16));
+            row.addView(iv, ip);
+            TextView t = new TextView(c);
+            t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16.5f);
+            t.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+            t.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+            row.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        }
+        ImageView iv = (ImageView) row.getChildAt(0);
+        TextView t = (TextView) row.getChildAt(1);
+        boolean red = destructive(c, label);
+        t.setText(label);
+        t.setTextColor(Ui.color(c, red ? R.color.bad : R.color.text_primary));
+        if (res != 0) {
+            iv.setImageResource(res);
+            Ui.outlineIcon(c, iv, 12);
+            if (red) iv.setImageTintList(ColorStateList.valueOf(Ui.color(c, R.color.bad)));
+            iv.setVisibility(View.VISIBLE);
+        } else {
+            iv.setImageDrawable(null);
+            iv.setBackground(null);
+            iv.setVisibility(anyIcon ? View.INVISIBLE : View.GONE);
+        }
+        return row;
+    }
+
+    /** ScrollView that never grows taller than a share of the screen, so the Cancel button stays reachable. */
+    private static final class MaxHeightScroll extends android.widget.ScrollView {
+        private final int max;
+
+        MaxHeightScroll(Context c, int max) {
+            super(c);
+            this.max = max;
+        }
+
+        @Override
+        protected void onMeasure(int w, int h) {
+            int mode = View.MeasureSpec.getMode(h);
+            int size = View.MeasureSpec.getSize(h);
+            if (mode == View.MeasureSpec.UNSPECIFIED || size > max) {
+                h = View.MeasureSpec.makeMeasureSpec(max, View.MeasureSpec.AT_MOST);
             }
-            return row;
+            super.onMeasure(w, h);
         }
     }
 
@@ -510,10 +560,6 @@ public class Dlg extends AlertDialog.Builder {
         Window win = d.getWindow();
         if (win != null) {
             win.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
-            if (sheet) {
-                int w = Math.min(c.getResources().getDisplayMetrics().widthPixels, Ui.dp(c, SHEET_MAX_WIDTH_DP));
-                win.setLayout(w, ViewGroup.LayoutParams.WRAP_CONTENT);
-            }
         }
         if (sheet) return;
         focusSingleField(d);

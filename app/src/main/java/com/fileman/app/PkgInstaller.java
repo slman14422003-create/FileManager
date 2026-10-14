@@ -75,6 +75,8 @@ final class PkgInstaller {
         File original;                                // the file the user picked (null for shared streams)
         String fileSha = "";
         boolean debuggable;
+        boolean testOnly;
+        String sharedUid = "";
         List<ApkDeepScan.Hit> deep = new ArrayList<>();
         int layers;
 
@@ -173,6 +175,11 @@ final class PkgInstaller {
         in.minSdk = pi.applicationInfo.minSdkVersion;
         in.targetSdk = pi.applicationInfo.targetSdkVersion;
         in.debuggable = (pi.applicationInfo.flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+        in.testOnly = (pi.applicationInfo.flags & android.content.pm.ApplicationInfo.FLAG_TEST_ONLY) != 0;
+        try {
+            in.sharedUid = pi.sharedUserId == null ? "" : pi.sharedUserId;
+        } catch (Throwable ignored) {
+        }
         try {
             CharSequence l = pi.applicationInfo.loadLabel(pm);
             in.label = l == null ? in.pkg : l.toString();

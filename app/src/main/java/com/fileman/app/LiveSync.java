@@ -21,6 +21,10 @@ import java.util.Set;
 final class LiveSync {
     private static final long QUIET_MS = 350;
     private static final long MAX_WAIT_MS = 1600;
+    /** Media database changes arrive in long bursts: wait for them to settle, and never rescan more often than this. */
+    private static final long MEDIA_QUIET_MS = 1200;
+    private static final long MEDIA_MAX_WAIT_MS = 6000;
+    private static final long MIN_FULL_GAP_MS = 4000;
     private static final int MASK = FileObserver.CREATE | FileObserver.DELETE | FileObserver.DELETE_SELF
             | FileObserver.MOVED_FROM | FileObserver.MOVED_TO | FileObserver.MOVE_SELF
             | FileObserver.CLOSE_WRITE | FileObserver.ATTRIB;
@@ -42,6 +46,8 @@ final class LiveSync {
     private boolean pending;
     private boolean active;
     private long firstAt;
+    private long lastFullAt;
+    private boolean mediaEvent;
 
     private final Runnable fire = new Runnable() {
         @Override
@@ -55,6 +61,8 @@ final class LiveSync {
             changed.clear();
             full = false;
             if (all) {
+                lastFullAt = SystemClock.uptimeMillis();
+                mediaEvent = false;
                 onChange.run();
                 return;
             }
@@ -92,12 +100,14 @@ final class LiveSync {
                     @Override
                     public void onChange(boolean selfChange) {
                         full = true;
+                        mediaEvent = true;
                         schedule();
                     }
 
                     @Override
                     public void onChange(boolean selfChange, Uri uri) {
                         full = true;
+                        mediaEvent = true;
                         schedule();
                     }
                 };
@@ -119,6 +129,7 @@ final class LiveSync {
         pending = false;
         changed.clear();
         full = false;
+        mediaEvent = false;
         for (FileObserver o : observers) {
             try {
                 o.stopWatching();
@@ -143,7 +154,11 @@ final class LiveSync {
             firstAt = now;
         }
         h.removeCallbacks(fire);
-        h.postDelayed(fire, Math.min(QUIET_MS, Math.max(0, firstAt + MAX_WAIT_MS - now)));
+        long quiet = mediaEvent ? MEDIA_QUIET_MS : QUIET_MS;
+        long maxWait = mediaEvent ? MEDIA_MAX_WAIT_MS : MAX_WAIT_MS;
+        long delay = Math.min(quiet, Math.max(0, firstAt + maxWait - now));
+        if (full || mediaEvent) delay = Math.max(delay, lastFullAt + MIN_FULL_GAP_MS - now);
+        h.postDelayed(fire, delay);
     }
 
     @SuppressWarnings("deprecation")
@@ -159,6 +174,7 @@ final class LiveSync {
         public void onEvent(final int event, final String name) {
             h.post(() -> {
                 if (!active) return;
+                if (name != null && (name.startsWith(".pending-") || name.startsWith(".trashed-"))) return;   // system temp names
                 boolean self = name == null || (event & (FileObserver.DELETE_SELF | FileObserver.MOVE_SELF)) != 0
                         || (event & 0x4000) != 0;   // Q_OVERFLOW
                 if (self) {
