@@ -945,4 +945,10 @@
     <string name="drive_err_auth">انتهت الصلاحية أو لم تُمنح. سجّل الدخول من جديد.</string>
     <string name="drive_err_net">تعذّر الاتصال بـ Google Drive</string>
     <string name="drive_err_generic">خطأ من Drive (%d)</string>
+
+    <!-- Semo ecosystem -->
+    <string name="eco_title">منظومة Semo · المس لفتح التطبيق</string>
+    <string name="eco_none">لا توجد تطبيقات Semo أخرى مثبّتة على هذا الهاتف</string>
+    <string name="eco_show_files">إظهار في الملفات</string>
+    <string name="eco_link">فتح الصور والأغاني في تطبيقات Semo</string>
 </resources>

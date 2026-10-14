@@ -204,6 +204,23 @@ public class UpdateActivity extends BaseActivity {
         Ui.group(this, opts);
         content.addView(opts);
 
+        content.addView(Ui.sectionTitle(this, getString(R.string.eco_title)));
+        LinearLayout eco = new LinearLayout(this);
+        eco.setOrientation(LinearLayout.VERTICAL);
+        for (final Semo.Sibling sib : Semo.siblings(this)) {
+            eco.addView(Ui.rowView(this, content, new Row(R.drawable.ic_package, true,
+                    sib.label.toString(), sib.version + " (" + sib.code + ")", false, true), v -> Semo.open(this, sib.pkg)));
+        }
+        if (eco.getChildCount() == 0) {
+            eco.addView(Ui.rowView(this, content, new Row(R.drawable.ic_info, false,
+                    getString(R.string.eco_none), null, false, false), null));
+        }
+        final Ui.Toggle link = Ui.toggle(this, eco, R.string.eco_link, 0, Store.intPref(this, "semo_link", 1) == 1);
+        link.onChange((b, on) -> Store.setIntPref(this, "semo_link", on ? 1 : 0));
+        eco.addView(link.view);
+        Ui.group(this, eco);
+        content.addView(eco);
+
         content.addView(Ui.noteCard(this, getString(R.string.upd_sign_note), R.color.text_secondary));
     }
 

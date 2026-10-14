@@ -32,6 +32,13 @@ public class OpenActivity extends Activity {
             openDir(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
             return;
         }
+        if (Semo.ACTION_SHOW_IN_FILES.equals(in.getAction())) {
+            // another Semo app (Gallery / Music) asks to see where a file lives
+            String p = in.getStringExtra("path");
+            File f = p == null || p.isEmpty() ? null : new File(p);
+            openDir(f == null ? null : (f.isDirectory() ? f : f.getParentFile()));
+            return;
+        }
         if ("android.provider.action.BROWSE".equals(in.getAction())) {
             openDir(Environment.getExternalStorageDirectory());
             return;
@@ -109,7 +116,7 @@ public class OpenActivity extends Activity {
             } else if (kind == Cats.V_LEGACY || kind == Cats.V_NONE) {
                 Opener.external(this, target, true);
             } else {
-                Opener.open(this, target);
+                Opener.open(this, target, false);
             }
             finish();
         });

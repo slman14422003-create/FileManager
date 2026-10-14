@@ -24,6 +24,11 @@ public final class Opener {
 
     /** Opens a regular file with the right viewer. */
     public static void open(Activity a, File f) {
+        open(a, f, true);
+    }
+
+    /** {@code allowSibling=false} when another app already chose this app (no bouncing back to Gallery / Music). */
+    public static void open(Activity a, File f, boolean allowSibling) {
         String ext = Cats.extOf(f.getName());
         if (isArchiveExt(ext)) {
             openArchive(a, f);
@@ -40,9 +45,12 @@ public final class Opener {
                 start(a, FileEditActivity.class, f);
                 break;
             case Cats.V_IMAGE:
+                if (allowSibling && viaSibling(a, f, Semo.ROLE_GALLERY)) break;
                 start(a, ImageViewActivity.class, f);
                 break;
             case Cats.V_MEDIA:
+                String mt = Cats.mimeOf(f);
+                if (allowSibling && viaSibling(a, f, mt != null && mt.startsWith("audio/") ? Semo.ROLE_MUSIC : Semo.ROLE_GALLERY)) break;
                 start(a, MediaActivity.class, f);
                 break;
             case Cats.V_PDF:
@@ -125,6 +133,18 @@ public final class Opener {
             byte[] b = new byte[4];
             if (in.read(b) != 4) return false;
             return b[0] == 'P' && b[1] == 'K' && (b[2] == 3 || b[2] == 5) && (b[3] == 4 || b[3] == 6);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Semo ecosystem: photos and videos open in Gallery, songs in Music, when those apps are installed. */
+    private static boolean viaSibling(Activity a, File f, String role) {
+        if (Store.intPref(a, "semo_link", 1) == 0) return false;
+        if (!Safe.mayExpose(a, f)) return false;
+        try {
+            Uri u = FileProvider.getUriForFile(a, a.getPackageName() + ".files", f);
+            return Semo.view(a, u, Cats.mimeOf(f), role);
         } catch (Exception e) {
             return false;
         }

@@ -49,8 +49,9 @@ final class Net {
             if (!allowed(u)) throw new IOException("blocked host");
             HttpURLConnection c = (HttpURLConnection) u.openConnection();
             c.setRequestMethod("GET");
-            c.setConnectTimeout(15000);
-            c.setReadTimeout(30000);
+            boolean api = accept != null && accept.contains("github+json");
+            c.setConnectTimeout(api ? 8000 : 15000);
+            c.setReadTimeout(api ? 12000 : 30000);
             c.setInstanceFollowRedirects(false);
             c.setUseCaches(false);
             c.setRequestProperty("Accept", accept);

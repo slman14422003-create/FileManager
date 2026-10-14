@@ -945,4 +945,10 @@
     <string name="drive_err_auth">Access expired or not granted. Sign in again.</string>
     <string name="drive_err_net">Could not reach Google Drive</string>
     <string name="drive_err_generic">Drive error (%d)</string>
+
+    <!-- Semo ecosystem -->
+    <string name="eco_title">Semo apps · tap to open</string>
+    <string name="eco_none">No other Semo apps are installed on this phone</string>
+    <string name="eco_show_files">Show in Files</string>
+    <string name="eco_link">Open photos and songs in Semo apps</string>
 </resources>

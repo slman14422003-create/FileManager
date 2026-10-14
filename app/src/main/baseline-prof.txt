@@ -1,0 +1,6 @@
+# Baseline profile: precompile this app's own code at install time so the first launch and the first scrolls are smooth.
+HSPLcom/fileman/app/**->**(**)**
+HSPLcom/fileman/app/**-><init>(**)V
+Landroidx/recyclerview/widget/**;
+HSPLandroidx/recyclerview/widget/**->**(**)**
+HSPLandroidx/appcompat/widget/**->**(**)**
