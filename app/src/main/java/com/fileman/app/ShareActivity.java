@@ -58,6 +58,7 @@ public class ShareActivity extends BaseActivity {
     private void build() {
         content.removeAllViews();
         content.addView(Ui.noteCard(this, getString(R.string.sh_hub_note), R.color.info));
+        content.addView(Ui.footer(this, getString(R.string.sx_hub_how)));
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_wifi, true, getString(R.string.sh_send_title),
                 getString(R.string.sh_send_row_sub), false, true),
                 v -> startActivity(new Intent(this, ShareSendActivity.class))));

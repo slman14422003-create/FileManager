@@ -71,6 +71,7 @@ public class ShareReceiveActivity extends BaseActivity {
     private ActivityResultLauncher<String[]> permLauncher;
     private Runnable afterPerm;
     private boolean scanned;
+    private boolean awaitWifi;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -227,7 +228,42 @@ public class ShareReceiveActivity extends BaseActivity {
                 permLauncher.launch(p);
                 return;
             }
+            if (!ShareNet.wifiEnabled(this)) {
+                new Dlg(this).setTitle(R.string.sx_wifi_off_title).setMessage(R.string.sx_wifi_off_msg)
+                        .setPositiveButton(R.string.sx_open_wifi, (d, w) -> {
+                            awaitWifi = true;
+                            ShareNet.openWifi(this);
+                        })
+                        .setNegativeButton(R.string.cancel, (d, w) -> showStart())
+                        .show();
+                return;
+            }
+        } else if (!ShareNet.onWifi(this)) {
+            new Dlg(this).setTitle(R.string.sx_recv_net_title).setMessage(R.string.sx_recv_net_msg)
+                    .setPositiveButton(R.string.sx_open_wifi, (d, w) -> {
+                        awaitWifi = true;
+                        ShareNet.openWifi(this);
+                    })
+                    .setNeutralButton(R.string.sx_try_anyway, (d, w) -> go(l))
+                    .setNegativeButton(R.string.cancel, (d, w) -> showStart())
+                    .show();
+            return;
         }
+        go(l);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (awaitWifi) {
+            awaitWifi = false;
+            ui.postDelayed(() -> {
+                if (!destroyed && link != null && stage != 1 && stage != 2 && stage != 3) connect(link);
+            }, 800);
+        }
+    }
+
+    private void go(final ShareLink l) {
         stage = 1;
         header(l.name);
         loading.setVisibility(View.VISIBLE);
@@ -263,14 +299,19 @@ public class ShareReceiveActivity extends BaseActivity {
         io.execute(() -> {
             List<String> ips = new ArrayList<>(l.ips);
             for (String g : extraIps) if (!ips.contains(g)) ips.add(g);
-            ShareClient c = new ShareClient(factory, l.port, l.token, ShareActivity.deviceName(this));
+            final String me = ShareActivity.deviceName(this);
+            final ShareClient primary = new ShareClient(factory, l.port, l.token, me);
+            final ShareClient fallback = new ShareClient(SocketFactory.getDefault(), l.port, l.token, me);
+            ShareClient used = primary;
             String err = null;
             List<ShareItem> list = null;
-            for (int attempt = 0; attempt < 4 && list == null && !destroyed; attempt++) {
+            for (int attempt = 0; attempt < 5 && list == null && !destroyed; attempt++) {
+                ShareClient cur = attempt % 2 == 1 ? fallback : primary;
                 ShareClient.Conn conn = null;
                 try {
-                    conn = c.connectAny(ips);
-                    list = c.list(conn);
+                    conn = cur.connectAny(ips);
+                    list = cur.list(conn);
+                    used = cur;
                 } catch (Throwable t) {
                     err = String.valueOf(t.getMessage());
                     try {
@@ -281,6 +322,7 @@ public class ShareReceiveActivity extends BaseActivity {
                     if (conn != null) conn.close();
                 }
             }
+            final ShareClient c = used;
             final List<ShareItem> fl = list;
             final String fe = err;
             ui.post(() -> {
@@ -305,11 +347,17 @@ public class ShareReceiveActivity extends BaseActivity {
         loading.setVisibility(View.INVISIBLE);
         content.removeAllViews();
         content.addView(Ui.noteCard(this, msg, R.color.bad));
+        content.addView(Ui.noteCard(this, getString(R.string.sx_fail_tips), R.color.info));
         content.addView(button(R.string.sh_retry, true, v -> {
             if (link != null) connect(link);
             else showStart();
         }));
+        content.addView(button(R.string.sx_open_wifi, false, v -> {
+            awaitWifi = true;
+            ShareNet.openWifi(this);
+        }));
         content.addView(button(R.string.sh_scan_btn, false, v -> scan()));
+        content.addView(button(R.string.sh_manual, false, v -> manual()));
     }
 
     private static final class Level {

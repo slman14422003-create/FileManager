@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sx_pick_title">What do you want to send?</string>
+    <string name="sx_pick_hint">Pick one or more types, then continue</string>
+    <string name="sx_t_files">Files</string>
+    <string name="sx_t_folder">Folder</string>
+    <string name="sx_t_apps">Apps</string>
+    <string name="sx_t_contacts">Contacts</string>
+    <string name="sx_t_text">Text</string>
+    <string name="sx_t_all">Everything</string>
+    <string name="sx_next">Choose how to connect</string>
+
+    <string name="sx_m_title">How do you want to connect?</string>
+    <string name="sx_m_rec">Recommended</string>
+    <string name="sx_m_hotspot">Automatic hotspot</string>
+    <string name="sx_m_hotspot_sub">Your phone creates a temporary network and the other device joins by scanning the code</string>
+    <string name="sx_m_direct">Wi-Fi Direct</string>
+    <string name="sx_m_direct_sub">A direct link between the two phones, no router or internet</string>
+    <string name="sx_m_network">Current network or manual hotspot</string>
+    <string name="sx_m_network_sub">When both devices are on the same Wi-Fi or you turned on a hotspot yourself</string>
+    <string name="sx_m_system">System share (Quick Share and more)</string>
+    <string name="sx_m_system_sub">Send through Quick Share, Bluetooth or any other app</string>
+    <string name="sx_sys_many">Too many files for system share, use one of the other methods</string>
+    <string name="sx_sys_none">System share does not support these items, use the hotspot or Wi-Fi Direct</string>
+    <string name="sx_switch">Change connection method</string>
+    <string name="sx_switch_sub">If the other device cannot connect, try a different method</string>
+
+    <string name="sx_fail_title">Could not prepare the connection</string>
+    <string name="sx_fail_direct">Try Wi-Fi Direct</string>
+    <string name="sx_fail_hotspot">Try the hotspot</string>
+    <string name="sx_fail_net">Current network</string>
+    <string name="sx_hs_r1">No free Wi-Fi channel is available right now, try Wi-Fi Direct or the current network</string>
+    <string name="sx_hs_r2">The temporary hotspot could not be created, try Wi-Fi Direct or turn on a hotspot manually</string>
+    <string name="sx_hs_r3">Another hotspot or internet sharing is running, turn it off and retry or use the current network</string>
+    <string name="sx_hs_r4">Device settings block creating a temporary hotspot, try Wi-Fi Direct or the current network</string>
+    <string name="sx_p2p_unsupported">This device does not support Wi-Fi Direct, try the automatic hotspot</string>
+    <string name="sx_p2p_busy">Wi-Fi Direct is busy with another task, stop it and retry or try the hotspot</string>
+    <string name="sx_p2p_fail">Wi-Fi Direct could not be started, try the automatic hotspot</string>
+
+    <string name="sx_wifi_off_title">Turn on Wi-Fi</string>
+    <string name="sx_wifi_off_msg">Wi-Fi is off. Turn it on and come back, the app will connect to the sending device automatically</string>
+    <string name="sx_wifi_off_send">Wi-Fi Direct needs Wi-Fi turned on. Turn it on, then pick the method again</string>
+    <string name="sx_open_wifi">Open Wi-Fi</string>
+    <string name="sx_open_hotspot">Hotspot settings</string>
+    <string name="sx_open_net">Network settings</string>
+    <string name="sx_open_net_sub">Turn on a hotspot or join a Wi-Fi network, then come back</string>
+    <string name="sx_net_none_title">No network</string>
+    <string name="sx_net_none_msg">Turn on a hotspot on this phone or join a Wi-Fi network the other device is also on, then come back to the app</string>
+    <string name="sx_recv_net_title">Not connected to Wi-Fi</string>
+    <string name="sx_recv_net_msg">This code works on a shared network. Join the sender Wi-Fi or hotspot, then come back to the app</string>
+    <string name="sx_try_anyway">Try anyway</string>
+
+    <string name="sx_live_steps">1. On the other device open Receive and scan this code\n2. Wait until the two devices connect\n3. Pick the files on the other device and start the download</string>
+    <string name="sx_live_wait_net">Waiting for a network, turn on a hotspot or join Wi-Fi</string>
+    <string name="sx_fail_tips">Make sure:\n• The sender screen is open and the code is still showing\n• Both phones are close to each other\n• Wi-Fi is on for you\n• If it keeps failing, ask the sender to switch the connection method to Wi-Fi Direct</string>
+
+    <string name="sx_c_title">Choose contacts</string>
+    <string name="sx_c_search">Search by name</string>
+    <string name="sx_c_all">Select all</string>
+    <string name="sx_c_none">Clear selection</string>
+    <string name="sx_c_count">%1$d contacts selected</string>
+    <string name="sx_c_perm">Contacts permission is needed to send them</string>
+    <string name="sx_c_empty">No contacts found</string>
+    <string name="sx_x_title">Send text</string>
+    <string name="sx_x_hint">Type or paste the text here</string>
+
+    <string name="sx_hub_how">1. Pick what to send  2. Choose how to connect  3. Scan the code on the other device</string>
+</resources>

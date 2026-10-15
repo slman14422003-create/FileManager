@@ -1,7 +1,9 @@
 package com.fileman.app;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.LinkProperties;
 import android.net.Network;
@@ -12,10 +14,13 @@ import android.net.wifi.SoftApConfiguration;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiNetworkSpecifier;
+import android.net.wifi.p2p.WifiP2pConfig;
+import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.provider.Settings;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -103,6 +108,197 @@ final class ShareNet {
             }
             res = null;
             active = false;
+        }
+    }
+
+    static boolean wifiEnabled(Context c) {
+        try {
+            WifiManager wm = (WifiManager) c.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            return wm == null || wm.isWifiEnabled();
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
+    static boolean onWifi(Context c) {
+        try {
+            ConnectivityManager cm = (ConnectivityManager) c.getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+            return cm != null && wifiNetwork(cm) != null;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    static void openWifi(Activity a) {
+        try {
+            if (Build.VERSION.SDK_INT >= 29) a.startActivity(new Intent(Settings.Panel.ACTION_WIFI));
+            else a.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
+            return;
+        } catch (Throwable ignored) {
+        }
+        try {
+            a.startActivity(new Intent(Settings.ACTION_WIRELESS_SETTINGS));
+        } catch (Throwable ignored) {
+        }
+    }
+
+    static void openTether(Activity a) {
+        try {
+            a.startActivity(new Intent("android.settings.TETHER_SETTINGS"));
+            return;
+        } catch (Throwable ignored) {
+        }
+        try {
+            a.startActivity(new Intent(Settings.ACTION_WIRELESS_SETTINGS));
+        } catch (Throwable ignored) {
+        }
+    }
+
+    static int hotspotReasonText(int r) {
+        switch (r) {
+            case WifiManager.LocalOnlyHotspotCallback.ERROR_NO_CHANNEL:
+                return R.string.sx_hs_r1;
+            case WifiManager.LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE:
+                return R.string.sx_hs_r3;
+            case WifiManager.LocalOnlyHotspotCallback.ERROR_TETHERING_DISALLOWED:
+                return R.string.sx_hs_r4;
+            default:
+                return R.string.sx_hs_r2;
+        }
+    }
+
+    static int p2pReasonText(int r) {
+        if (r == WifiP2pManager.P2P_UNSUPPORTED) return R.string.sx_p2p_unsupported;
+        if (r == WifiP2pManager.BUSY) return R.string.sx_p2p_busy;
+        return R.string.sx_p2p_fail;
+    }
+
+    /** Wi-Fi Direct group owner: the other device joins it like a normal Wi-Fi network using the name and password. */
+    static final class P2p {
+        interface Cb {
+            void started();
+
+            void failed(int reason);
+        }
+
+        private final Handler main = new Handler(Looper.getMainLooper());
+        private WifiP2pManager mgr;
+        private WifiP2pManager.Channel ch;
+        private volatile boolean stopped;
+        String ssid = "";
+        String pass = "";
+        volatile boolean active;
+
+        @SuppressLint("MissingPermission")
+        void start(Context c, final Cb cb) {
+            stopped = false;
+            active = false;
+            Context app = c.getApplicationContext();
+            mgr = (WifiP2pManager) app.getSystemService(Context.WIFI_P2P_SERVICE);
+            if (mgr == null) {
+                cb.failed(WifiP2pManager.P2P_UNSUPPORTED);
+                return;
+            }
+            try {
+                ch = mgr.initialize(app, Looper.getMainLooper(), null);
+            } catch (Throwable t) {
+                ch = null;
+            }
+            if (ch == null) {
+                cb.failed(WifiP2pManager.ERROR);
+                return;
+            }
+            try {
+                mgr.removeGroup(ch, new WifiP2pManager.ActionListener() {
+                    @Override
+                    public void onSuccess() {
+                        create(cb);
+                    }
+
+                    @Override
+                    public void onFailure(int reason) {
+                        create(cb);
+                    }
+                });
+            } catch (Throwable t) {
+                create(cb);
+            }
+        }
+
+        @SuppressLint("MissingPermission")
+        private void create(final Cb cb) {
+            if (stopped || mgr == null || ch == null) return;
+            WifiP2pManager.ActionListener l = new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    read(cb, 0);
+                }
+
+                @Override
+                public void onFailure(int reason) {
+                    active = false;
+                    if (!stopped) cb.failed(reason);
+                }
+            };
+            try {
+                if (Build.VERSION.SDK_INT >= 29) {
+                    WifiP2pConfig cfg = new WifiP2pConfig.Builder()
+                            .setNetworkName("DIRECT-fm-" + ShareProto.newToken().substring(0, 4))
+                            .setPassphrase(ShareProto.newToken().substring(0, 12))
+                            .enablePersistentMode(false)
+                            .build();
+                    mgr.createGroup(ch, cfg, l);
+                } else {
+                    mgr.createGroup(ch, l);
+                }
+            } catch (Throwable t) {
+                if (!stopped) cb.failed(WifiP2pManager.ERROR);
+            }
+        }
+
+        @SuppressLint("MissingPermission")
+        private void read(final Cb cb, final int n) {
+            if (stopped || mgr == null || ch == null) return;
+            try {
+                mgr.requestGroupInfo(ch, group -> {
+                    if (stopped) return;
+                    if (group != null && group.getNetworkName() != null && group.getPassphrase() != null) {
+                        ssid = group.getNetworkName();
+                        pass = group.getPassphrase();
+                        active = true;
+                        cb.started();
+                    } else if (n < 15) {
+                        main.postDelayed(() -> read(cb, n + 1), 400);
+                    } else {
+                        cb.failed(WifiP2pManager.ERROR);
+                    }
+                });
+            } catch (Throwable t) {
+                cb.failed(WifiP2pManager.ERROR);
+            }
+        }
+
+        @SuppressLint("MissingPermission")
+        void stop() {
+            stopped = true;
+            active = false;
+            final WifiP2pManager m = mgr;
+            final WifiP2pManager.Channel c = ch;
+            mgr = null;
+            ch = null;
+            if (m == null || c == null) return;
+            try {
+                m.removeGroup(c, null);
+            } catch (Throwable ignored) {
+            }
+            if (Build.VERSION.SDK_INT >= 27) {
+                main.postDelayed(() -> {
+                    try {
+                        c.close();
+                    } catch (Throwable ignored) {
+                    }
+                }, 1500);
+            }
         }
     }
 
