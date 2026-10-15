@@ -81,10 +81,16 @@ jobs:
       - name: Security guard (network and file exposure)
         run: |
           SRC=app/src/main/java
-          # 1) network classes may only appear in Net.java (update check) and DriveHttp.java (Google Drive screen); Updater.java only uses its connection type
-          if grep -rEn "java\.net\.|HttpURLConnection|HttpsURLConnection|okhttp|android\.net\.http|javax\.net|loadUrl\(|DownloadManager" $SRC \
+          # 1) HTTP / web / download classes may only appear in Net.java (update check) and DriveHttp.java (Google Drive screen); Updater.java only uses its connection type
+          if grep -rEn "HttpURLConnection|HttpsURLConnection|okhttp|android\.net\.http|loadUrl\(|DownloadManager" $SRC \
                | grep -v -E "/(Net|Updater|DriveHttp)\.java:"; then
-            echo "::error title=Network guard::network code outside Net.java / DriveHttp.java"; exit 1
+            echo "::error title=Network guard::http code outside Net.java / DriveHttp.java"; exit 1
+          fi
+          # 1b) raw socket / address classes may only appear in Net, Updater, DriveHttp and the local file-sharing classes (Share*), plus the bundled reandroid json library (URL encode/decode only)
+          if grep -rEn "java\.net\.|javax\.net" $SRC \
+               | grep -v -E "/(Net|Updater|DriveHttp|ShareNet|ShareServer|ShareClient|ShareReceiveActivity)\.java:" \
+               | grep -v -E "/com/reandroid/json/JSONPointer\.java:"; then
+            echo "::error title=Network guard::socket code outside the allowed files"; exit 1
           fi
           # 2) only the launcher and the screens that replace the system installer / Files app (install, open link, file picker) may be exported
           M=app/src/main/AndroidManifest.xml

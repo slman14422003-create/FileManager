@@ -144,3 +144,9 @@
 - الحل: إضافتها في Motion.java بنفس قيم المنحنيات في res/interpolator (ios_out وios_ease) ومدة 380ms للطويلة و220ms للقصيرة.
 - لم يُشغَّل البناء محليًا.
 
+
+## مهمة: إصلاح فشل Network guard في CI (كلاسات الشبكة خارج Net/DriveHttp)
+- السبب: الفحص الأول يمنع java.net. وjavax.net خارج Net وUpdater وDriveHttp، فظهرت أخطاء في ShareNet وShareServer وShareClient وShareReceiveActivity (مشاركة محلية عبر Socket) وفي JSONPointer (مكتبة reandroid، استيراد URLEncoder وURLDecoder فقط).
+- الحل: تقسيم الفحص في .github/workflows/build.yml إلى جزأين: (1) أصناف HTTP والويب والتنزيل (HttpURLConnection وokhttp وloadUrl وDownloadManager...) تبقى محصورة في Net وUpdater وDriveHttp، (2) أصناف السوكت والعناوين (java.net. وjavax.net) مسموحة أيضًا في ShareNet وShareServer وShareClient وShareReceiveActivity وفي com/reandroid/json/JSONPointer.java.
+- لم يتغير أي كود تطبيق ولا الفحوص الأخرى (التصدير، الإضافات، cleartext، allowBackup)، وتم التحقق محليًا أن الفحوص الأربعة تمر على المصدر الحالي.
+- ملاحظة: أي ملف جديد يستعمل سوكت يجب إضافته إلى قائمة 1b في build.yml عمدًا.
