@@ -7,9 +7,11 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -65,6 +67,7 @@ public class ShareReceiveActivity extends BaseActivity {
     private TextView dlLine, dlSpeed, dlFiles, upLine;
     private ProgressBar dlBar;
     private Button pauseBtn;
+    private PulseView dlPulse;
 
     private ActivityResultLauncher<Intent> scanLauncher;
     private ActivityResultLauncher<Intent> pickLauncher;
@@ -140,6 +143,7 @@ public class ShareReceiveActivity extends BaseActivity {
         super.onDestroy();
         destroyed = true;
         ui.removeCallbacksAndMessages(null);
+        if (dlPulse != null) dlPulse.stop();
         joiner.release();
         if (dl != null) dl.cancel();
         if (up != null) up.cancel();
@@ -536,6 +540,23 @@ public class ShareReceiveActivity extends BaseActivity {
     private void showProgress() {
         header(getString(R.string.sh_from, link.name));
         content.removeAllViews();
+
+        android.widget.FrameLayout pulseWrap = new android.widget.FrameLayout(this);
+        int pside = Ui.dp(this, 96);
+        LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(pside, pside);
+        plp.gravity = Gravity.CENTER_HORIZONTAL;
+        plp.bottomMargin = Ui.dp(this, 6);
+        dlPulse = new PulseView(this);
+        dlPulse.useAccent(this);
+        pulseWrap.addView(dlPulse, new android.widget.FrameLayout.LayoutParams(pside, pside));
+        ImageView dlIcon = new ImageView(this);
+        dlIcon.setImageResource(R.drawable.ic_download);
+        dlIcon.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.accent)));
+        int isz = Ui.dp(this, 28);
+        pulseWrap.addView(dlIcon, new android.widget.FrameLayout.LayoutParams(isz, isz, Gravity.CENTER));
+        content.addView(pulseWrap, plp);
+        dlPulse.start();
+
         dlLine = Ui.body(this, "", 16, R.color.text_primary);
         content.addView(dlLine);
         dlBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
@@ -550,6 +571,10 @@ public class ShareReceiveActivity extends BaseActivity {
         pauseBtn.setOnClickListener(v -> {
             dl.pause(!dl.paused);
             pauseBtn.setText(dl.paused ? R.string.sh_resume : R.string.sh_pause);
+            if (dlPulse != null) {
+                if (dl.paused) dlPulse.stop();
+                else dlPulse.start();
+            }
         });
         content.addView(Ui.block(this, pauseBtn));
         content.addView(button(R.string.sh_cancel_go, true, v -> back()));
@@ -567,7 +592,7 @@ public class ShareReceiveActivity extends BaseActivity {
             lastTick = now;
             lastBytes = done;
             long total = Math.max(1, dl.total);
-            dlBar.setProgress((int) Math.min(1000, done * 1000 / total));
+            Ui.animateProgress(dlBar, (int) Math.min(1000, done * 1000 / total));
             dlLine.setText(getString(R.string.sh_dl_line, Fmt.size(done), Fmt.size(dl.total), (int) Math.min(100, done * 100 / total)));
             String eta = "";
             if (speed > 1024 && !dl.paused) {
@@ -600,13 +625,16 @@ public class ShareReceiveActivity extends BaseActivity {
         locks.release();
         getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         loading.setVisibility(View.INVISIBLE);
+        if (dlPulse != null) dlPulse.stop();
         header(getString(R.string.sh_from, link.name));
         content.removeAllViews();
         boolean bad = dl.filesFailed.get() > 0 || dl.cancelled;
         long secs = Math.max(1, (System.currentTimeMillis() - dlStart) / 1000);
-        content.addView(Ui.noteCard(this, getString(dl.cancelled ? R.string.sh_dl_cancelled : R.string.sh_dl_done,
+        TextView doneCard = Ui.noteCard(this, getString(dl.cancelled ? R.string.sh_dl_cancelled : R.string.sh_dl_done,
                 dl.filesDone.get() + dl.filesSkipped.get(), dl.totalFiles, Fmt.size(dl.done.get()), clock(secs),
-                Fmt.size(dl.done.get() / secs) + "/s"), bad ? R.color.warn : R.color.ok));
+                Fmt.size(dl.done.get() / secs) + "/s"), bad ? R.color.warn : R.color.ok);
+        content.addView(doneCard);
+        Ui.successPop(doneCard);
         if (dl.filesFailed.get() > 0) content.addView(Ui.footer(this, getString(R.string.sh_failed_n, dl.filesFailed.get())));
         content.addView(Ui.footer(this, saveDir.getAbsolutePath()));
         content.addView(button(R.string.sh_open_folder, true, v ->

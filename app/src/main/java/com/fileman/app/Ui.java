@@ -175,6 +175,30 @@ public final class Ui {
         bar.setIndeterminateTintList(accent);
     }
 
+    /** Eases a progress bar to {@code target} (0..max) instead of snapping, so transfer updates feel alive. */
+    public static void animateProgress(ProgressBar bar, int target) {
+        if (bar == null) return;
+        int from = bar.getProgress();
+        if (from == target) return;
+        android.animation.ValueAnimator va = android.animation.ValueAnimator.ofInt(from, target);
+        va.setDuration(380L);
+        va.setInterpolator(Motion.OUT);
+        va.addUpdateListener(a -> bar.setProgress((int) a.getAnimatedValue()));
+        va.start();
+    }
+
+    /** Pops a freshly-shown "success" view in with a gentle scale + fade (checkmark / done cards). */
+    public static void successPop(View v) {
+        if (v == null) return;
+        v.setScaleX(0.7f);
+        v.setScaleY(0.7f);
+        v.setAlpha(0f);
+        v.animate().scaleX(1f).scaleY(1f).alpha(1f)
+                .setDuration(Motion.DUR)
+                .setInterpolator(Motion.OUT)
+                .start();
+    }
+
     public static TextView label(Context c, CharSequence text) {
         TextView t = new TextView(c);
         t.setText(text);
@@ -233,9 +257,10 @@ public final class Ui {
         t.setText(text);
         t.setTextColor(color(c, R.color.text_secondary));
         t.setTextSize(13);
+        t.setTypeface(t.getTypeface(), Typeface.BOLD);
         t.setAllCaps(false);
         t.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-        t.setPaddingRelative(dp(c, 32), dp(c, 24), dp(c, 32), dp(c, 7));
+        t.setPaddingRelative(dp(c, 32), dp(c, 24), dp(c, 32), dp(c, 8));
         return t;
     }
 

@@ -152,6 +152,7 @@ public class ShareSendActivity extends BaseActivity {
         super.onDestroy();
         destroyed = true;
         ui.removeCallbacksAndMessages(null);
+        if (livePulse != null) livePulse.stop();
         stopAll();
         io.shutdownNow();
     }
@@ -957,6 +958,7 @@ public class ShareSendActivity extends BaseActivity {
 
     private ImageView qrView;
     private TextView credsView;
+    private PulseView livePulse;
 
     private void showLive() {
         live = true;
@@ -965,15 +967,24 @@ public class ShareSendActivity extends BaseActivity {
         liveStatus = Ui.body(this, getString(R.string.sh_starting), 15, R.color.text_primary);
         content.addView(liveStatus);
 
+        android.widget.FrameLayout qrWrap = new android.widget.FrameLayout(this);
+        int side = Math.min(getResources().getDisplayMetrics().widthPixels - Ui.dp(this, 80), Ui.dp(this, 320));
+        LinearLayout.LayoutParams wrapLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        wrapLp.gravity = Gravity.CENTER_HORIZONTAL;
+        wrapLp.topMargin = Ui.dp(this, 10);
+        content.addView(qrWrap, wrapLp);
+
+        livePulse = new PulseView(this);
+        livePulse.useAccent(this);
+        int pulseSide = side + Ui.dp(this, 70);
+        qrWrap.addView(livePulse, new android.widget.FrameLayout.LayoutParams(pulseSide, pulseSide, Gravity.CENTER));
+        livePulse.start();
+
         qrView = new ImageView(this);
         qrView.setBackgroundColor(0xFFFFFFFF);
         qrView.setPadding(Ui.dp(this, 10), Ui.dp(this, 10), Ui.dp(this, 10), Ui.dp(this, 10));
-        int side = Math.min(getResources().getDisplayMetrics().widthPixels - Ui.dp(this, 80), Ui.dp(this, 320));
-        LinearLayout.LayoutParams qp = new LinearLayout.LayoutParams(side, side);
-        qp.gravity = Gravity.CENTER_HORIZONTAL;
-        qp.topMargin = Ui.dp(this, 10);
         qrView.setVisibility(View.GONE);
-        content.addView(qrView, qp);
+        qrWrap.addView(qrView, new android.widget.FrameLayout.LayoutParams(side, side, Gravity.CENTER));
 
         credsView = Ui.body(this, "", 14, R.color.text_secondary);
         credsView.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -1088,7 +1099,10 @@ public class ShareSendActivity extends BaseActivity {
             try {
                 Bitmap bm = ShareQr.make(link.encode(), 720);
                 qrView.setImageBitmap(bm);
-                qrView.setVisibility(View.VISIBLE);
+                if (qrView.getVisibility() != View.VISIBLE) {
+                    qrView.setVisibility(View.VISIBLE);
+                    Ui.successPop(qrView);
+                }
             } catch (Throwable e) {
                 qrView.setVisibility(View.GONE);
             }
@@ -1127,15 +1141,17 @@ public class ShareSendActivity extends BaseActivity {
             List<String> peers = server.peers();
             if (peers.isEmpty()) {
                 livePeers.setText(R.string.sh_devices_none);
+                if (livePulse != null) livePulse.start();
             } else {
                 StringBuilder sb = new StringBuilder(getString(R.string.sh_devices, peers.size()));
                 for (String p : peers) sb.append('\n').append(p);
                 livePeers.setText(sb.toString());
+                if (livePulse != null) livePulse.stop();
             }
             long total = Math.max(1, server.total());
             liveSpeed.setText(getString(R.string.sh_live_stats, Fmt.size(server.sent.get()), Fmt.size(server.received.get()),
                     Fmt.size((long) speed) + "/s", server.count()));
-            liveBar.setProgress((int) Math.min(1000, server.sent.get() * 1000 / total));
+            Ui.animateProgress(liveBar, (int) Math.min(1000, server.sent.get() * 1000 / total));
             if (++tickCount % 6 == 0) refreshNet();
             ui.postDelayed(this, 500);
         }
