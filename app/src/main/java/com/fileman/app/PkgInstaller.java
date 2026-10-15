@@ -79,6 +79,9 @@ final class PkgInstaller {
         String sharedUid = "";
         List<ApkDeepScan.Hit> deep = new ArrayList<>();
         int layers;
+        boolean converted;
+        File convertedFile;
+        String convertNote = "";
 
         boolean installed;
         String installedName = "";

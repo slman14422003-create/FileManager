@@ -71,6 +71,7 @@ public class InstallActivity extends BaseActivity {
     private String lastTech = "";
     private String obbNote;
     private boolean obbWarn;
+    private boolean noConvert;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -195,6 +196,11 @@ public class InstallActivity extends BaseActivity {
                 File f = PkgInstaller.fromUri(this, data);
                 in = PkgInstaller.inspect(this, f);
                 if ("file".equals(data.getScheme())) in.original = f;
+                if (!noConvert) {
+                    in = ApkConverter.auto(this, in, res -> ui.post(() -> {
+                        if (!destroyed && state == S_LOADING) name.setText(res);
+                    }));
+                }
             } catch (PkgInstaller.NoSpace e) {
                 err = getString(R.string.pk_fail_storage);
             } catch (Throwable ignored) {
@@ -347,8 +353,14 @@ public class InstallActivity extends BaseActivity {
                     alerts.addView(Ui.body(this, getString(R.string.pk_fail_code, lastTech), 12, R.color.text_hint));
                 }
                 final boolean offerAll = info != null && info.bundle && info.smart;
+                final boolean offerNative = info != null && info.converted;
                 View.OnClickListener second;
-                if (offerAll) {
+                if (offerNative) {
+                    second = v -> {
+                        noConvert = true;
+                        if (dataUri != null) load(dataUri);
+                    };
+                } else if (offerAll) {
                     second = v -> {
                         PkgInstaller.applySelection(this, info, false);
                         startInstall();
@@ -357,7 +369,8 @@ public class InstallActivity extends BaseActivity {
                     second = v -> finishWithResult();
                 }
                 buttons(getString(R.string.in_retry), v -> startInstall(),
-                        offerAll ? getString(R.string.pk_retry_all) : getString(R.string.in_close), second);
+                        offerNative ? getString(R.string.cv_retry_native)
+                                : offerAll ? getString(R.string.pk_retry_all) : getString(R.string.in_close), second);
                 break;
             default:   // S_INVALID
                 pkgView.setVisibility(View.GONE);
@@ -437,6 +450,12 @@ public class InstallActivity extends BaseActivity {
             (is.level == PkgInstaller.LV_ERROR ? alerts : details).addView(Ui.noteCard(this, is.text, c));
         }
 
+        if (in.converted && in.convertedFile != null) {
+            alerts.addView(Ui.noteCard(this, getString(R.string.cv_auto_done, in.convertedFile.getAbsolutePath()), R.color.ok));
+        } else if (!in.convertNote.isEmpty()) {
+            alerts.addView(Ui.noteCard(this, in.convertNote, R.color.info));
+        }
+
         // ---- options
         boolean canSmart = in.bundle && in.allEntries.size() >= 3;
         boolean canDelete = in.original != null;
@@ -452,6 +471,16 @@ public class InstallActivity extends BaseActivity {
             td.withIcon(R.drawable.ic_shield);
             td.onChange((b, on) -> Store.setInstBool(this, "deep", on));
             details.addView(td.view);
+            if (in.bundle || in.converted) {
+                Ui.Toggle ta = Ui.toggle(this, details, R.string.cv_opt_auto, R.string.cv_opt_auto_sub,
+                        Store.instBool(this, "auto_convert", true));
+                ta.withIcon(R.drawable.ic_archive);
+                ta.onChange((b, on) -> {
+                    Store.setInstBool(this, "auto_convert", on);
+                    if (dataUri != null) load(dataUri);
+                });
+                details.addView(ta.view);
+            }
             if (canSmart) {
                 Ui.Toggle t = Ui.toggle(this, details, R.string.pk_opt_smart, R.string.pk_opt_smart_sub,
                         Store.instBool(this, "smart", true));

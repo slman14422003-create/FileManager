@@ -22,3 +22,11 @@
 -dontwarn com.github.luben.zstd.**
 -dontwarn org.brotli.dec.**
 -dontwarn org.objectweb.asm.**
+
+-keep class com.reandroid.** { *; }
+-keep class com.android.apksig.** { *; }
+-keep class com.aefyr.pseudoapksigner.** { *; }
+-dontwarn com.reandroid.**
+-dontwarn com.android.apksig.**
+-dontwarn javax.annotation.**
+-dontwarn org.apache.commons.**

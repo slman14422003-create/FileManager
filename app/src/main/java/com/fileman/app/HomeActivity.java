@@ -295,6 +295,8 @@ public class HomeActivity extends BaseActivity {
         List<View> tools = new ArrayList<>();
         tools.add(homeTile(R.drawable.ic_package, R.color.lime, getString(R.string.home_installer),
                 getString(R.string.pk_beta), v -> startActivity(new Intent(this, InstallerActivity.class))));
+        tools.add(homeTile(R.drawable.ic_wifi, R.color.info, getString(R.string.sh_title),
+                getString(R.string.sh_sub), v -> startActivity(new Intent(this, ShareActivity.class))));
         addSection(getString(R.string.home_tools), tools);
 
         if (keepY > 0) scroller.post(() -> scroller.scrollTo(0, keepY));

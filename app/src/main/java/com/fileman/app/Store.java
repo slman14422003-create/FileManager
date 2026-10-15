@@ -236,4 +236,12 @@ public final class Store {
     public static void setIntPref(Context c, String key, int v) {
         sp(c).edit().putInt("p_" + key, v).apply();
     }
+
+    public static String strPref(Context c, String key, String def) {
+        return sp(c).getString("s_" + key, def);
+    }
+
+    public static void setStrPref(Context c, String key, String v) {
+        sp(c).edit().putString("s_" + key, v).apply();
+    }
 }

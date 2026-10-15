@@ -62,6 +62,7 @@ public class InstallerActivity extends BaseActivity {
     private static final class App {
         String pkg = "", label = "", ver = "";
         long size, updated;
+        boolean split;
         Drawable icon;
     }
 
@@ -247,6 +248,8 @@ public class InstallerActivity extends BaseActivity {
         busy(false);
         clear();
         content.addView(Ui.noteCard(this, getString(R.string.pk_beta_note), R.color.info));
+        content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_wifi, true, getString(R.string.sh_title),
+                getString(R.string.sh_sub), false, true), v -> startActivity(new Intent(this, ShareActivity.class))));
 
         // ---- permissions the installer works with
         content.addView(Ui.sectionTitle(this, getString(R.string.perm_section_needed)));
@@ -692,6 +695,7 @@ public class InstallerActivity extends BaseActivity {
         io.execute(() -> {
             try {
                 PkgInstaller.Info in = known != null ? known : PkgInstaller.inspect(this, f);
+                if (known == null) in = ApkConverter.auto(this, in, null);
                 installing = in;
                 SecurityScan.Result sr = SecurityScan.scan(this, in);
                 if (sr.blocked) {
@@ -842,6 +846,7 @@ public class InstallerActivity extends BaseActivity {
                     a.ver = pi.versionName == null ? "" : pi.versionName;
                     a.size = ai.sourceDir == null ? 0 : new File(ai.sourceDir).length();
                     a.updated = pi.lastUpdateTime;
+                    a.split = ai.splitSourceDirs != null && ai.splitSourceDirs.length > 0;
                     out.add(a);
                     if (out.size() >= MAX_APPS) break;
                 }
@@ -902,6 +907,7 @@ public class InstallerActivity extends BaseActivity {
             a.ver = pi.versionName == null ? "" : pi.versionName;
             a.size = ai.sourceDir == null ? 0 : new File(ai.sourceDir).length();
             a.updated = pi.lastUpdateTime;
+            a.split = ai.splitSourceDirs != null && ai.splitSourceDirs.length > 0;
             try {
                 a.icon = pm.getApplicationIcon(a.pkg);
             } catch (Exception ignored) {
@@ -957,6 +963,9 @@ public class InstallerActivity extends BaseActivity {
         }
         content.addView(chips);
 
+        content.addView(row(R.drawable.ic_archive, getString(R.string.cv_bulk_title),
+                getString(R.string.cv_bulk_sub), v -> bulkConvert()));
+
         Ui.Toggle sys = Ui.toggle(this, content, R.string.pk_show_system, R.string.pk_show_system_sub, showSystem);
         sys.withIcon(R.drawable.ic_shield);
         sys.onChange((b, on) -> {
@@ -983,8 +992,9 @@ public class InstallerActivity extends BaseActivity {
             if (shown >= MAX_SHOWN_APPS) continue;
             shown++;
             String sub = a.pkg + (a.ver.isEmpty() ? "" : " · " + a.ver) + " · " + Fmt.size(a.size);
-            View v = Ui.rowView(this, appList, new Row(R.drawable.ic_package, false, a.label, sub, false, true),
-                    x -> appMenu(a));
+            Row ar = new Row(R.drawable.ic_package, false, a.label, sub, false, true);
+            if (a.split) ar.badge(getString(R.string.cv_split_chip), Ui.color(this, R.color.accent_text));
+            View v = Ui.rowView(this, appList, ar, x -> appMenu(a));
             realIcon(v, a.icon);
             appList.addView(v);
         }
@@ -998,8 +1008,8 @@ public class InstallerActivity extends BaseActivity {
 
     private void appMenu(final App a) {
         String[] items = {getString(R.string.pk_open_app), getString(R.string.pk_details),
-                getString(R.string.pk_app_info), getString(R.string.pk_extract),
-                getString(R.string.pk_share), getString(R.string.pk_uninstall)};
+                getString(R.string.pk_app_info), getString(R.string.cv_convert),
+                getString(R.string.pk_extract), getString(R.string.pk_share), getString(R.string.pk_uninstall)};
         new Dlg(this).setTitle(a.label).setItems(items, (d, which) -> {
             switch (which) {
                 case 0:
@@ -1012,9 +1022,12 @@ public class InstallerActivity extends BaseActivity {
                     appInfo(a.pkg);
                     break;
                 case 3:
-                    extractApk(a);
+                    convertApp(a);
                     break;
                 case 4:
+                    extractApk(a);
+                    break;
+                case 5:
                     shareApk(a);
                     break;
                 default:
@@ -1022,6 +1035,164 @@ public class InstallerActivity extends BaseActivity {
                     break;
             }
         }).show();
+    }
+
+    private static final class Prog {
+        androidx.appcompat.app.AlertDialog d;
+        TextView t;
+
+        void set(CharSequence s) {
+            t.setText(s);
+        }
+
+        boolean showing() {
+            return d != null && d.isShowing();
+        }
+
+        void dismiss() {
+            if (d != null) d.dismiss();
+        }
+    }
+
+    private Prog progressDialog(CharSequence title) {
+        Prog p = new Prog();
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(Ui.dp(this, 24), Ui.dp(this, 12), Ui.dp(this, 24), Ui.dp(this, 16));
+        p.t = Ui.body(this, getString(R.string.cv_stage_extract), 15, R.color.text_primary);
+        box.addView(p.t);
+        ProgressBar bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        bar.setIndeterminate(true);
+        Ui.tint(this, bar);
+        box.addView(bar, new LinearLayout.LayoutParams(-1, Ui.dp(this, 6)));
+        p.d = new Dlg(this).setTitle(title).setView(box).create();
+        p.d.setCancelable(false);
+        p.d.show();
+        return p;
+    }
+
+    private void convertApp(final App a) {
+        final Prog pd = progressDialog(a.label);
+        io.execute(() -> {
+            ApkConverter.Result r = null;
+            String err = null;
+            try {
+                r = ApkConverter.fromInstalled(this, a.pkg, a.label, a.ver, res -> ui.post(() -> {
+                    if (!destroyed && pd.showing()) pd.set(getString(res));
+                }));
+            } catch (Throwable e) {
+                err = String.valueOf(e.getMessage());
+            } finally {
+                ApkConverter.cleanWork(this);
+            }
+            final ApkConverter.Result fr = r;
+            final String ferr = err;
+            ui.post(() -> {
+                if (destroyed) return;
+                pd.dismiss();
+                showConvertResult(a, fr, ferr);
+            });
+        });
+    }
+
+    private void showConvertResult(final App a, final ApkConverter.Result r, String err) {
+        if (r == null || r.file == null) {
+            Dlg.result(this, false, getString(R.string.cv_fail), err == null ? "" : err);
+            return;
+        }
+        StringBuilder sb = new StringBuilder(r.file.getAbsolutePath());
+        sb.append("\n").append(Fmt.size(r.file.length()));
+        if (r.copied) sb.append("\n\n").append(getString(R.string.cv_not_split));
+        else if (r.signed) sb.append("\n\n").append(getString(R.string.cv_signed_note));
+        if (r.pairip) sb.append("\n\n").append(getString(R.string.cv_pairip_note));
+        final File out = r.file;
+        new Dlg(this).setTitle(getString(R.string.cv_done)).setMessage(sb.toString())
+                .setPositiveButton(R.string.pk_share, (d, w) -> shareFile(out, a.label))
+                .setNegativeButton(android.R.string.ok, null)
+                .show();
+    }
+
+    private void shareFile(File f, String title) {
+        try {
+            Uri u = FileProvider.getUriForFile(this, getPackageName() + ".files", f);
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType("application/vnd.android.package-archive");
+            send.putExtra(Intent.EXTRA_STREAM, u);
+            send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(send, title));
+        } catch (Exception e) {
+            Dlg.result(this, false, getString(R.string.pk_extract_fail), String.valueOf(e.getMessage()));
+        }
+    }
+
+    private void bulkConvert() {
+        final List<App> splits = new ArrayList<>();
+        for (App a : apps) if (a.split) splits.add(a);
+        if (splits.isEmpty()) {
+            toast(R.string.cv_none_split);
+            return;
+        }
+        final List<android.widget.CheckBox> boxes = new ArrayList<>();
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(Ui.dp(this, 22), Ui.dp(this, 8), Ui.dp(this, 22), Ui.dp(this, 8));
+        final android.widget.CheckBox all = Ui.check(this, R.string.cv_select_all, false);
+        box.addView(all);
+        for (App a : splits) {
+            android.widget.CheckBox cb = Ui.check(this, R.string.cv_select_all, false);
+            cb.setText(a.label + " · " + Fmt.size(a.size));
+            boxes.add(cb);
+            box.addView(cb);
+        }
+        all.setOnCheckedChangeListener((b, on) -> {
+            for (android.widget.CheckBox cb : boxes) cb.setChecked(on);
+        });
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.addView(box);
+        new Dlg(this).setTitle(getString(R.string.cv_bulk_title)).setView(sv)
+                .setPositiveButton(R.string.cv_convert_short, (d, w) -> {
+                    final List<App> chosen = new ArrayList<>();
+                    for (int i = 0; i < boxes.size(); i++) if (boxes.get(i).isChecked()) chosen.add(splits.get(i));
+                    if (!chosen.isEmpty()) runBulk(chosen);
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void runBulk(final List<App> chosen) {
+        final Prog pd = progressDialog(getString(R.string.cv_bulk_title));
+        io.execute(() -> {
+            int ok = 0;
+            int bad = 0;
+            File dir = ApkConverter.outputDir(this);
+            for (int i = 0; i < chosen.size(); i++) {
+                if (destroyed) return;
+                final App a = chosen.get(i);
+                final String head = (i + 1) + "/" + chosen.size() + " · " + a.label;
+                ui.post(() -> {
+                    if (!destroyed && pd.showing()) pd.set(head);
+                });
+                try {
+                    ApkConverter.fromInstalled(this, a.pkg, a.label, a.ver, res -> ui.post(() -> {
+                        if (!destroyed && pd.showing()) pd.set(head + "\n" + getString(res));
+                    }));
+                    ok++;
+                } catch (Throwable e) {
+                    bad++;
+                } finally {
+                    ApkConverter.cleanWork(this);
+                }
+            }
+            final int fok = ok;
+            final int fbad = bad;
+            final File fdir = dir;
+            ui.post(() -> {
+                if (destroyed) return;
+                pd.dismiss();
+                Dlg.result(this, fbad == 0, getString(R.string.cv_done),
+                        getString(R.string.cv_bulk_done, fok, fbad, fdir.getAbsolutePath()));
+            });
+        });
     }
 
     private void detail(StringBuilder sb, int label, String value) {
