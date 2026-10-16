@@ -19,6 +19,12 @@
     <!-- narrowest a home grid cell may get; the column count is derived from it -->
     <dimen name="tile_min_cell">104dp</dimen>
 
+    <!-- share send/receive: QR code card, its radar-pulse ring, and the receive-side transfer icon -->
+    <dimen name="share_qr_max">320dp</dimen>
+    <dimen name="share_pulse_margin">70dp</dimen>
+    <dimen name="share_dl_pulse">96dp</dimen>
+    <dimen name="share_dl_icon">28dp</dimen>
+
     <!-- dialog width as a share of the window -->
     <fraction name="dlg_min_minor">80%</fraction>
     <fraction name="dlg_min_major">54%</fraction>

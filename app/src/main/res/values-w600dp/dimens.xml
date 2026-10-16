@@ -6,6 +6,10 @@
     <dimen name="tile_box">92dp</dimen>
     <dimen name="tile_icon">42dp</dimen>
     <dimen name="tile_min_cell">116dp</dimen>
+    <dimen name="share_qr_max">380dp</dimen>
+    <dimen name="share_pulse_margin">84dp</dimen>
+    <dimen name="share_dl_pulse">112dp</dimen>
+    <dimen name="share_dl_icon">32dp</dimen>
     <fraction name="dlg_min_minor">52%</fraction>
     <fraction name="dlg_min_major">40%</fraction>
 </resources>

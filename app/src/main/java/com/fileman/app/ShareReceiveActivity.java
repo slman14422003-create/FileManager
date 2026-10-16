@@ -542,7 +542,7 @@ public class ShareReceiveActivity extends BaseActivity {
         content.removeAllViews();
 
         android.widget.FrameLayout pulseWrap = new android.widget.FrameLayout(this);
-        int pside = Ui.dp(this, 96);
+        int pside = getResources().getDimensionPixelSize(R.dimen.share_dl_pulse);
         LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(pside, pside);
         plp.gravity = Gravity.CENTER_HORIZONTAL;
         plp.bottomMargin = Ui.dp(this, 6);
@@ -552,7 +552,7 @@ public class ShareReceiveActivity extends BaseActivity {
         ImageView dlIcon = new ImageView(this);
         dlIcon.setImageResource(R.drawable.ic_download);
         dlIcon.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.accent)));
-        int isz = Ui.dp(this, 28);
+        int isz = getResources().getDimensionPixelSize(R.dimen.share_dl_icon);
         pulseWrap.addView(dlIcon, new android.widget.FrameLayout.LayoutParams(isz, isz, Gravity.CENTER));
         content.addView(pulseWrap, plp);
         dlPulse.start();
@@ -560,7 +560,7 @@ public class ShareReceiveActivity extends BaseActivity {
         dlLine = Ui.body(this, "", 16, R.color.text_primary);
         content.addView(dlLine);
         dlBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        Ui.tint(this, dlBar);
+        Ui.tintRounded(this, dlBar);
         dlBar.setMax(1000);
         content.addView(Ui.block(this, dlBar));
         dlSpeed = Ui.body(this, "", 14, R.color.text_secondary);

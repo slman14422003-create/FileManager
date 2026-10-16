@@ -968,7 +968,8 @@ public class ShareSendActivity extends BaseActivity {
         content.addView(liveStatus);
 
         android.widget.FrameLayout qrWrap = new android.widget.FrameLayout(this);
-        int side = Math.min(getResources().getDisplayMetrics().widthPixels - Ui.dp(this, 80), Ui.dp(this, 320));
+        int qrCap = getResources().getDimensionPixelSize(R.dimen.share_qr_max);
+        int side = Math.min(Layout.contentWidth(this) - Ui.dp(this, 80), qrCap);
         LinearLayout.LayoutParams wrapLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         wrapLp.gravity = Gravity.CENTER_HORIZONTAL;
         wrapLp.topMargin = Ui.dp(this, 10);
@@ -976,13 +977,19 @@ public class ShareSendActivity extends BaseActivity {
 
         livePulse = new PulseView(this);
         livePulse.useAccent(this);
-        int pulseSide = side + Ui.dp(this, 70);
+        int pulseSide = side + getResources().getDimensionPixelSize(R.dimen.share_pulse_margin);
         qrWrap.addView(livePulse, new android.widget.FrameLayout.LayoutParams(pulseSide, pulseSide, Gravity.CENTER));
         livePulse.start();
 
         qrView = new ImageView(this);
-        qrView.setBackgroundColor(0xFFFFFFFF);
-        qrView.setPadding(Ui.dp(this, 10), Ui.dp(this, 10), Ui.dp(this, 10), Ui.dp(this, 10));
+        qrView.setBackgroundResource(R.drawable.bg_qr_card);
+        qrView.setClipToOutline(true);
+        qrView.setElevation(Ui.dpf(this, 4f));
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            qrView.setOutlineAmbientShadowColor(Ui.color(this, R.color.shadow));
+            qrView.setOutlineSpotShadowColor(Ui.color(this, R.color.shadow));
+        }
+        qrView.setPadding(Ui.dp(this, 14), Ui.dp(this, 14), Ui.dp(this, 14), Ui.dp(this, 14));
         qrView.setVisibility(View.GONE);
         qrWrap.addView(qrView, new android.widget.FrameLayout.LayoutParams(side, side, Gravity.CENTER));
 
@@ -998,7 +1005,7 @@ public class ShareSendActivity extends BaseActivity {
         liveSpeed = Ui.body(this, "", 14, R.color.text_secondary);
         content.addView(liveSpeed);
         liveBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        Ui.tint(this, liveBar);
+        Ui.tintRounded(this, liveBar);
         liveBar.setMax(1000);
         content.addView(Ui.block(this, liveBar));
 

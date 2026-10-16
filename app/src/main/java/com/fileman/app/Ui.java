@@ -49,15 +49,18 @@ public final class Ui {
                 .start();
     }
 
-    /** Glyph colour of the unified outline icon style. */
-    public static final int OUTLINE_GLYPH = 0xFFF2F2F7;
+    /** Glyph colour of the unified outline icon style — a soft neutral that adapts to day/night. */
+    public static int outlineGlyph(Context c) {
+        return color(c, R.color.text_secondary);
+    }
 
-    /** Unified minimalist outline icon box: always dark fill, thin light outline (never white). */
+    /** Unified minimalist icon box: a soft neutral card that follows the current theme (light grey by
+     *  day, elevated dark grey by night) — never a flat black square. */
     public static android.graphics.drawable.Drawable outlineBox(Context c, float radiusPx) {
         android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
         g.setCornerRadius(radiusPx);
-        g.setColor(0xFF1C1C20);
-        g.setStroke(Math.max(1, dp(c, 1)), 0x38FFFFFF);
+        g.setColor(color(c, R.color.surface_high));
+        g.setStroke(Math.max(1, dp(c, 1)), color(c, R.color.stroke_soft));
         return g;
     }
 
@@ -66,9 +69,27 @@ public final class Ui {
         return outlineBox(c, sizePx * 0.26f);
     }
 
-    /** Applies the outline style to a small list/row icon: dark box, light line glyph. */
+    /**
+     * Colourful squircle tile, like the iOS Settings app icon grid.
+     * {@code solidFill} true: a fully-saturated square in {@code colorRes} with a white glyph (primary actions).
+     * {@code solidFill} false: a soft tinted wash of {@code colorRes} with a coloured glyph (secondary actions).
+     */
+    public static android.graphics.drawable.Drawable colorTile(Context c, int sizePx, int colorRes, boolean solidFill) {
+        android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+        g.setCornerRadius(sizePx * 0.26f);
+        int tint = color(c, colorRes);
+        if (solidFill) {
+            g.setColor(tint);
+        } else {
+            g.setColor((tint & 0x00FFFFFF) | 0x24000000);
+            g.setStroke(Math.max(1, dp(c, 1)), (tint & 0x00FFFFFF) | 0x3D000000);
+        }
+        return g;
+    }
+
+    /** Applies the outline style to a small list/row icon: soft neutral box, themed line glyph. */
     public static void outlineIcon(Context c, ImageView iv, int cornerDp) {
-        iv.setImageTintList(ColorStateList.valueOf(OUTLINE_GLYPH));
+        iv.setImageTintList(ColorStateList.valueOf(outlineGlyph(c)));
         iv.setBackground(outlineBox(c, dp(c, cornerDp)));
     }
 
@@ -173,6 +194,20 @@ public final class Ui {
         ColorStateList accent = ColorStateList.valueOf(color(c, R.color.accent));
         bar.setProgressTintList(accent);
         bar.setIndeterminateTintList(accent);
+    }
+
+    /** Same look as the "working…" dialog bar: a thicker, fully-rounded pill instead of the thin system line. */
+    public static void tintRounded(Context c, ProgressBar bar) {
+        tint(c, bar);
+        bar.setProgressDrawable(c.getDrawable(R.drawable.progress_rounded));
+        ViewGroup.LayoutParams p = bar.getLayoutParams();
+        int h = dp(c, 8);
+        if (p != null) {
+            p.height = h;
+            bar.setLayoutParams(p);
+        } else {
+            bar.setMinimumHeight(h);
+        }
     }
 
     /** Eases a progress bar to {@code target} (0..max) instead of snapping, so transfer updates feel alive. */

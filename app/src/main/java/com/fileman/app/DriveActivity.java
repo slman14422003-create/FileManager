@@ -451,8 +451,8 @@ public class DriveActivity extends BaseActivity {
         View v = LayoutInflater.from(this).inflate(R.layout.item_home_tile, dashContent, false);
         ImageView iv = v.findViewById(R.id.icon);
         iv.setImageResource(icon);
-        v.findViewById(R.id.box).setBackground(Ui.iconTile(this, getResources().getDimensionPixelSize(R.dimen.tile_box)));
-        iv.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, colorRes)));
+        v.findViewById(R.id.box).setBackground(Ui.colorTile(this, getResources().getDimensionPixelSize(R.dimen.tile_box), colorRes, true));
+        iv.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
         ((TextView) v.findViewById(R.id.title)).setText(titleRes);
         v.findViewById(R.id.sub).setVisibility(View.GONE);
         v.setContentDescription(getString(titleRes));

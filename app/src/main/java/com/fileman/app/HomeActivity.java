@@ -404,25 +404,25 @@ public class HomeActivity extends BaseActivity {
         return bar;
     }
 
-    /** One grid cell: an iOS app-icon style rounded square (solid colour, white glyph), the name and a detail line. */
+    /** One grid cell: an iOS Settings-style rounded square in the category's own colour, white glyph, the name and a detail line. */
     private View homeTile(int icon, int colorRes, String title, String sub, View.OnClickListener click) {
         return homeTile(icon, colorRes, title, sub, click, true);
     }
 
-    /** {@code solid} false keeps the plain card box (used by the tiles that draw a usage ring or pie in it). */
+    /** {@code solid} false uses a soft tinted card instead (used by the tiles that draw a usage ring or pie in it). */
     private View homeTile(int icon, int colorRes, String title, String sub, View.OnClickListener click, boolean solid) {
         View v = LayoutInflater.from(this).inflate(R.layout.item_home_tile, content, false);
         ImageView iv = v.findViewById(R.id.icon);
         iv.setImageResource(icon);
         View box = v.findViewById(R.id.box);
-        box.setBackground(Ui.iconTile(this, getResources().getDimensionPixelSize(R.dimen.tile_box)));
-        box.setElevation(Ui.dpf(this, 3f));
+        box.setBackground(Ui.colorTile(this, getResources().getDimensionPixelSize(R.dimen.tile_box), colorRes, solid));
+        box.setElevation(Ui.dpf(this, solid ? 3f : 1.5f));
         if (android.os.Build.VERSION.SDK_INT >= 28) {
             box.setOutlineAmbientShadowColor(Ui.color(this, R.color.shadow));
             box.setOutlineSpotShadowColor(Ui.color(this, R.color.shadow));
         }
         if (solid) {
-            iv.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.OUTLINE_GLYPH));
+            iv.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
         } else {
             iv.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, colorRes)));
         }
@@ -504,7 +504,7 @@ public class HomeActivity extends BaseActivity {
             UsageView u = v.findViewById(R.id.usage);
             u.setVisibility(View.VISIBLE);
             u.setUsage(UsageView.RING, pct, Ui.color(this, pct > 90 ? R.color.bad : R.color.accent),
-                    0x33FFFFFF);
+                    Ui.color(this, R.color.neutral_soft));
             u.setCenterIcon(R.drawable.ic_drive, Ui.color(this, R.color.accent_text));
         } catch (Exception e) {
             ((TextView) v.findViewById(R.id.sub)).setText(R.string.fm_unreadable);
@@ -526,7 +526,7 @@ public class HomeActivity extends BaseActivity {
             v.findViewById(R.id.icon).setVisibility(View.GONE);
             UsageView u = v.findViewById(R.id.usage);
             u.setVisibility(View.VISIBLE);
-            u.setUsage(UsageView.PIE, pct, Ui.color(this, R.color.accent), 0x33FFFFFF);
+            u.setUsage(UsageView.PIE, pct, Ui.color(this, R.color.accent), Ui.color(this, R.color.neutral_soft));
         } catch (Exception ignored) {
         }
         return v;
