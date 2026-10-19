@@ -15,6 +15,7 @@ import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -479,6 +480,7 @@ public class FileManagerActivity extends BaseActivity {
     protected void onResume() {
         super.onResume();
         if (volWatch == null) volWatch = Volumes.watch(this, () -> ui.postDelayed(this::volumesChanged, 700));
+        scheduleTip(25000);
         boolean g = Perms.hasAllFiles(this);
         if (g != lastGranted) {
             lastGranted = g;
@@ -498,6 +500,7 @@ public class FileManagerActivity extends BaseActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        ui.removeCallbacks(tipRun);
         if (live != null) live.stop();
     }
 
@@ -671,6 +674,41 @@ public class FileManagerActivity extends BaseActivity {
         return Volumes.roots(this);
     }
 
+
+    private final Runnable tipRun = () -> Assistant.suggest(this, new Assistant.Host() {
+        @Override
+        public void openStorage() {
+            startActivity(new Intent(FileManagerActivity.this, StorageActivity.class));
+        }
+
+        @Override
+        public void openCategory(String key) {
+            clearSelectionQuiet();
+            mode = M_CAT;
+            catKey = key;
+            cur = defaultRoot();
+            refresh();
+        }
+
+        @Override
+        public void addFavorite(String path) {
+            Set<String> s = favs();
+            s.add(path);
+            Store.setFavorites(FileManagerActivity.this, s);
+            toast(R.string.fm_favorited);
+        }
+
+        @Override
+        public boolean isFavorite(String path) {
+            return favs().contains(path);
+        }
+    });
+
+    private void scheduleTip(long delay) {
+        ui.removeCallbacks(tipRun);
+        if (Assistant.enabled(this)) ui.postDelayed(tipRun, delay);
+    }
+
     private android.content.BroadcastReceiver volWatch;
 
     private void volumesChanged() {
@@ -710,6 +748,7 @@ public class FileManagerActivity extends BaseActivity {
         query = "";
         mode = M_DIR;
         cur = dir;
+        Assistant.log(this, "visit", 1, dir.getAbsolutePath());
         prefs.edit().putString("last", dir.getAbsolutePath()).apply();
         if (!isVolumeRoot(dir)) Store.addRecentPlace(this, dir.getAbsolutePath());
         refresh();
@@ -2036,14 +2075,35 @@ public class FileManagerActivity extends BaseActivity {
         box.setPadding(Ui.dp(this, 22), Ui.dp(this, 14), Ui.dp(this, 22), Ui.dp(this, 8));
         busyBox = new BusyBox(this, text);
         busyText = busyBox.text;
+        bgHidden = false;
+        OpService.begin(this, text, () -> cancelled = true);
         busy = new Dlg(this).setTitle(R.string.working).setView(busyBox.view)
                 .setCancelable(false)
                 .setNegativeButton(R.string.cancel, (d, w) -> cancelled = true)
+                .setNeutralButton(R.string.op_hide, (d, w) -> {
+                    bgHidden = true;
+                    busy = null;
+                    busyText = null;
+                    busyBox = null;
+                    if (Build.VERSION.SDK_INT >= 33 && !Notifs.allowed(this)) {
+                        requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 71);
+                    }
+                    toast(R.string.op_hidden);
+                })
                 .create();
         busy.show();
     }
 
+    private boolean bgHidden;
+
+    /** Ends the background notification; when the progress window was hidden the result is announced there. */
+    private void opDone(String message) {
+        OpService.end(bgHidden && message != null ? message : null);
+        bgHidden = false;
+    }
+
     private void setBusy(final String t) {
+        OpService.update(t, -1);
         post(() -> {
             if (busyText != null) busyText.setText(t);
         });
@@ -2062,6 +2122,7 @@ public class FileManagerActivity extends BaseActivity {
     }
 
     private void setBusyPercent(final int pct) {
+        OpService.update(null, pct);
         post(() -> {
             if (busyBox != null) busyBox.setPercent(pct);
         });
@@ -2081,6 +2142,7 @@ public class FileManagerActivity extends BaseActivity {
             final Exception er = err;
             post(() -> {
                 hideBusy();
+                opDone(er != null ? (er instanceof Cancel ? null : getString(R.string.error)) : m);
                 if (er != null) error(er);
                 else if (m != null) toast(m);
                 refresh();
@@ -2193,6 +2255,7 @@ public class FileManagerActivity extends BaseActivity {
         new Dlg(this).setTitle(R.string.delete_title).setMessage(msg)
                 .setPositiveButton(R.string.delete, (d, w) -> {
                     selected.clear();
+                    Assistant.log(this, "delete", files.size(), "");
                     final Set<String> gone = new java.util.HashSet<>(paths(files));
                     for (java.util.Iterator<Entry> it = shown.iterator(); it.hasNext(); ) {
                         if (gone.contains(it.next().f.getAbsolutePath())) it.remove();
@@ -2212,6 +2275,7 @@ public class FileManagerActivity extends BaseActivity {
         io.execute(() -> {
             Wipe.Result r = Wipe.delete(files, stop, (n, rd, total, name) -> {
                 if (cancelled) stop.set(true);
+                OpService.update(getString(R.string.fm_deleting_n, n), total > 0 ? rd * 100 / total : -1);
                 post(() -> {
                     if (busyText != null) busyText.setText(getString(R.string.fm_deleting_n, n));
                     if (busyBox != null && total > 0) busyBox.setPercent(rd * 100 / total);
@@ -2231,6 +2295,8 @@ public class FileManagerActivity extends BaseActivity {
             final Wipe.Result res = r;
             post(() -> {
                 hideBusy();
+                opDone(res.cancelled ? null : getString(R.string.fm_done_n, files.size()));
+                scheduleTip(4000);
                 if (res.cancelled) toast(R.string.fm_cancelled);
                 else if (!res.failed.isEmpty()) {
                     info(getString(R.string.error), getString(R.string.fm_del_failed_n, res.failed.size())
@@ -2422,6 +2488,7 @@ public class FileManagerActivity extends BaseActivity {
     }
 
     private void extract(final File zip, final boolean intoFolder) {
+        Assistant.log(this, "extract", 1, zip.getName());
         selected.clear();
         File parent = zip.getParentFile();
         if (parent == null) parent = cur;
@@ -2582,6 +2649,7 @@ public class FileManagerActivity extends BaseActivity {
             final String copy = files.size() == 1 ? files.get(0).getAbsolutePath() : null;
             post(() -> {
                 hideBusy();
+                opDone(null);
                 AlertDialog.Builder b = new Dlg(this).setTitle(title)
                         .setMessage(sb.toString()).setPositiveButton(android.R.string.ok, null);
                 if (copy != null) b.setNeutralButton(R.string.fm_copy_path, (d, w) -> copyText(copy));

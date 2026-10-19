@@ -147,8 +147,13 @@ final class Wipe {
         @Override
         protected void compute() {
             if (!c.stop()) {
-                if (root.isDirectory() && !isLink(root)) new DirTask(c, root).invoke();
-                else removeOne(root, c);
+                if (root.delete()) {
+                    c.deleted.incrementAndGet();
+                } else if (root.isDirectory() && !isLink(root)) {
+                    new DirTask(c, root).invoke();
+                } else {
+                    removeOne(root, c);
+                }
             }
             c.rootsDone.incrementAndGet();
             c.tick(root.getName());
@@ -166,10 +171,20 @@ final class Wipe {
 
         @Override
         protected void compute() {
+            List<RecursiveAction> dirs = null;
             for (File f : files) {
                 if (c.stop()) return;
-                removeOne(f, c);
+                if (f.delete()) {
+                    c.deleted.incrementAndGet();
+                    c.tick(f.getName());
+                } else if (f.isDirectory() && !isLink(f)) {
+                    if (dirs == null) dirs = new ArrayList<>();
+                    dirs.add(new DirTask(c, f));
+                } else {
+                    removeOne(f, c);
+                }
             }
+            if (dirs != null) invokeAll(dirs);
         }
     }
 
@@ -190,14 +205,10 @@ final class Wipe {
                 List<File> batch = new ArrayList<>(FILE_BATCH);
                 for (File k : kids) {
                     if (c.stop()) return;
-                    if (k.isDirectory() && !isLink(k)) {
-                        sub.add(new DirTask(c, k));
-                    } else {
-                        batch.add(k);
-                        if (batch.size() >= FILE_BATCH) {
-                            sub.add(new FilesTask(c, batch));
-                            batch = new ArrayList<>(FILE_BATCH);
-                        }
+                    batch.add(k);
+                    if (batch.size() >= FILE_BATCH) {
+                        sub.add(new FilesTask(c, batch));
+                        batch = new ArrayList<>(FILE_BATCH);
                     }
                 }
                 if (!batch.isEmpty()) sub.add(new FilesTask(c, batch));

@@ -969,4 +969,18 @@
     <string name="fm_usb_ro">This drive is read-only (its file system may not support writing)</string>
     <string name="fm_usb_eject">Safely remove</string>
     <string name="fm_usb_unmounted">The drive is not ready. It may need checking from the system settings</string>
+    <string name="op_channel">Running operations</string>
+    <string name="op_hide">Background</string>
+    <string name="op_hidden">The operation continues in the background; follow it in the status bar</string>
+    <string name="as_later">Later</string>
+    <string name="as_stop">Turn off suggestions</string>
+    <string name="as_cleanup_t">Free up storage</string>
+    <string name="as_cleanup_m">You deleted %1$d items a moment ago. Open the storage analysis to see the biggest files and clean up in one go?</string>
+    <string name="as_cleanup_y">Open analysis</string>
+    <string name="as_arc_t">Extracted archives</string>
+    <string name="as_arc_m">You extracted %1$d archives a moment ago. The originals are often not needed afterwards. Review them and delete the ones you do not need?</string>
+    <string name="as_arc_y">Show archives</string>
+    <string name="as_fav_t">A folder you visit often</string>
+    <string name="as_fav_m">You opened \"%1$s\" %2$d times today. Add it to favorites for quick access?</string>
+    <string name="as_fav_y">Add to favorites</string>
 </resources>

@@ -969,4 +969,18 @@
     <string name="fm_usb_ro">هذه الوحدة للقراءة فقط (قد تكون بنظام ملفات غير مدعوم للكتابة)</string>
     <string name="fm_usb_eject">إخراج الوحدة بأمان</string>
     <string name="fm_usb_unmounted">الوحدة غير جاهزة. قد تحتاج إلى فحصها من إعدادات النظام</string>
+    <string name="op_channel">العمليات الجارية</string>
+    <string name="op_hide">بالخلفية</string>
+    <string name="op_hidden">تكمل العملية بالخلفية، وتابعها من شريط الحالة</string>
+    <string name="as_later">لاحقًا</string>
+    <string name="as_stop">إيقاف الاقتراحات</string>
+    <string name="as_cleanup_t">تنظيف التخزين</string>
+    <string name="as_cleanup_m">حذفت %1$d عنصرًا قبل قليل. تبي أفتح لك تحليل التخزين لتشوف أكبر الملفات وتنظّف دفعة وحدة؟</string>
+    <string name="as_cleanup_y">فتح التحليل</string>
+    <string name="as_arc_t">الأرشيفات المفكوكة</string>
+    <string name="as_arc_m">فككت %1$d أرشيف قبل قليل. الأرشيفات الأصلية غالبًا ما تحتاجها بعد الفك، تبي تراجعها وتحذف اللي ما تحتاجه؟</string>
+    <string name="as_arc_y">عرض الأرشيفات</string>
+    <string name="as_fav_t">مجلد تزوره كثيرًا</string>
+    <string name="as_fav_m">فتحت مجلد «%1$s» %2$d مرات اليوم. تبي أضيفه إلى المفضلة للوصول السريع؟</string>
+    <string name="as_fav_y">إضافة للمفضلة</string>
 </resources>
