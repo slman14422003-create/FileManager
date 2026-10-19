@@ -64,6 +64,7 @@ public class ZipBrowseActivity extends BaseActivity {
 
     private File zip;
     private Arc arc;
+    private String pwd;
     private String cur = "";
     private int fileCount;
     private long totalSize, totalPacked;
@@ -150,12 +151,42 @@ public class ZipBrowseActivity extends BaseActivity {
         io.execute(this::load);
     }
 
+    /** Returns the message for a failed archive read; encrypted archives ask for the password and run retry. */
+    private int lockedOrUnsupported(final Arc.Unsupported e, final Runnable retry) {
+        if (!e.encrypted) return R.string.zip_unsupported;
+        final boolean wrong = e.wrong;
+        ui.post(() -> {
+            if (destroyed) return;
+            hideBusy();
+            loading.setVisibility(View.INVISIBLE);
+            LockPrompt.ask(this, R.string.lock_title_zip, wrong, new LockPrompt.Result() {
+                @Override
+                public void password(String p) {
+                    pwd = p;
+                    if (arc != null) arc.setPassword(p);
+                    retry.run();
+                }
+
+                @Override
+                public void cancelled() {
+                    if (arc == null) finish();
+                }
+            });
+        });
+        return -1;
+    }
+
+    private void reload() {
+        loading.setVisibility(View.VISIBLE);
+        io.execute(this::load);
+    }
+
     // ------------------------------------------------------------------ reading the archive
 
     private void load() {
         int err = 0;
         try {
-            arc = Arc.open(zip);
+            arc = Arc.open(zip, pwd);
             Map<String, Node> dirs = new HashMap<>();
             for (Arc.Item e : arc.items) {
                 String name = e.name;
@@ -199,10 +230,16 @@ public class ZipBrowseActivity extends BaseActivity {
                 });
             }
         } catch (Arc.Unsupported e) {
-            err = e.encrypted ? R.string.zip_encrypted : R.string.zip_unsupported;
+            arc = null;
+            tree.clear();
+            fileCount = 0;
+            totalSize = 0;
+            totalPacked = 0;
+            err = lockedOrUnsupported(e, this::reload);
         } catch (IOException | RuntimeException | OutOfMemoryError e) {
             err = R.string.zip_failed;
         }
+        if (err == -1) return;
         final int ferr = err;
         ui.post(() -> {
             if (destroyed) return;
@@ -457,10 +494,11 @@ public class ZipBrowseActivity extends BaseActivity {
             try {
                 out = unpackToCache(n);
             } catch (Arc.Unsupported e) {
-                err = e.encrypted ? R.string.zip_encrypted : R.string.zip_unsupported;
+                err = lockedOrUnsupported(e, () -> exportEntry(n, share));
             } catch (Exception e) {
                 err = R.string.zip_failed;
             }
+            if (err == -1) return;
             final File f = out;
             final int ferr = err;
             ui.post(() -> {
@@ -507,10 +545,11 @@ public class ZipBrowseActivity extends BaseActivity {
             try {
                 out = unpackToCache(n);
             } catch (Arc.Unsupported e) {
-                err = e.encrypted ? R.string.zip_encrypted : R.string.zip_unsupported;
+                err = lockedOrUnsupported(e, () -> preview(n));
             } catch (Exception e) {
                 err = R.string.zip_failed;
             }
+            if (err == -1) return;
             final File f = out;
             final int ferr = err;
             ui.post(() -> {
@@ -696,13 +735,14 @@ public class ZipBrowseActivity extends BaseActivity {
                 }
                 count = counter[0];
             } catch (Arc.Unsupported e) {
-                err = e.encrypted ? R.string.zip_encrypted : R.string.zip_unsupported;
+                err = lockedOrUnsupported(e, () -> extract(dest, sel, flat));
             } catch (IOException e) {
                 if (cancel[0]) err = R.string.fm_cancelled;
                 else errText = e.getMessage() == null ? getString(R.string.zip_failed) : e.getMessage();
             } catch (RuntimeException e) {
                 err = R.string.zip_failed;
             }
+            if (err == -1) return;
             final int fc = counter[0];
             final int ferr = err;
             final String ftext = errText;

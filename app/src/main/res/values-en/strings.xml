@@ -951,4 +951,22 @@
     <string name="eco_none">No other Semo apps are installed on this phone</string>
     <string name="eco_show_files">Show in Files</string>
     <string name="eco_link">Open photos and songs in Semo apps</string>
+    <string name="lock_title_doc">This file is password protected</string>
+    <string name="lock_title_zip">This archive is password protected</string>
+    <string name="lock_enter">Enter the password</string>
+    <string name="lock_wrong">Wrong password</string>
+    <string name="lock_open">Open</string>
+    <string name="lock_legacy">This is an old Office file protected with a password and it cannot be opened here. Save it as docx, xlsx or pptx without protection, then open it</string>
+    <string name="lock_unsupported">This file\'s protection method is not supported</string>
+    <string name="lock_pdf_old">This PDF is password protected; opening it needs Android 15 or newer</string>
+    <string name="lock_badge">Password protected</string>
+    <string name="fm_del_failed_n">Could not delete %1$d items. Make sure they are not in use or read-only</string>
+    <string name="fm_deleting_n">Deleting… %1$d</string>
+    <string name="fm_usb">USB drive</string>
+    <string name="fm_usb_n">USB drive %1$d</string>
+    <string name="fm_usb_out">The drive was removed. Back to internal storage</string>
+    <string name="fm_usb_in">%1$s connected</string>
+    <string name="fm_usb_ro">This drive is read-only (its file system may not support writing)</string>
+    <string name="fm_usb_eject">Safely remove</string>
+    <string name="fm_usb_unmounted">The drive is not ready. It may need checking from the system settings</string>
 </resources>

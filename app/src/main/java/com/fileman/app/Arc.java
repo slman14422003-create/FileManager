@@ -46,6 +46,8 @@ final class Arc implements Closeable {
 
     /** Implemented by the optional library-backed formats (7z, rar, bz2, xz). */
     interface Backend extends Closeable {
+        void setPassword(String p);
+
         List<Item> list() throws IOException;
 
         void walk(Want w, Visitor v) throws IOException;
@@ -54,10 +56,16 @@ final class Arc implements Closeable {
     /** The archive needs a password, or uses a method this build cannot decode. */
     static final class Unsupported extends IOException {
         final boolean encrypted;
+        final boolean wrong;
 
         Unsupported(String m, boolean encrypted) {
+            this(m, encrypted, false);
+        }
+
+        Unsupported(String m, boolean encrypted, boolean wrong) {
             super(m);
             this.encrypted = encrypted;
+            this.wrong = wrong;
         }
     }
 
@@ -70,6 +78,7 @@ final class Arc implements Closeable {
 
     private ZipReader zip;
     private Backend backend;
+    private String password;
     private final int kind;          // K_*
 
     private static final int K_ZIP = 1, K_TAR = 2, K_TGZ = 3, K_GZ = 4, K_EXTRA = 5, K_TX = 6, K_Z = 7;
@@ -130,6 +139,10 @@ final class Arc implements Closeable {
     // ------------------------------------------------------------------ opening
 
     static Arc open(File f) throws IOException {
+        return open(f, null);
+    }
+
+    static Arc open(File f, String password) throws IOException {
         String name = f.getName().toLowerCase(Locale.ROOT);
         int m = magic(f);
         if (m == 0) {   // wrong or missing signature: trust the extension
@@ -151,6 +164,8 @@ final class Arc implements Closeable {
             case K_ZIP: {
                 Arc a = new Arc(f, "ZIP", K_ZIP);
                 a.zip = ZipReader.open(f);
+                a.zip.setPassword(password);
+                a.password = password;
                 a.charset = a.zip.charset();
                 for (ZipReader.Entry e : a.zip.entries()) {
                     String n = clean(e.name);
@@ -220,11 +235,12 @@ final class Arc implements Closeable {
                 return a;
             }
             default: {
-                Backend b = extra(f, m);
+                Backend b = extra(f, m, password);
                 if (b == null) throw new Unsupported("format needs the extra archive module", false);
                 String fmt = m == 22 ? "7Z" : "RAR";
                 Arc a = new Arc(f, fmt, K_EXTRA);
                 a.backend = b;
+                a.password = password;
                 try {
                     for (Item it : b.list()) {
                         String n = clean(it.name);
@@ -246,10 +262,10 @@ final class Arc implements Closeable {
     }
 
     /** Loads the optional library-backed formats by name, so the app still builds and runs without them. */
-    private static Backend extra(File f, int kind) throws IOException {
+    private static Backend extra(File f, int kind, String password) throws IOException {
         try {
             Class<?> c = Class.forName("com.fileman.app.ArcExtra");
-            return (Backend) c.getMethod("open", File.class, int.class).invoke(null, f, kind);
+            return (Backend) c.getMethod("open", File.class, int.class, String.class).invoke(null, f, kind, password);
         } catch (ClassNotFoundException | NoClassDefFoundError | NoSuchMethodException | IllegalAccessException e) {
             return null;
         } catch (java.lang.reflect.InvocationTargetException e) {
@@ -285,6 +301,17 @@ final class Arc implements Closeable {
         return n;
     }
 
+    void setPassword(String p) {
+        password = p;
+        if (zip != null) zip.setPassword(p);
+        if (backend != null) backend.setPassword(p);
+    }
+
+    boolean hasEncrypted() {
+        for (Item it : items) if (it.encrypted && !it.dir) return true;
+        return false;
+    }
+
     boolean randomAccess() {
         return kind == K_ZIP;
     }
@@ -305,6 +332,7 @@ final class Arc implements Closeable {
             return zip.open(e);
         } catch (ZipException ex) {
             String m = String.valueOf(ex.getMessage());
+            if (ex instanceof ZipReader.WrongPassword) throw new Unsupported(m, true, true);
             if (m.contains("encrypted")) throw new Unsupported(m, true);
             if (m.contains("unsupported method")) throw new Unsupported(m, false);
             throw ex;

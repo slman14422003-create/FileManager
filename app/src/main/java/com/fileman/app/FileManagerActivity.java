@@ -478,6 +478,7 @@ public class FileManagerActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (volWatch == null) volWatch = Volumes.watch(this, () -> ui.postDelayed(this::volumesChanged, 700));
         boolean g = Perms.hasAllFiles(this);
         if (g != lastGranted) {
             lastGranted = g;
@@ -614,6 +615,13 @@ public class FileManagerActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (volWatch != null) {
+            try {
+                unregisterReceiver(volWatch);
+            } catch (Exception ignored) {
+            }
+            volWatch = null;
+        }
         if (live != null) live.stop();
         ui.removeCallbacksAndMessages(null);
         io.shutdownNow();
@@ -660,19 +668,25 @@ public class FileManagerActivity extends BaseActivity {
     }
 
     private List<File> sdRoots() {
-        List<File> out = new ArrayList<>();
-        File[] dirs = getExternalFilesDirs(null);
-        if (dirs == null) return out;
-        for (int i = 1; i < dirs.length; i++) {
-            if (dirs[i] == null) continue;
-            String p = dirs[i].getAbsolutePath();
-            int k = p.indexOf("/Android/data");
-            if (k > 0) {
-                File r = new File(p.substring(0, k));
-                if (r.exists()) out.add(r);
+        return Volumes.roots(this);
+    }
+
+    private android.content.BroadcastReceiver volWatch;
+
+    private void volumesChanged() {
+        if (isFinishing() || isDestroyed()) return;
+        buildFoldersTab();
+        if (mode == M_DIR && cur != null && cur.getAbsolutePath().startsWith("/storage/")
+                && !cur.getAbsolutePath().startsWith("/storage/emulated")) {
+            File root = cur;
+            while (root.getParentFile() != null && !"/storage".equals(root.getParentFile().getAbsolutePath())) {
+                root = root.getParentFile();
+            }
+            if (!root.exists() || root.listFiles() == null) {
+                toast(R.string.fm_usb_out);
+                navigate(defaultRoot());
             }
         }
-        return out;
     }
 
     private boolean isVolumeRoot(File f) {
@@ -1290,7 +1304,7 @@ public class FileManagerActivity extends BaseActivity {
         volumeRow(Environment.getExternalStorageDirectory(), getString(R.string.fm_internal));
         int n = 1;
         for (File sd : sdRoots()) {
-            volumeRow(sd, getString(R.string.fm_sdcard) + (n > 1 ? " " + n : ""));
+            volumeRow(sd, Volumes.labelOf(this, sd));
             n++;
         }
 
@@ -2107,30 +2121,38 @@ public class FileManagerActivity extends BaseActivity {
             if (kids != null) for (File k : kids) copyTree(k, new File(dst, k.getName()));
         } else {
             setBusy(src.getName());
-            try (InputStream in = new FileInputStream(src); OutputStream out = new FileOutputStream(dst)) {
-                byte[] buf = new byte[64 * 1024];
-                int n;
-                while ((n = in.read(buf)) != -1) {
+            try (java.nio.channels.FileChannel in = new FileInputStream(src).getChannel();
+                 java.nio.channels.FileChannel out = new FileOutputStream(dst).getChannel()) {
+                long size = in.size();
+                long pos = 0;
+                while (pos < size) {
                     if (cancelled) throw new Cancel();
-                    out.write(buf, 0, n);
+                    long n = in.transferTo(pos, Math.min(8L << 20, size - pos), out);
+                    if (n <= 0) break;
+                    pos += n;
                 }
             }
+            //noinspection ResultOfMethodCallIgnored
+            dst.setLastModified(src.lastModified());
         }
     }
 
-    private void deleteTree(File f) throws IOException {
-        if (cancelled) throw new Cancel();
-        if (f.isDirectory() && !isLink(f)) {
-            File[] kids = f.listFiles();
-            if (kids != null) for (File k : kids) deleteTree(k);
+    private void copyOrClean(File src, File dst) throws IOException {
+        try {
+            copyTree(src, dst);
+        } catch (IOException | RuntimeException e) {
+            Wipe.delete(java.util.Collections.singletonList(dst), new java.util.concurrent.atomic.AtomicBoolean(), null);
+            throw e;
         }
-        setBusy(f.getName());
-        if (!f.delete() && f.exists()) throw new IOException(getString(R.string.fm_err_delete, f.getName()));
     }
 
     private void paste() {
         if (clip.isEmpty() || mode != M_DIR) return;
         final File dest = cur;
+        if (!dest.canWrite()) {
+            toast(R.string.fm_usb_ro);
+            return;
+        }
         final boolean cut = clipCut;
         final List<File> src = new ArrayList<>(clip);
         clip.clear();
@@ -2144,12 +2166,17 @@ public class FileManagerActivity extends BaseActivity {
                 if (cut && dest.equals(f.getParentFile())) continue;
                 File target = unique(dest, f.getName());
                 if (cut) {
-                    if (!f.renameTo(target)) {
-                        copyTree(f, target);
-                        deleteTree(f);
+                    if (f.renameTo(target)) {
+                        moveMarks(f, target);
+                    } else {
+                        copyOrClean(f, target);
+                        Wipe.delete(java.util.Collections.singletonList(f), new java.util.concurrent.atomic.AtomicBoolean(), null);
+                        moveMarks(f, target);
                     }
+                    rescan(new String[]{f.getAbsolutePath(), target.getAbsolutePath()});
                 } else {
-                    copyTree(f, target);
+                    copyOrClean(f, target);
+                    rescan(new String[]{target.getAbsolutePath()});
                 }
                 ok++;
             }
@@ -2166,20 +2193,92 @@ public class FileManagerActivity extends BaseActivity {
         new Dlg(this).setTitle(R.string.delete_title).setMessage(msg)
                 .setPositiveButton(R.string.delete, (d, w) -> {
                     selected.clear();
-                    runTask(getString(R.string.fm_deleting), () -> {
-                        for (File f : files) deleteTree(f);
-                        Set<String> fv = favs();
-                        if (fv.removeAll(paths(files))) Store.setFavorites(this, fv);
-                        Set<String> pv = Store.pins(this);
-                        if (pv.removeAll(paths(files))) {
-                            Store.setPins(this, pv);
-                            pinCache = null;
-                        }
-                        return getString(R.string.fm_done_n, files.size());
-                    });
+                    final Set<String> gone = new java.util.HashSet<>(paths(files));
+                    for (java.util.Iterator<Entry> it = shown.iterator(); it.hasNext(); ) {
+                        if (gone.contains(it.next().f.getAbsolutePath())) it.remove();
+                    }
+                    adapter.notifyDataSetChanged();
+                    updateEmptyView();
+                    updateChrome();
+                    deleteFast(files);
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .show();
+    }
+
+    private void deleteFast(final List<File> files) {
+        showBusy(getString(R.string.fm_deleting));
+        final java.util.concurrent.atomic.AtomicBoolean stop = new java.util.concurrent.atomic.AtomicBoolean();
+        io.execute(() -> {
+            Wipe.Result r = Wipe.delete(files, stop, (n, rd, total, name) -> {
+                if (cancelled) stop.set(true);
+                post(() -> {
+                    if (busyText != null) busyText.setText(getString(R.string.fm_deleting_n, n));
+                    if (busyBox != null && total > 0) busyBox.setPercent(rd * 100 / total);
+                });
+            });
+            List<String> removed = new ArrayList<>();
+            for (File f : files) if (!Wipe.exists(f)) removed.add(f.getAbsolutePath());
+            Set<String> fv = favs();
+            if (fv.removeAll(removed)) Store.setFavorites(this, fv);
+            Set<String> pv = Store.pins(this);
+            if (pv.removeAll(removed)) {
+                Store.setPins(this, pv);
+                pinCache = null;
+            }
+            favCache = null;
+            rescan(removed.toArray(new String[0]));
+            final Wipe.Result res = r;
+            post(() -> {
+                hideBusy();
+                if (res.cancelled) toast(R.string.fm_cancelled);
+                else if (!res.failed.isEmpty()) {
+                    info(getString(R.string.error), getString(R.string.fm_del_failed_n, res.failed.size())
+                            + "\n" + android.text.TextUtils.join("\n", res.failed.subList(0, Math.min(8, res.failed.size()))));
+                } else toast(getString(R.string.fm_done_n, files.size()));
+                refresh();
+            });
+        });
+    }
+
+    /** Tells the media database that these paths changed, so the gallery and music apps drop or pick them up. */
+    private void rescan(String[] paths) {
+        if (paths.length == 0) return;
+        try {
+            android.media.MediaScannerConnection.scanFile(getApplicationContext(), paths, null, null);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void moveMarks(File from, File to) {
+        String a = from.getAbsolutePath();
+        String b = to.getAbsolutePath();
+        Set<String> fv = favs();
+        Set<String> nf = new java.util.LinkedHashSet<>();
+        boolean fc = false;
+        for (String x : fv) {
+            if (x.equals(a) || x.startsWith(a + "/")) {
+                nf.add(b + x.substring(a.length()));
+                fc = true;
+            } else nf.add(x);
+        }
+        if (fc) {
+            Store.setFavorites(this, nf);
+            favCache = null;
+        }
+        Set<String> pv = Store.pins(this);
+        Set<String> np = new java.util.LinkedHashSet<>();
+        boolean pc = false;
+        for (String x : pv) {
+            if (x.equals(a) || x.startsWith(a + "/")) {
+                np.add(b + x.substring(a.length()));
+                pc = true;
+            } else np.add(x);
+        }
+        if (pc) {
+            Store.setPins(this, np);
+            pinCache = null;
+        }
     }
 
     private void renameDialog(final File f) {
@@ -2194,23 +2293,24 @@ public class FileManagerActivity extends BaseActivity {
                         return;
                     }
                     if (n.equals(f.getName())) return;
-                    File t = new File(f.getParentFile(), n);
+                    final File t = new File(f.getParentFile(), n);
                     if (t.exists()) {
                         toast(R.string.fm_exists);
                         return;
                     }
-                    if (!f.renameTo(t)) {
-                        toast(R.string.fm_rename_failed);
-                    } else {
-                        Set<String> pv = Store.pins(this);
-                        if (pv.remove(f.getAbsolutePath())) {
-                            pv.add(t.getAbsolutePath());
-                            Store.setPins(this, pv);
-                            pinCache = null;
-                        }
-                    }
                     clearSelection();
-                    refresh();
+                    io.execute(() -> {
+                        boolean ok = f.renameTo(t);
+                        if (ok) {
+                            moveMarks(f, t);
+                            rescan(new String[]{f.getAbsolutePath(), t.getAbsolutePath()});
+                        }
+                        final boolean fok = ok;
+                        post(() -> {
+                            if (!fok) toast(R.string.fm_rename_failed);
+                            refresh();
+                        });
+                    });
                 })
                 .setNegativeButton(R.string.cancel, null).show();
     }

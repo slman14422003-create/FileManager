@@ -179,20 +179,65 @@ public class DocViewActivity extends BaseActivity {
         });
 
         loading.setVisibility(View.VISIBLE);
+        loadDoc(ext, null, false);
+    }
+
+    private void loadDoc(final String ext, final String password, final boolean retry) {
+        loading.setVisibility(View.VISIBLE);
         io.execute(() -> {
             String html = null;
             int err = 0;
+            int lock = 0;   // 1 ask for a password, 2 wrong password
+            File plain = null;
             try {
-                html = DocHtml.convert(file, ext);
+                File src = file;
+                if (OfficeCrypto.isEncrypted(file)) {
+                    if (password == null) {
+                        lock = 1;
+                    } else {
+                        File dir = new File(getCacheDir(), "lock");
+                        //noinspection ResultOfMethodCallIgnored
+                        dir.mkdirs();
+                        plain = File.createTempFile("doc", "." + ext, dir);
+                        OfficeCrypto.decrypt(file, password, plain);
+                        src = plain;
+                    }
+                } else if (OfficeCrypto.legacyLocked(file, ext)) {
+                    err = R.string.lock_legacy;
+                }
+                if (lock == 0 && err == 0) html = DocHtml.convert(src, ext);
+            } catch (OfficeCrypto.BadPassword e) {
+                lock = 2;
+            } catch (OfficeCrypto.Unsupported e) {
+                err = R.string.lock_unsupported;
             } catch (OutOfMemoryError e) {
                 err = R.string.v_too_large;
             } catch (Throwable e) {
                 err = R.string.v_doc_failed;
+            } finally {
+                if (plain != null) //noinspection ResultOfMethodCallIgnored
+                    plain.delete();
             }
             final String h = html;
             final int er = err;
+            final int lk = lock;
             ui.post(() -> {
                 if (isFinishing() || isDestroyed()) return;
+                if (lk != 0) {
+                    loading.setVisibility(View.INVISIBLE);
+                    LockPrompt.ask(this, R.string.lock_title_doc, lk == 2, new LockPrompt.Result() {
+                        @Override
+                        public void password(String p) {
+                            loadDoc(ext, p, true);
+                        }
+
+                        @Override
+                        public void cancelled() {
+                            finish();
+                        }
+                    });
+                    return;
+                }
                 if (h == null) {
                     loading.setVisibility(View.INVISIBLE);
                     Toast.makeText(this, er != 0 ? er : R.string.v_doc_failed, Toast.LENGTH_LONG).show();

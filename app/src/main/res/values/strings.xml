@@ -951,4 +951,22 @@
     <string name="eco_none">لا توجد تطبيقات Semo أخرى مثبّتة على هذا الهاتف</string>
     <string name="eco_show_files">إظهار في الملفات</string>
     <string name="eco_link">فتح الصور والأغاني في تطبيقات Semo</string>
+    <string name="lock_title_doc">المستند محمي بكلمة مرور</string>
+    <string name="lock_title_zip">الأرشيف محمي بكلمة مرور</string>
+    <string name="lock_enter">أدخل كلمة المرور</string>
+    <string name="lock_wrong">كلمة المرور غير صحيحة</string>
+    <string name="lock_open">فتح</string>
+    <string name="lock_legacy">هذا ملف Office قديم محمي بكلمة مرور ولا يمكن فتحه هنا. احفظه بصيغة docx أو xlsx أو pptx بدون حماية ثم افتحه</string>
+    <string name="lock_unsupported">طريقة حماية هذا الملف غير مدعومة</string>
+    <string name="lock_pdf_old">ملف PDF محمي بكلمة مرور، وفتحه يحتاج أندرويد 15 أو أحدث</string>
+    <string name="lock_badge">محمي بكلمة مرور</string>
+    <string name="fm_del_failed_n">تعذّر حذف %1$d عنصر. تأكد أنها ليست قيد الاستخدام أو للقراءة فقط</string>
+    <string name="fm_deleting_n">جارٍ الحذف… %1$d</string>
+    <string name="fm_usb">فلاشة USB</string>
+    <string name="fm_usb_n">فلاشة USB %1$d</string>
+    <string name="fm_usb_out">تم فصل الوحدة. العودة إلى التخزين الداخلي</string>
+    <string name="fm_usb_in">تم توصيل %1$s</string>
+    <string name="fm_usb_ro">هذه الوحدة للقراءة فقط (قد تكون بنظام ملفات غير مدعوم للكتابة)</string>
+    <string name="fm_usb_eject">إخراج الوحدة بأمان</string>
+    <string name="fm_usb_unmounted">الوحدة غير جاهزة. قد تحتاج إلى فحصها من إعدادات النظام</string>
 </resources>

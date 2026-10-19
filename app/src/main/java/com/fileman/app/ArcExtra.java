@@ -41,29 +41,48 @@ public final class ArcExtra {
     }
 
     /** kind: 22 = 7z, 23 = rar. */
-    public static Arc.Backend open(File f, int kind) throws IOException {
-        return kind == 22 ? new SevenZ(f) : new Rar(f);
+    public static Arc.Backend open(File f, int kind, String password) throws IOException {
+        return kind == 22 ? new SevenZ(f, password) : new Rar(f, password);
+    }
+
+    private static boolean looksLikeBadPassword(Throwable t) {
+        String m = String.valueOf(t.getMessage()).toLowerCase(java.util.Locale.ROOT);
+        return m.contains("checksum") || m.contains("crc") || m.contains("corrupt") || m.contains("lzma")
+                || m.contains("unexpected") || m.contains("invalid") || m.contains("bad") || m.contains("password")
+                || m.contains("unsupported") || m.contains("data error") || m.contains("padding");
     }
 
     // ------------------------------------------------------------------ 7z
 
     private static final class SevenZ implements Arc.Backend {
         private final File f;
+        private String password;
 
-        SevenZ(File f) throws IOException {
+        SevenZ(File f, String password) throws IOException {
             this.f = f;
+            this.password = password;
+        }
+
+        @Override
+        public void setPassword(String p) {
+            password = p;
+        }
+
+        private Arc.Unsupported need() {
+            return new Arc.Unsupported("password", true, password != null);
         }
 
         private SevenZFile openFile() throws IOException {
             RandomAccessFile raf = new RandomAccessFile(f, "r");
             try {
                 // the channel constructor avoids java.nio.file, which older Android versions do not have
-                return new SevenZFile(raf.getChannel());
+                return password == null ? new SevenZFile(raf.getChannel()) : new SevenZFile(raf.getChannel(), password.toCharArray());
             } catch (PasswordRequiredException e) {
                 raf.close();
-                throw new Arc.Unsupported("password", true);
+                throw need();
             } catch (IOException | RuntimeException e) {
                 raf.close();
+                if (password != null && looksLikeBadPassword(e)) throw need();
                 throw e;
             }
         }
@@ -91,7 +110,7 @@ public final class ArcExtra {
                     if (out.size() >= Arc.MAX_ENTRIES) break;
                 }
             } catch (PasswordRequiredException e) {
-                throw new Arc.Unsupported("password", true);
+                throw need();
             }
             return out;
         }
@@ -108,20 +127,27 @@ public final class ArcExtra {
                     it.name = clean;
                     if (!want.test(it)) continue;
                     final SevenZFile sz = z;
-                    v.file(it, new InputStream() {
-                        @Override
-                        public int read() throws IOException {
-                            return sz.read();
-                        }
+                    try {
+                        v.file(it, new InputStream() {
+                            @Override
+                            public int read() throws IOException {
+                                return sz.read();
+                            }
 
-                        @Override
-                        public int read(byte[] b, int off, int len) throws IOException {
-                            return sz.read(b, off, len);
-                        }
-                    });
+                            @Override
+                            public int read(byte[] b, int off, int len) throws IOException {
+                                return sz.read(b, off, len);
+                            }
+                        });
+                    } catch (Arc.Unsupported e) {
+                        throw e;
+                    } catch (IOException e) {
+                        if (password != null && looksLikeBadPassword(e)) throw need();
+                        throw e;
+                    }
                 }
             } catch (PasswordRequiredException e) {
-                throw new Arc.Unsupported("password", true);
+                throw need();
             }
         }
 
@@ -134,9 +160,16 @@ public final class ArcExtra {
 
     private static final class Rar implements Arc.Backend {
         private final File f;
+        private String password;
 
-        Rar(File f) {
+        Rar(File f, String password) {
             this.f = f;
+            this.password = password;
+        }
+
+        @Override
+        public void setPassword(String p) {
+            password = p;
         }
 
         private static Arc.Item item(FileHeader h) {
@@ -167,12 +200,25 @@ public final class ArcExtra {
 
         private Archive openArchive() throws IOException {
             try {
-                return new Archive(f);
+                return password == null ? new Archive(f) : openWithPassword();
             } catch (IOException e) {
                 throw e;
             } catch (Exception e) {          // junrar's own RarException (RAR5, damaged, ...)
                 String m = String.valueOf(e.getMessage()).toLowerCase(java.util.Locale.ROOT);
-                throw new Arc.Unsupported(m, m.contains("password") || m.contains("encrypt"));
+                boolean enc = m.contains("password") || m.contains("encrypt");
+                throw new Arc.Unsupported(m, enc, enc && password != null);
+            }
+        }
+
+        private Archive openWithPassword() throws Exception {
+            try {
+                return (Archive) Archive.class.getConstructor(File.class, String.class).newInstance(f, password);
+            } catch (NoSuchMethodException e) {
+                return new Archive(f);
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                Throwable t = e.getCause();
+                if (t instanceof Exception) throw (Exception) t;
+                throw e;
             }
         }
 
@@ -198,12 +244,16 @@ public final class ArcExtra {
                     if (clean == null) continue;
                     it.name = clean;
                     if (!want.test(it)) continue;
-                    if (h.isEncrypted()) throw new Arc.Unsupported("password", true);
+                    if (h.isEncrypted() && password == null) throw new Arc.Unsupported("password", true);
                     try (InputStream in = a.getInputStream(h)) {
                         v.file(it, in);
+                    } catch (Arc.Unsupported e) {
+                        throw e;
                     } catch (IOException e) {
+                        if (h.isEncrypted() && looksLikeBadPassword(e)) throw new Arc.Unsupported("password", true, true);
                         throw e;
                     } catch (Exception e) {
+                        if (h.isEncrypted()) throw new Arc.Unsupported("password", true, true);
                         throw new IOException(String.valueOf(e.getMessage()));
                     }
                 }

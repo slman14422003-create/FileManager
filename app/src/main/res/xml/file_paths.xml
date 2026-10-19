@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <!-- Any file the in-app file manager shows (needs all-files access to be readable). -->
-    <root-path name="root" path="." />
-    <cache-path name="cache" path="." />
+    <!-- Shared storage, SD cards and USB drives. The app's private data folders are not covered. -->
+    <root-path name="storage" path="storage/" />
+    <root-path name="media" path="mnt/media_rw/" />
+    <external-path name="external" path="." />
+    <external-files-path name="appfiles" path="." />
+    <cache-path name="apk" path="apk/" />
+    <cache-path name="zipview" path="zipview/" />
+    <cache-path name="incoming" path="incoming/" />
+    <cache-path name="inst" path="inst/" />
+    <cache-path name="share" path="share/" />
+    <files-path name="apks" path="apks/" />
 </paths>

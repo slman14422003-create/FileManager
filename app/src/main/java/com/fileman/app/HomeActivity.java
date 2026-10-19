@@ -126,6 +126,7 @@ public class HomeActivity extends BaseActivity {
             stats = null;
             hadAccess = access;
         }
+        if (volWatch == null) volWatch = Volumes.watch(this, () -> ui.postDelayed(this::render, 700));
         render();
         if (!access) Perms.promptFirstRun(this);
         else Updater.autoCheck(this, io, ui);
@@ -167,6 +168,13 @@ public class HomeActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (volWatch != null) {
+            try {
+                unregisterReceiver(volWatch);
+            } catch (Exception ignored) {
+            }
+            volWatch = null;
+        }
         if (live != null) live.stop();
         stop.set(true);
         ui.removeCallbacksAndMessages(null);
@@ -246,6 +254,8 @@ public class HomeActivity extends BaseActivity {
 
     private boolean entered = false;
 
+    private android.content.BroadcastReceiver volWatch;
+
     private void render() {
         final View scroller = (View) content.getParent();
         final int keepY = scroller.getScrollY();
@@ -274,7 +284,7 @@ public class HomeActivity extends BaseActivity {
         storage.add(storageTile(internal, getString(R.string.fm_internal)));
         int n = 1;
         for (File sd : sdRoots()) {
-            storage.add(storageTile(sd, getString(R.string.fm_sdcard) + (n > 1 ? " " + n : "")));
+            storage.add(storageTile(sd, Volumes.labelOf(this, sd)));
             n++;
         }
         storage.add(analysisTile(internal));
@@ -585,19 +595,7 @@ public class HomeActivity extends BaseActivity {
     }
 
     private List<File> sdRoots() {
-        List<File> out = new ArrayList<>();
-        File[] dirs = getExternalFilesDirs(null);
-        if (dirs == null) return out;
-        for (int i = 1; i < dirs.length; i++) {
-            if (dirs[i] == null) continue;
-            String p = dirs[i].getAbsolutePath();
-            int k = p.indexOf("/Android/data");
-            if (k > 0) {
-                File r = new File(p.substring(0, k));
-                if (r.exists()) out.add(r);
-            }
-        }
-        return out;
+        return Volumes.roots(this);
     }
 
     private List<File> existingFavorites() {

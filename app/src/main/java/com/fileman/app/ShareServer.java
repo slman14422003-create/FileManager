@@ -307,7 +307,14 @@ final class ShareServer {
         if (rel != null && size >= 0 && receiveDir != null) {
             File target = new File(receiveDir, rel);
             File parent = target.getParentFile();
-            if (parent != null && (parent.isDirectory() || parent.mkdirs())) {
+            boolean inside = false;
+            try {
+                inside = parent != null && (parent.isDirectory() || parent.mkdirs())
+                        && (parent.getCanonicalPath() + File.separator).startsWith(receiveDir.getCanonicalPath() + File.separator);
+            } catch (IOException ignored) {
+            }
+            if (inside && size > receiveDir.getUsableSpace()) inside = false;
+            if (inside) {
                 dest = uniqueFile(target);
                 part = new File(dest.getParentFile(), dest.getName() + ".fmpart");
             }
