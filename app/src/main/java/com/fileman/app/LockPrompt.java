@@ -30,7 +30,7 @@ final class LockPrompt {
             answered[0] = true;
             r.cancelled();
         });
-        android.app.AlertDialog dlg = d.create();
+        androidx.appcompat.app.AlertDialog dlg = d.create();
         dlg.setOnDismissListener(x -> {
             if (!answered[0]) r.cancelled();
         });

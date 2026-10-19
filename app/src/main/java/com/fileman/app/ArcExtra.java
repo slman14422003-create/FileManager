@@ -139,11 +139,11 @@ public final class ArcExtra {
                                 return sz.read(b, off, len);
                             }
                         });
-                    } catch (Arc.Unsupported e) {
-                        throw e;
-                    } catch (IOException e) {
-                        if (password != null && looksLikeBadPassword(e)) throw need();
-                        throw e;
+                    } catch (Arc.Unsupported ue) {
+                        throw ue;
+                    } catch (IOException ioe) {
+                        if (password != null && looksLikeBadPassword(ioe)) throw need();
+                        throw ioe;
                     }
                 }
             } catch (PasswordRequiredException e) {
