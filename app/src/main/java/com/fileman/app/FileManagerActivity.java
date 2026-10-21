@@ -702,6 +702,17 @@ public class FileManagerActivity extends BaseActivity {
         public boolean isFavorite(String path) {
             return favs().contains(path);
         }
+
+        @Override
+        public void openFolder(String path) {
+            navigate(new File(path));
+        }
+
+        @Override
+        public void openSmart(String mode) {
+            startActivity(new Intent(FileManagerActivity.this, SmartActivity.class)
+                    .putExtra(SmartActivity.EXTRA, mode));
+        }
     });
 
     private void scheduleTip(long delay) {

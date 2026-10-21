@@ -23,6 +23,7 @@ import androidx.core.splashscreen.SplashScreen;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -118,6 +119,44 @@ public class HomeActivity extends BaseActivity {
         Store.setHomeCache(this, b.toString());
     }
 
+    private final Runnable tipRun = () -> Assistant.suggest(this, new Assistant.Host() {
+        @Override
+        public void openStorage() {
+            startActivity(new Intent(HomeActivity.this, StorageActivity.class));
+        }
+
+        @Override
+        public void openCategory(String key) {
+            Intent i = new Intent(HomeActivity.this, FileManagerActivity.class);
+            i.putExtra("cat", key);
+            startActivity(i);
+        }
+
+        @Override
+        public void addFavorite(String path) {
+            Set<String> s = new LinkedHashSet<>(Store.favorites(HomeActivity.this));
+            s.add(path);
+            Store.setFavorites(HomeActivity.this, s);
+        }
+
+        @Override
+        public boolean isFavorite(String path) {
+            return Store.favorites(HomeActivity.this).contains(path);
+        }
+
+        @Override
+        public void openFolder(String path) {
+            Intent i = new Intent(HomeActivity.this, FileManagerActivity.class);
+            i.putExtra("path", path);
+            startActivity(i);
+        }
+
+        @Override
+        public void openSmart(String mode) {
+            startActivity(new Intent(HomeActivity.this, SmartActivity.class).putExtra(SmartActivity.EXTRA, mode));
+        }
+    });
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -133,11 +172,17 @@ public class HomeActivity extends BaseActivity {
         if (access && (stats == null || System.currentTimeMillis() - statsAt > SCAN_MAX_AGE_MS)) startScan();
         if (live == null) live = new LiveSync(this, this::liveRescan);
         if (access) startWatch();
+        if (access) {
+            SmartGuard.checkAsync(this);
+            ui.removeCallbacks(tipRun);
+            if (Assistant.enabled(this)) ui.postDelayed(tipRun, 2500);
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+        ui.removeCallbacks(tipRun);
         if (live != null) live.stop();
         ui.removeCallbacks(rescan);
     }

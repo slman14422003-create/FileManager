@@ -60,6 +60,12 @@ public class SettingsActivity extends BaseActivity {
         hidden.onChange((b, on) -> Store.setShowHidden(this, on));
         content.addView(hidden.view);
 
+        Ui.Toggle smart = Ui.toggle(this, content, R.string.set_smart, R.string.set_smart_sub,
+                Assistant.enabled(this));
+        smart.withIcon(R.drawable.ic_star);
+        smart.onChange((b, on) -> Assistant.setEnabled(this, on));
+        content.addView(smart.view);
+
         content.addView(Ui.sectionTitle(this, getString(R.string.set_access)));
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_shield, false,
                 getString(R.string.perm_title), getString(R.string.perm_subtitle), false, true),

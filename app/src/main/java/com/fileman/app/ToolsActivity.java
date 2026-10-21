@@ -194,6 +194,18 @@ public class ToolsActivity extends BaseActivity {
             spaceStack.clear();
             analyze(root());
         }));
+        content.addView(Ui.sectionTitle(this, getString(R.string.sm_title)));
+        content.addView(smartRow(R.drawable.ic_sort, R.string.sm_clean, R.string.sm_clean_sub, R.color.ok, SmartActivity.M_CLEAN));
+        content.addView(smartRow(R.drawable.ic_folder, R.string.sm_org, R.string.sm_org_sub, R.color.info, SmartActivity.M_ORG));
+        content.addView(smartRow(R.drawable.ic_file_text, R.string.sm_name, R.string.sm_name_sub, R.color.warn, SmartActivity.M_NAME));
+        content.addView(smartRow(R.drawable.ic_search, R.string.sm_find, R.string.sm_find_sub, R.color.accent_text, SmartActivity.M_FIND));
+        content.addView(smartRow(R.drawable.ic_shield, R.string.sm_guard, R.string.sm_guard_sub, R.color.bad, SmartActivity.M_GUARD));
+    }
+
+    private View smartRow(int icon, int title, int sub, int color, final String mode) {
+        return Ui.rowView(this, content, new Row(icon, false, getString(title), getString(sub), false, true)
+                .tint(Ui.color(this, color)), v -> startActivity(new Intent(this, SmartActivity.class)
+                .putExtra(SmartActivity.EXTRA, mode)));
     }
 
     private void scanning(String sub) {
@@ -313,6 +325,14 @@ public class ToolsActivity extends BaseActivity {
         for (Group g : dupGroups) wasted += g.wasted();
         content.addView(Ui.noteCard(this, getString(R.string.tl_dup_summary, dupGroups.size(), Fmt.size(wasted)),
                 R.color.accent_text));
+        Button newest = Ui.block(this, Ui.button(this, R.string.delete, true));
+        newest.setText(R.string.tl_keep_newest);
+        newest.setOnClickListener(v -> bulkDup(true));
+        content.addView(newest);
+        Button oldest = Ui.block(this, Ui.button(this, R.string.delete, false));
+        oldest.setText(R.string.tl_keep_oldest);
+        oldest.setOnClickListener(v -> bulkDup(false));
+        content.addView(oldest);
         int shown = Math.min(dupGroups.size(), 40);
         for (int i = 0; i < shown; i++) {
             final Group g = dupGroups.get(i);
@@ -331,6 +351,18 @@ public class ToolsActivity extends BaseActivity {
             Ui.group(this, box);
             content.addView(box);
         }
+    }
+
+    private void bulkDup(boolean keepNewest) {
+        final List<File> extra = new ArrayList<>();
+        for (Group g : dupGroups) {
+            File keep = g.files.get(0);
+            for (File f : g.files) {
+                if (keepNewest ? f.lastModified() > keep.lastModified() : f.lastModified() < keep.lastModified()) keep = f;
+            }
+            for (File f : g.files) if (f != keep) extra.add(f);
+        }
+        confirmDelete(extra, this::scanDup);
     }
 
     private void dupMenu(final Group g, final File f) {
