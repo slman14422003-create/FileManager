@@ -626,8 +626,13 @@ public class Dlg extends AlertDialog.Builder {
         ViewParent parent = shown.get(0).getParent();
         if (parent instanceof LinearLayout) {
             LinearLayout bar = (LinearLayout) parent;
+            try {
+                bar.getClass().getMethod("setAllowStacking", boolean.class).invoke(bar, false);
+            } catch (Throwable ignored) {
+            }
             bar.setOrientation(row ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
-            bar.setPaddingRelative(Ui.dp(c, 18), 0, Ui.dp(c, 18), Ui.dp(c, 18));
+            bar.setPaddingRelative(Ui.dp(c, 20), Ui.dp(c, 4), Ui.dp(c, 20), Ui.dp(c, 16));
+            bar.setGravity(Gravity.CENTER_HORIZONTAL);
             bar.setMinimumHeight(0);
             View spacer = bar.findViewById(androidx.appcompat.R.id.spacer);
             if (spacer != null) spacer.setVisibility(View.GONE);
@@ -641,6 +646,7 @@ public class Dlg extends AlertDialog.Builder {
             Button b = order.get(i);
             boolean main = b == pos || (single && !sheet);
             boolean red = destructive(c, b.getText());
+            boolean quiet = !row && !sheet && order.size() >= 3 && b == neg;
             b.setAllCaps(false);
             b.setTypeface(Typeface.DEFAULT_BOLD);
             b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
@@ -651,7 +657,12 @@ public class Dlg extends AlertDialog.Builder {
             b.setPadding(Ui.dp(c, 16), 0, Ui.dp(c, 16), 0);
             b.setStateListAnimator(null);
             Ui.press(c, b);
-            if (main) {
+            if (quiet) {
+                b.setBackgroundResource(R.drawable.dlg_btn_quiet);
+                b.setTextColor(Ui.color(c, R.color.text_secondary));
+                b.setTypeface(Typeface.DEFAULT);
+                b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+            } else if (main) {
                 b.setBackgroundResource(red ? R.drawable.dlg_btn_danger : R.drawable.dlg_btn_primary);
                 b.setTextColor(Ui.color(c, red ? R.color.on_bad : R.color.on_accent));
             } else {
@@ -662,7 +673,7 @@ public class Dlg extends AlertDialog.Builder {
             if (lp instanceof LinearLayout.LayoutParams) {
                 LinearLayout.LayoutParams m = (LinearLayout.LayoutParams) lp;
                 m.width = row ? 0 : ViewGroup.LayoutParams.MATCH_PARENT;
-                m.height = Ui.dp(c, 50);
+                m.height = Ui.dp(c, quiet ? 42 : 50);
                 m.weight = row ? 1f : 0f;
                 if (row) m.setMargins(Ui.dp(c, 5), 0, Ui.dp(c, 5), 0);
                 else m.setMargins(0, Ui.dp(c, 5), 0, Ui.dp(c, 5));

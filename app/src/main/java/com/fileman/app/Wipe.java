@@ -1,9 +1,14 @@
 package com.fileman.app;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ForkJoinPool;
@@ -41,6 +46,80 @@ final class Wipe {
         } catch (Throwable t) {
             return false;
         }
+    }
+
+
+    private static final String PREFS = "wipe_pending";
+    private static final String KEY = "paths";
+
+    /** Items renamed out of sight, waiting to be removed for real; {@code direct} could not be renamed. */
+    static final class Stash {
+        final List<File> hidden = new ArrayList<>();
+        final List<File> direct = new ArrayList<>();
+    }
+
+    private static synchronized void remember(Context c, String path, boolean add) {
+        SharedPreferences sp = c.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        Set<String> set = new HashSet<>(sp.getStringSet(KEY, new HashSet<String>()));
+        boolean changed = add ? set.add(path) : set.remove(path);
+        if (changed) sp.edit().putStringSet(KEY, set).commit();
+    }
+
+    /**
+     * Renames every root to a hidden sibling in the same folder. A rename is instant whatever the size, so
+     * the item disappears at once; the slow part (freeing the data) happens later in {@link #delete}.
+     */
+    static Stash stash(Context c, List<File> roots) {
+        Stash st = new Stash();
+        for (File f : roots) {
+            File parent = f.getParentFile();
+            if (parent == null || isLink(f)) {
+                st.direct.add(f);
+                continue;
+            }
+            File hid = new File(parent, ".fmdel-" + Long.toHexString(System.nanoTime()) + Integer.toHexString(st.hidden.size()));
+            remember(c, hid.getAbsolutePath(), true);
+            boolean ok;
+            try {
+                ok = f.renameTo(hid);
+            } catch (Throwable t) {
+                ok = false;
+            }
+            if (ok) {
+                st.hidden.add(hid);
+            } else {
+                remember(c, hid.getAbsolutePath(), false);
+                st.direct.add(f);
+            }
+        }
+        return st;
+    }
+
+    /** Called once a stashed item is really gone. */
+    static void settled(Context c, List<File> hidden) {
+        for (File h : hidden) if (!exists(h)) remember(c, h.getAbsolutePath(), false);
+    }
+
+    /** Finishes anything a previous run left half-way (app closed or killed while purging). */
+    static void resume(final Context c) {
+        final Context app = c.getApplicationContext();
+        SharedPreferences sp = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        final Set<String> set = new HashSet<>(sp.getStringSet(KEY, new HashSet<String>()));
+        if (set.isEmpty()) return;
+        Thread t = new Thread(() -> {
+            List<File> left = new ArrayList<>();
+            for (String path : set) {
+                File f = new File(path);
+                if (exists(f)) left.add(f);
+                else remember(app, path, false);
+            }
+            if (!left.isEmpty()) {
+                delete(left, new AtomicBoolean(), null);
+                settled(app, left);
+            }
+        }, "wipe-resume");
+        t.setPriority(Thread.MIN_PRIORITY);
+        t.start();
     }
 
     static Result delete(List<File> roots, AtomicBoolean cancel, Progress progress) {

@@ -519,7 +519,7 @@ public class FileManagerActivity extends BaseActivity {
         io.execute(() -> {
             final Map<String, Entry> upd = new LinkedHashMap<>();
             for (String n : ns) {
-                if (!hidden && n.startsWith(".")) continue;
+                if (n.startsWith(".fmdel-") || (!hidden && n.startsWith("."))) continue;
                 File f = new File(dir, n);
                 upd.put(f.getAbsolutePath(), f.exists() ? new Entry(f) : null);
             }
@@ -889,7 +889,7 @@ public class FileManagerActivity extends BaseActivity {
             final List<Entry> out = new ArrayList<>();
             if (arr != null) {
                 for (File f : arr) {
-                    if (!showHidden && f.getName().startsWith(".")) continue;
+                    if (f.getName().startsWith(".fmdel-") || (!showHidden && f.getName().startsWith("."))) continue;
                     Entry ne = new Entry(f);
                     Entry old = prev.get(f.getAbsolutePath());
                     boolean unchanged = old != null && old.mod == ne.mod && old.dir == ne.dir && (old.dir || old.size == ne.size);
@@ -932,7 +932,7 @@ public class FileManagerActivity extends BaseActivity {
         for (File f : arr) {
             if (my != gen || out.size() >= MAX_SEARCH || budget[0] <= 0) return;
             String n = f.getName();
-            if (!showHidden && n.startsWith(".")) continue;
+            if (n.startsWith(".fmdel-") || (!showHidden && n.startsWith("."))) continue;
             budget[0]--;
             if (n.toLowerCase(Locale.ROOT).contains(q)) out.add(new Entry(f));
             if (f.isDirectory() && !isLink(f)) walkSearch(f, q, out, my, depth + 1, budget);
@@ -985,7 +985,7 @@ public class FileManagerActivity extends BaseActivity {
         if (arr == null) return;
         for (File f : arr) {
             if (my != gen || budget[0] <= 0) return;
-            if (!showHidden && f.getName().startsWith(".")) continue;
+            if (f.getName().startsWith(".fmdel-") || (!showHidden && f.getName().startsWith("."))) continue;
             budget[0]--;
             if (f.isDirectory()) {
                 if (!isLink(f)) walkLargest(f, heap, budget, my, depth + 1);
@@ -1029,7 +1029,7 @@ public class FileManagerActivity extends BaseActivity {
         for (File f : arr) {
             if (my != gen || budget[0] <= 0) return;
             String n = f.getName();
-            if (!showHidden && n.startsWith(".")) continue;
+            if (n.startsWith(".fmdel-") || (!showHidden && n.startsWith("."))) continue;
             if (depth == 0 && n.equals("Android")) continue;
             budget[0]--;
             if (f.isDirectory()) {
@@ -1194,10 +1194,18 @@ public class FileManagerActivity extends BaseActivity {
         }
         boolean sel = !selected.isEmpty();
         if (fab != null) fab.setVisibility(mode == M_DIR && !sel ? View.VISIBLE : View.GONE);
+        if (sel && selBar.getVisibility() != View.VISIBLE) {
+            selBar.setTranslationY(Ui.dp(this, 24));
+            selBar.setAlpha(0f);
+            selBar.animate().translationY(0f).alpha(1f).setDuration(200).start();
+        }
         selBar.setVisibility(sel ? View.VISIBLE : View.GONE);
         if (navBar != null) navBar.setVisibility(sel || searchView.hasFocus() ? View.GONE : View.VISIBLE);
         searchView.setVisibility(!sel && searchOpen ? View.VISIBLE : View.GONE);
-        if (sel) selCount.setText(getString(R.string.fm_selected_n, selected.size()));
+        if (sel) {
+            selCount.setText(String.valueOf(selected.size()));
+            selCount.setContentDescription(getString(R.string.fm_selected_n, selected.size()));
+        }
         updatePermBanner();
         updatePasteBar();
         adapter.notifyDataSetChanged();
@@ -1557,7 +1565,13 @@ public class FileManagerActivity extends BaseActivity {
             ImageView icon = v.findViewById(R.id.icon);
             ImageView thumb = v.findViewById(R.id.thumb);
             icon.setImageResource(iconFor(type));
-            Ui.outlineIcon(FileManagerActivity.this, icon, 10);
+            if (e.dir) {
+                Ui.outlineIcon(FileManagerActivity.this, icon, 10);
+            } else {
+                icon.setImageTintList(ColorStateList.valueOf(color));
+                icon.setBackground(Ui.colorTile(FileManagerActivity.this, Ui.dp(FileManagerActivity.this, 40),
+                        colorFor(type), false));
+            }
             thumb.setBackground(Ui.outlineBox(FileManagerActivity.this, Ui.dp(FileManagerActivity.this, 10)));
             thumb.setClipToOutline(true);
             thumb.setTag(path);
@@ -2273,14 +2287,9 @@ public class FileManagerActivity extends BaseActivity {
         showBusy(getString(R.string.fm_deleting));
         final java.util.concurrent.atomic.AtomicBoolean stop = new java.util.concurrent.atomic.AtomicBoolean();
         io.execute(() -> {
-            Wipe.Result r = Wipe.delete(files, stop, (n, rd, total, name) -> {
-                if (cancelled) stop.set(true);
-                OpService.update(getString(R.string.fm_deleting_n, n), total > 0 ? rd * 100 / total : -1);
-                post(() -> {
-                    if (busyText != null) busyText.setText(getString(R.string.fm_deleting_n, n));
-                    if (busyBox != null && total > 0) busyBox.setPercent(rd * 100 / total);
-                });
-            });
+            final Wipe.Stash st = Wipe.stash(this, files);
+            List<File> real = new ArrayList<>(st.direct);
+            Wipe.Result r = real.isEmpty() ? new Wipe.Result() : Wipe.delete(real, stop, null);
             List<String> removed = new ArrayList<>();
             for (File f : files) if (!Wipe.exists(f)) removed.add(f.getAbsolutePath());
             Set<String> fv = favs();
@@ -2293,9 +2302,10 @@ public class FileManagerActivity extends BaseActivity {
             favCache = null;
             rescan(removed.toArray(new String[0]));
             final Wipe.Result res = r;
+            final boolean more = !st.hidden.isEmpty();
             post(() -> {
                 hideBusy();
-                opDone(res.cancelled ? null : getString(R.string.fm_done_n, files.size()));
+                if (!more) opDone(res.cancelled ? null : getString(R.string.fm_done_n, files.size()));
                 scheduleTip(4000);
                 if (res.cancelled) toast(R.string.fm_cancelled);
                 else if (!res.failed.isEmpty()) {
@@ -2304,6 +2314,19 @@ public class FileManagerActivity extends BaseActivity {
                 } else toast(getString(R.string.fm_done_n, files.size()));
                 refresh();
             });
+            if (more) {
+                // the items are already out of sight; free their data in the background
+                cancelled = false;
+                final java.util.concurrent.atomic.AtomicBoolean never = new java.util.concurrent.atomic.AtomicBoolean();
+                try {
+                    Wipe.delete(st.hidden, never, (n, rd, total, name) ->
+                            OpService.update(getString(R.string.fm_deleting_n, n), total > 0 ? rd * 100 / total : -1));
+                } finally {
+                    Wipe.settled(this, st.hidden);
+                    OpService.end(null);
+                    bgHidden = false;
+                }
+            }
         });
     }
 

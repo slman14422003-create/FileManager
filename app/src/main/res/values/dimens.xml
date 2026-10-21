@@ -26,6 +26,6 @@
     <dimen name="share_dl_icon">28dp</dimen>
 
     <!-- dialog width as a share of the window -->
-    <fraction name="dlg_min_minor">80%</fraction>
+    <fraction name="dlg_min_minor">88%</fraction>
     <fraction name="dlg_min_major">54%</fraction>
 </resources>

@@ -33,6 +33,7 @@ public class App extends Application {
         CrashLog.install(this);
         Lang.init(this);
         Appearance.applyMode(this);
+        Wipe.resume(this);
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override
             public void onActivityCreated(Activity a, Bundle b) {

@@ -30,3 +30,5 @@
 -dontwarn com.android.apksig.**
 -dontwarn javax.annotation.**
 -dontwarn org.apache.commons.**
+
+-keepclassmembers class androidx.appcompat.widget.ButtonBarLayout { public void setAllowStacking(boolean); }
