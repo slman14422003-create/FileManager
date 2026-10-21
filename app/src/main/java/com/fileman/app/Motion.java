@@ -8,7 +8,7 @@ import android.view.animation.Interpolator;
 import android.view.animation.PathInterpolator;
 
 final class Motion {
-    static final long DUR = 380L;
+    static final long DUR = 300L;
     static final long DUR_SHORT = 220L;
     static final Interpolator OUT = new PathInterpolator(0.32f, 0.72f, 0f, 1f);
     static final Interpolator EASE = new PathInterpolator(0.25f, 0.1f, 0.25f, 1f);

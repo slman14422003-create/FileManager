@@ -17,14 +17,14 @@
     <item>
         <set android:ordering="together">
             <objectAnimator
-                android:duration="180"
-                android:interpolator="@interpolator/ios_out"
+                android:duration="240"
+                android:interpolator="@android:anim/overshoot_interpolator"
                 android:propertyName="scaleX"
                 android:valueTo="1"
                 android:valueType="floatType" />
             <objectAnimator
-                android:duration="180"
-                android:interpolator="@interpolator/ios_out"
+                android:duration="240"
+                android:interpolator="@android:anim/overshoot_interpolator"
                 android:propertyName="scaleY"
                 android:valueTo="1"
                 android:valueType="floatType" />
