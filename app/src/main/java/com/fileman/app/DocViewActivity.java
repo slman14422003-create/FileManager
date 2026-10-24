@@ -83,22 +83,28 @@ public class DocViewActivity extends BaseActivity {
         zoom = Store.intPref(this, "doc_zoom", 100);
         more.setOnClickListener(v -> {
             final boolean editable = EDITABLE.contains(ext);
-            String[] names = new String[editable ? 5 : 4];
-            Runnable[] acts = new Runnable[names.length];
-            names[0] = getString(R.string.rd_night) + (night ? "  ✓" : "");
-            acts[0] = this::toggleNight;
-            names[1] = getString(R.string.rd_text_size) + " +";
-            acts[1] = () -> changeZoom(20);
-            names[2] = getString(R.string.rd_text_size) + " −";
-            acts[2] = () -> changeZoom(-20);
-            names[3] = getString(R.string.v_print);
-            acts[3] = this::printPage;
-            if (editable) {
-                names[4] = getString(R.string.v_edit_text);
-                acts[4] = () -> startActivity(new android.content.Intent(this, FileEditActivity.class)
-                        .putExtra("path", file.getAbsolutePath()));
+            final java.util.List<String> names = new java.util.ArrayList<>();
+            final java.util.List<Runnable> acts = new java.util.ArrayList<>();
+            names.add(getString(R.string.rd_night) + (night ? "  ✓" : ""));
+            acts.add(this::toggleNight);
+            names.add(getString(R.string.rd_text_size) + " +");
+            acts.add(() -> changeZoom(20));
+            names.add(getString(R.string.rd_text_size) + " −");
+            acts.add(() -> changeZoom(-20));
+            if (PdfConvert.canConvert(ext)) {
+                names.add(getString(R.string.pdf_convert));
+                acts.add(() -> {
+                    if (baseHtml != null) PdfConvert.html(this, baseHtml, file);
+                });
             }
-            Opener.moreMenu(this, file, names, acts);
+            names.add(getString(R.string.v_print));
+            acts.add(this::printPage);
+            if (editable) {
+                names.add(getString(R.string.v_edit_text));
+                acts.add(() -> startActivity(new android.content.Intent(this, FileEditActivity.class)
+                        .putExtra("path", file.getAbsolutePath())));
+            }
+            Opener.moreMenu(this, file, names.toArray(new String[0]), acts.toArray(new Runnable[0]));
         });
         // find / text size / night mode live in a floating bar over the page (set up after the WebView exists)
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
@@ -139,9 +145,11 @@ public class DocViewActivity extends BaseActivity {
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
-                // only in-page anchors (sheet tabs); every other link is ignored
+                // in-page anchors (contents, bookmarks, sheet tabs) scroll inside the page; web links ask first
                 String u = r.getUrl().toString();
-                return !(u.startsWith(BASE) && u.contains("#"));
+                if (u.startsWith(BASE) && u.contains("#")) return false;
+                openLink(u);
+                return true;
             }
 
             @Override
@@ -185,42 +193,10 @@ public class DocViewActivity extends BaseActivity {
     private void loadDoc(final String ext, final String password, final boolean retry) {
         loading.setVisibility(View.VISIBLE);
         io.execute(() -> {
-            String html = null;
-            int err = 0;
-            int lock = 0;   // 1 ask for a password, 2 wrong password
-            File plain = null;
-            try {
-                File src = file;
-                if (OfficeCrypto.isEncrypted(file)) {
-                    if (password == null) {
-                        lock = 1;
-                    } else {
-                        File dir = new File(getCacheDir(), "lock");
-                        //noinspection ResultOfMethodCallIgnored
-                        dir.mkdirs();
-                        plain = File.createTempFile("doc", "." + ext, dir);
-                        OfficeCrypto.decrypt(file, password, plain);
-                        src = plain;
-                    }
-                } else if (OfficeCrypto.legacyLocked(file, ext)) {
-                    err = R.string.lock_legacy;
-                }
-                if (lock == 0 && err == 0) html = DocHtml.convert(src, ext);
-            } catch (OfficeCrypto.BadPassword e) {
-                lock = 2;
-            } catch (OfficeCrypto.Unsupported e) {
-                err = R.string.lock_unsupported;
-            } catch (OutOfMemoryError e) {
-                err = R.string.v_too_large;
-            } catch (Throwable e) {
-                err = R.string.v_doc_failed;
-            } finally {
-                if (plain != null) //noinspection ResultOfMethodCallIgnored
-                    plain.delete();
-            }
-            final String h = html;
-            final int er = err;
-            final int lk = lock;
+            final OfficeLoad.Result res = OfficeLoad.load(this, file, ext, password);
+            final String h = res.html;
+            final int er = res.err;
+            final int lk = res.lock;
             ui.post(() -> {
                 if (isFinishing() || isDestroyed()) return;
                 if (lk != 0) {
@@ -268,6 +244,24 @@ public class DocViewActivity extends BaseActivity {
     /** Plain-text based formats that can also be opened in the text editor from the viewer. */
     private static final java.util.Set<String> EDITABLE = new java.util.HashSet<>(java.util.Arrays.asList(
             "csv", "tsv", "html", "htm", "xhtml", "svg", "md", "markdown"));
+
+    /** A link of the document that leaves the page: only web, mail and phone links, and only after a confirmation. */
+    private void openLink(final String url) {
+        String l = url.toLowerCase(java.util.Locale.ROOT);
+        if (!(l.startsWith("http://") || l.startsWith("https://") || l.startsWith("mailto:") || l.startsWith("tel:"))) return;
+        new Dlg(this).setTitle(R.string.link_open_title)
+                .setMessage(getString(R.string.link_open_msg, url))
+                .setPositiveButton(R.string.link_open_go, (d, w) -> {
+                    try {
+                        startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse(url)));
+                    } catch (Exception e) {
+                        Toast.makeText(this, R.string.fm_cannot_open, Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
 
     /** Prints the document or saves it as PDF through the system print service. */
     private void printPage() {

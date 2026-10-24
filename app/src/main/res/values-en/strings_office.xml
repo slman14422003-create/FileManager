@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pdf_convert">Convert to PDF</string>
+    <string name="pdf_converting">Converting to PDF</string>
+    <string name="pdf_wait">Please wait a moment</string>
+    <string name="pdf_done">PDF created</string>
+    <string name="pdf_done_msg">Saved as %1$s</string>
+    <string name="pdf_open">Open</string>
+    <string name="pdf_failed">Could not create the PDF</string>
+    <string name="link_open_title">Open link</string>
+    <string name="link_open_msg">This link will open outside the app:\n%1$s</string>
+    <string name="link_open_go">Open</string>
+    <string name="link_missing">The target was not found in the document</string>
+</resources>

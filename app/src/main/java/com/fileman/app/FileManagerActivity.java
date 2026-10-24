@@ -1971,6 +1971,9 @@ public class FileManagerActivity extends BaseActivity {
         if (single) add(labels, ids, getString(R.string.fm_rename), 1);
         add(labels, ids, getString(R.string.fm_details), 2);
         if (anyFile) add(labels, ids, getString(R.string.share), 3);
+        if (single && !one.isDirectory() && PdfConvert.canConvert(Cats.extOf(one.getName()))) {
+            add(labels, ids, getString(R.string.pdf_convert), 10);
+        }
         add(labels, ids, getString(R.string.fm_compress), 4);
         if (isZip) {
             add(labels, ids, getString(R.string.fm_extract_here), 5);
@@ -2016,6 +2019,9 @@ public class FileManagerActivity extends BaseActivity {
                         case 9:
                             togglePin(files, allPinned);
                             break;
+                        case 10:
+                            PdfConvert.file(this, one, null);
+                            break;
                         default:
                             copyText(one.getAbsolutePath());
                             break;
@@ -2043,6 +2049,8 @@ public class FileManagerActivity extends BaseActivity {
                 return R.drawable.ic_star;
             case 9:
                 return R.drawable.ic_pin;
+            case 10:
+                return R.drawable.ic_file_text;
             default:
                 return R.drawable.ic_copy;
         }

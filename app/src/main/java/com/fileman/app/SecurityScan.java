@@ -91,11 +91,12 @@ final class SecurityScan {
         h.post(() -> {
             final android.widget.Button b = d.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE);
             if (b == null) return;
+            stackButtons(d, b);
             final CharSequence label = b.getText();
             final int[] left = {seconds};
             b.setEnabled(false);
             b.setAlpha(0.5f);
-            b.setText(label + "  (" + left[0] + ")");
+            b.setText(label + " (" + left[0] + ")");
             h.postDelayed(new Runnable() {
                 @Override
                 public void run() {
@@ -106,12 +107,46 @@ final class SecurityScan {
                         b.setAlpha(1f);
                         b.setEnabled(true);
                     } else {
-                        b.setText(label + "  (" + left[0] + ")");
+                        b.setText(label + " (" + left[0] + ")");
                         h.postDelayed(this, 1000);
                     }
                 }
             }, 1000);
         });
+    }
+
+    /**
+     * Lays the buttons of the warning one under the other, each full width and on a single line, so the counter added
+     * to the confirm label can never wrap and push its text out of the button.
+     */
+    private static void stackButtons(androidx.appcompat.app.AlertDialog d, android.widget.Button pos) {
+        android.view.ViewParent parent = pos.getParent();
+        if (!(parent instanceof android.widget.LinearLayout)) return;
+        android.widget.LinearLayout bar = (android.widget.LinearLayout) parent;
+        Context c = d.getContext();
+        android.widget.Button neg = d.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEGATIVE);
+        android.widget.Button neu = d.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL);
+        bar.setOrientation(android.widget.LinearLayout.VERTICAL);
+        bar.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+        android.widget.Button[] order = {pos, neu, neg};
+        for (android.widget.Button b : order) {
+            if (b == null || b.getVisibility() == android.view.View.GONE) continue;
+            bar.removeView(b);
+            bar.addView(b);
+            b.setSingleLine(true);
+            b.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            b.setMinWidth(0);
+            b.setMinimumWidth(0);
+            android.view.ViewGroup.LayoutParams lp = b.getLayoutParams();
+            if (lp instanceof android.widget.LinearLayout.LayoutParams) {
+                android.widget.LinearLayout.LayoutParams m = (android.widget.LinearLayout.LayoutParams) lp;
+                m.width = android.view.ViewGroup.LayoutParams.MATCH_PARENT;
+                m.height = Ui.dp(c, 50);
+                m.weight = 0f;
+                m.setMargins(0, Ui.dp(c, 5), 0, Ui.dp(c, 5));
+                b.setLayoutParams(m);
+            }
+        }
     }
 
     private static boolean has(Set<String> p, String... names) {

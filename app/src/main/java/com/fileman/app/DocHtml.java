@@ -135,7 +135,7 @@ final class DocHtml {
             + "pre{background:#f3f5f8;border-radius:16px;padding:12px 14px;overflow:auto;font-size:13px;line-height:1.5;white-space:pre}"
             + "code{background:#f0f2f6;border-radius:4px;padding:1px 5px;font-size:.92em}pre code{background:none;padding:0}"
             + "blockquote{margin:.8em 0;padding:.2em 14px;border-inline-start:4px solid #c9d3f0;color:#4a5262;background:#f7f8fc;border-radius:0 8px 8px 0}"
-            + "hr{border:0;border-top:1px solid #e1e4ea;margin:1.2em 0}a.lk{color:#2447c9;text-decoration:underline}"
+            + "hr{border:0;border-top:1px solid #e1e4ea;margin:1.2em 0}a.lk{color:#2447c9;text-decoration:underline}a.il{color:inherit;text-decoration:none}"
             + "ul,ol{margin:.3em 0 .8em;padding-inline-start:1.6em}li{margin:.15em 0}"
             + ".ch{margin:0 0 1.6em;padding-bottom:.4em}.ch+.ch{border-top:1px dashed #d6d9de;padding-top:1.2em}.bt{font-family:serif;text-align:center}"
             + "thead th{background:#eef1f6;text-align:start}"
@@ -319,6 +319,91 @@ final class DocHtml {
         }
     }
 
+    // ------------------------------------------------------------------ links and bookmarks
+
+    /** Element id of a bookmark: ASCII only, so a name in any language matches between the anchor and its links. */
+    static String bmId(String name) {
+        StringBuilder sb = new StringBuilder("bm_");
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-') {
+                sb.append(c);
+            } else {
+                sb.append("_x").append(Integer.toHexString(c)).append('_');
+            }
+        }
+        return sb.toString();
+    }
+
+    /** Only web, mail and phone targets are kept; anything else is dropped. */
+    private static String safeUrl(String u) {
+        if (u == null) return null;
+        String t = u.trim();
+        String l = t.toLowerCase(Locale.ROOT);
+        if (l.startsWith("http://") || l.startsWith("https://") || l.startsWith("mailto:") || l.startsWith("tel:")) return t;
+        return null;
+    }
+
+    private static final Pattern FIELD_LOCAL = Pattern.compile("\\\\l\\s+(?:\"([^\"]*)\"|(\\S+))");
+    private static final Pattern FIELD_QUOTED = Pattern.compile("\"([^\"]*)\"");
+    private static final Pattern FIELD_REF = Pattern.compile("^(?:PAGEREF|REF)\\s+\"?([^\\s\"\\\\]+)\"?(.*)$", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+
+    /** The link a Word field instruction (HYPERLINK, REF, PAGEREF) stands for, as an href, or null. */
+    private static String fieldHref(String instr) {
+        if (instr == null) return null;
+        String t = instr.trim();
+        if (t.regionMatches(true, 0, "HYPERLINK", 0, 9)) {
+            Matcher m = FIELD_LOCAL.matcher(t);
+            if (m.find()) {
+                String name = m.group(1) != null ? m.group(1) : m.group(2);
+                return name == null || name.isEmpty() ? null : "#" + bmId(name);
+            }
+            Matcher q = FIELD_QUOTED.matcher(t);
+            return q.find() ? safeUrl(q.group(1)) : null;
+        }
+        Matcher r = FIELD_REF.matcher(t);
+        if (r.matches() && r.group(2).contains("\\h")) return "#" + bmId(r.group(1));
+        return null;
+    }
+
+    /** Wraps what was added to the paragraph since {@code start} in a link. */
+    private static void wrapLink(StringBuilder para, int start, String href) {
+        if (start < 0 || start >= para.length()) return;
+        String inner = para.substring(start);
+        para.setLength(start);
+        para.append("<a class=\"").append(href.startsWith("#") ? "il" : "lk").append("\" href=\"").append(esc(href))
+                .append("\">").append(inner).append("</a>");
+    }
+
+    /** Ends a field; a field inside a link is not wrapped again (links cannot nest). */
+    private static void endField(Object[] f, Deque<Object[]> outer, StringBuilder para, String linkHref) {
+        String href = (String) f[1];
+        if (href == null || linkHref != null || para == null || f[3] != para) return;
+        for (Object[] o : outer) if (o[1] != null && o[3] == para) return;
+        wrapLink(para, (Integer) f[2], href);
+    }
+
+    private static Map<String, String> externalRels(ZipFile z, String relsPath) {
+        Map<String, String> m = new HashMap<>();
+        try {
+            byte[] d = entry(z, relsPath);
+            if (d == null) return m;
+            XmlPullParser p = parser(d);
+            int ev = p.getEventType();
+            while (ev != XmlPullParser.END_DOCUMENT) {
+                if (ev == XmlPullParser.START_TAG && local(p.getName()).equals("Relationship")
+                        && "External".equals(attr(p, "TargetMode"))) {
+                    String id = attr(p, "Id");
+                    String target = attr(p, "Target");
+                    if (id != null && target != null) m.put(id, target);
+                }
+                ev = p.next();
+            }
+        } catch (Exception ignored) {
+        }
+        return m;
+    }
+
     // ------------------------------------------------------------------ DOCX
 
     private static boolean on(XmlPullParser p) {
@@ -385,6 +470,11 @@ final class DocHtml {
             Map<String, String> rels = rels(z, "word/_rels/document.xml.rels", "word/");
             Budget budget = new Budget();
             XmlPullParser p = parser(doc);
+            Map<String, String> external = externalRels(z, "word/_rels/document.xml.rels");
+            String linkHref = null;
+            int linkStart = -1;
+            StringBuilder linkPara = null;
+            Deque<Object[]> fields = new ArrayDeque<>();
 
             Deque<StringBuilder> out = new ArrayDeque<>();
             out.push(new StringBuilder());
@@ -499,6 +589,49 @@ final class DocHtml {
                             if (uri != null && run != null) run.append("<img src=\"").append(uri).append("\">");
                             break;
                         }
+                        case "hyperlink": {
+                            String anc = attr(p, "anchor");
+                            String rid = attr(p, "id");
+                            String href = anc != null ? "#" + bmId(anc) : safeUrl(rid == null ? null : external.get(rid));
+                            if (para != null && href != null) {
+                                linkHref = href;
+                                linkStart = para.length();
+                                linkPara = para;
+                            }
+                            break;
+                        }
+                        case "bookmarkStart": {
+                            String bn = attr(p, "name");
+                            if (bn != null && !bn.equals("_GoBack")) {
+                                String an = "<a id=\"" + bmId(bn) + "\"></a>";
+                                if (para != null) para.append(an);
+                                else out.peek().append(an);
+                            }
+                            break;
+                        }
+                        case "fldSimple":
+                            fields.push(new Object[]{new StringBuilder(), fieldHref(attr(p, "instr")),
+                                    para == null ? -1 : para.length(), para});
+                            break;
+                        case "fldChar": {
+                            String ft = attr(p, "fldCharType");
+                            if ("begin".equals(ft)) {
+                                fields.push(new Object[]{new StringBuilder(), null, -1, null});
+                            } else if ("separate".equals(ft) && !fields.isEmpty()) {
+                                Object[] fd = fields.peek();
+                                fd[1] = fieldHref(fd[0].toString());
+                                fd[2] = para == null ? -1 : para.length();
+                                fd[3] = para;
+                            } else if ("end".equals(ft) && !fields.isEmpty()) {
+                                endField(fields.pop(), fields, para, linkHref);
+                            }
+                            break;
+                        }
+                        case "instrText": {
+                            String ins = p.nextText();
+                            if (!fields.isEmpty() && ins != null) ((StringBuilder) fields.peek()[0]).append(ins);
+                            break;
+                        }
                         case "tbl":
                         case "tr":
                             out.push(new StringBuilder());
@@ -553,6 +686,15 @@ final class DocHtml {
                                         .append("</").append(tag).append('>');
                                 para = null;
                             }
+                            break;
+                        case "hyperlink":
+                            if (linkHref != null && linkPara == para && para != null) wrapLink(para, linkStart, linkHref);
+                            linkHref = null;
+                            linkStart = -1;
+                            linkPara = null;
+                            break;
+                        case "fldSimple":
+                            if (!fields.isEmpty()) endField(fields.pop(), fields, para, linkHref);
                             break;
                         case "tc": {
                             StringBuilder cell = out.pop();
@@ -1043,6 +1185,9 @@ final class DocHtml {
             int rowRepeat = 1;
             boolean cellHasText = false;
             boolean inText = false;
+            String aHref = null;
+            int aStart = -1;
+            StringBuilder aPara = null;
 
             int ev = p.getEventType();
             while (ev != XmlPullParser.END_DOCUMENT) {
@@ -1070,6 +1215,27 @@ final class DocHtml {
                         case "line-break":
                             if (para != null) para.append("<br>");
                             break;
+                        case "a": {
+                            String href = attr(p, "href");
+                            String target = href == null ? null
+                                    : href.startsWith("#") ? "#" + bmId(href.substring(1)) : safeUrl(href);
+                            if (para != null && target != null) {
+                                aHref = target;
+                                aStart = para.length();
+                                aPara = para;
+                            }
+                            break;
+                        }
+                        case "bookmark":
+                        case "bookmark-start": {
+                            String bn = attr(p, "name");
+                            if (bn != null) {
+                                String an = "<a id=\"" + bmId(bn) + "\"></a>";
+                                if (para != null) para.append(an);
+                                else out.peek().append(an);
+                            }
+                            break;
+                        }
                         case "list-item":
                             listDepth++;
                             break;
@@ -1130,6 +1296,12 @@ final class DocHtml {
                                 }
                                 para = null;
                             }
+                            break;
+                        case "a":
+                            if (aHref != null && aPara == para && para != null) wrapLink(para, aStart, aHref);
+                            aHref = null;
+                            aStart = -1;
+                            aPara = null;
                             break;
                         case "list-item":
                             listDepth = Math.max(0, listDepth - 1);

@@ -673,6 +673,7 @@ public class InstallerActivity extends BaseActivity {
                 return;
             }
             SecurityScan.hold(new Dlg(this).setTitle(getString(R.string.sec_high_title))
+                    .setIcon(R.drawable.ic_shield)
                     .setMessage(getString(R.string.sec_high_msg, in.label.isEmpty() ? in.pkg : in.label))
                     .setPositiveButton(R.string.sec_install_anyway, (d, w) -> {
                         ok[0] = true;

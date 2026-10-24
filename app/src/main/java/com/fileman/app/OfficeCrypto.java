@@ -19,7 +19,7 @@ import javax.crypto.spec.SecretKeySpec;
  * Password protected Word / Excel / PowerPoint files (docx, xlsx, pptx and friends). Such a file is not a ZIP but an OLE2
  * container holding "EncryptionInfo" and "EncryptedPackage"; this class recognises it and, given the password,
  * writes the plain ZIP package to another file. Supports the Standard (Office 2007) and Agile (Office 2010+) schemes.
- * Legacy binary files (doc, xls, ppt) can only be recognised, see {@link #legacyLocked}.
+ * Legacy binary files (doc, xls, ppt) are recognised here, see {@link #legacyLocked}, and opened by {@link LegacyCrypto}.
  */
 final class OfficeCrypto {
     private OfficeCrypto() {
@@ -62,7 +62,7 @@ final class OfficeCrypto {
         }
     }
 
-    /** True for a protected legacy doc / xls / ppt (recognised only: the old RC4 schemes are not opened). */
+    /** True for a protected legacy doc / xls / ppt (opened through {@link LegacyCrypto}). */
     static boolean legacyLocked(File f, String ext) {
         if (f == null || !f.isFile() || !Ole2.isOle2(f)) return false;
         try (Ole2 o = new Ole2(f)) {
@@ -77,8 +77,8 @@ final class OfficeCrypto {
             }
             if (ext.equals("ppt") || ext.equals("pps") || ext.equals("pot")) {
                 byte[] c = o.stream("Current User");
-                return c != null && c.length >= 12 && (c[8] & 0xFF) == 0xF3 && (c[9] & 0xFF) == 0xD1
-                        && (c[10] & 0xFF) == 0xC4 && (c[11] & 0xFF) == 0xDF;
+                return c != null && c.length >= 16 && (c[12] & 0xFF) == 0xDF && (c[13] & 0xFF) == 0xC4
+                        && (c[14] & 0xFF) == 0xD1 && (c[15] & 0xFF) == 0xF3;
             }
         } catch (Throwable ignored) {
         }

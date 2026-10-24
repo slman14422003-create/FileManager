@@ -159,3 +159,13 @@
 - ShareReceiveActivity: تنبيه تفعيل الواي فاي أو الاتصال بشبكة المرسل مع فتح الإعدادات وإعادة المحاولة تلقائيًا عند الرجوع، ومحاولة إضافية عبر الشبكة الافتراضية، وشاشة فشل فيها نصائح وأزرار (إعادة، واي فاي، مسح، إدخال الكود).
 - الصلاحيات: READ_CONTACTS ووجود wifi.direct اختياريًا في المانيفست. نصوص جديدة في strings_share2.xml بالعربية والإنجليزية.
 - فحص CI: الملفات الجديدة لا تستعمل java.net، والتحقق المحلي من فحص Network guard نجح. لم يُبنَ المشروع هنا (لا Android SDK)، يجب التحقق من البناء على GitHub Actions ومن Wi-Fi Direct على جهازين حقيقيين.
+
+## مهمة: ملفات Office المحمية، التحويل إلى PDF، الروابط الداخلية، نافذة الخطر العالي
+- زر "تثبيت رغم ذلك (3)": SecurityScan.hold صار يرتّب الأزرار عموديًا بعرض كامل وسطر واحد (stackButtons) حتى لا يلتف العداد، وأيقونة النافذة صارت الدرع.
+- LegacyCrypto: فك تشفير doc وxls وppt (RC4 وRC4 CryptoAPI) إلى نسخة OLE2 عادية عبر Ole2Writer، والقراء الحاليون يفتحونها. كلمة VelvetSweatshop تُجرَّب تلقائيًا قبل السؤال.
+- OdfCrypto: odt وods وodp المحمية (PBKDF2 مع Blowfish أو AES).
+- OfficeLoad: مسار واحد للتحويل إلى HTML مع التشفير، يستعمله DocViewActivity وPdfConvert.
+- OfficeCrypto.legacyLocked: تصحيح كشف ppt المشفر (التوكن عند الإزاحة 12).
+- PdfConvert + android/print/PdfPrinter: تحويل Word وExcel وPowerPoint وODF وRTF إلى PDF بجانب الملف الأصلي، من قائمة المستند ومن قائمة الملفات (…). إن لم يعمل الحفظ المباشر يُفتح مربع الطباعة.
+- DocHtml: روابط داخلية وإشارات مرجعية في docx (w:hyperlink وfldChar وfldSimple وbookmarkStart) وفي ODF (text:a وbookmark)، والروابط الخارجية تُفتح بعد تأكيد.
+- لم يُشغَّل البناء محليًا، يجب التحقق من نجاحه على GitHub Actions.
