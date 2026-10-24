@@ -58,6 +58,15 @@
         </LinearLayout>
 
         <ImageButton
+            android:id="@+id/btnUsb"
+            style="@style/IconButton"
+            android:visibility="gone"
+            android:tint="?attr/cAccent"
+            android:layout_marginEnd="6dp"
+            android:contentDescription="@string/usb_btn"
+            android:src="@drawable/ic_drive" />
+
+        <ImageButton
             android:id="@+id/btnSearch"
             style="@style/IconButton"
             android:tint="?attr/cAccent"

@@ -301,7 +301,27 @@ public class HomeActivity extends BaseActivity {
 
     private android.content.BroadcastReceiver volWatch;
 
+    /** Top-corner button: shown while a USB drive / SD card is attached, opens its screen. */
+    private void updateUsb() {
+        View b = findViewById(R.id.btnUsb);
+        if (b == null) return;
+        final List<Volumes.Vol> vols = new ArrayList<>();
+        for (Volumes.Vol v : Volumes.removable(this)) if (v.mounted) vols.add(v);
+        b.setVisibility(vols.isEmpty() ? View.GONE : View.VISIBLE);
+        b.setOnClickListener(v -> {
+            if (vols.size() == 1) {
+                UsbPrompt.open(this, vols.get(0).root);
+                return;
+            }
+            String[] names = new String[vols.size()];
+            for (int i = 0; i < names.length; i++) names[i] = vols.get(i).label;
+            new Dlg(this).setTitle(R.string.usb_pick)
+                    .setItems(names, (d, i) -> UsbPrompt.open(this, vols.get(i).root)).show();
+        });
+    }
+
     private void render() {
+        updateUsb();
         final View scroller = (View) content.getParent();
         final int keepY = scroller.getScrollY();
         content.removeAllViews();

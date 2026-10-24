@@ -23,6 +23,7 @@ import java.util.Date;
 import java.util.Deque;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -479,6 +480,15 @@ final class DocHtml {
             Deque<StringBuilder> out = new ArrayDeque<>();
             out.push(new StringBuilder());
             Deque<int[]> spans = new ArrayDeque<>();
+            Deque<TblState> tbls = new ArrayDeque<>();
+            Map<String, String[]> numFmts = numbering(z);
+            Map<String, int[]> counters = new HashMap<>();
+            Map<String, String> footnotes = notes(z, "word/footnotes.xml", "footnote");
+            Map<String, String> endnotes = notes(z, "word/endnotes.xml", "endnote");
+            List<String> fnIds = new ArrayList<>();
+            List<String> enIds = new ArrayList<>();
+            String listId = null;
+            boolean inTcPr = false;
 
             StringBuilder para = null;
             String pStyle = null;
@@ -508,6 +518,7 @@ final class DocHtml {
                             bidi = false;
                             listed = false;
                             ilvl = 0;
+                            listId = null;
                             break;
                         case "pPr":
                             inPPr = true;
@@ -530,6 +541,27 @@ final class DocHtml {
                         case "ilvl":
                             if (inPPr) ilvl = toInt(attr(p, "val"), 0);
                             break;
+                        case "numId":
+                            if (inPPr) listId = attr(p, "val");
+                            break;
+                        case "footnoteReference": {
+                            String fid = attr(p, "id");
+                            if (inRun && run != null && fid != null && footnotes.containsKey(fid)) {
+                                fnIds.add(fid);
+                                run.append("<sup><a class=\"il\" href=\"#fn_").append(fid).append("\">[")
+                                        .append(fnIds.size()).append("]</a></sup>");
+                            }
+                            break;
+                        }
+                        case "endnoteReference": {
+                            String eid = attr(p, "id");
+                            if (inRun && run != null && eid != null && endnotes.containsKey(eid)) {
+                                enIds.add(eid);
+                                run.append("<sup><a class=\"il\" href=\"#en_").append(eid).append("\">[e")
+                                        .append(enIds.size()).append("]</a></sup>");
+                            }
+                            break;
+                        }
                         case "r":
                             run = new StringBuilder();
                             inRun = true;
@@ -633,15 +665,31 @@ final class DocHtml {
                             break;
                         }
                         case "tbl":
+                            out.push(new StringBuilder());
+                            tbls.push(new TblState());
+                            break;
                         case "tr":
                             out.push(new StringBuilder());
+                            if (!tbls.isEmpty()) tbls.peek().col = 0;
                             break;
                         case "tc":
                             out.push(new StringBuilder());
-                            spans.push(new int[]{1});
+                            spans.push(new int[]{1, 0, 0});
+                            break;
+                        case "tcPr":
+                            inTcPr = true;
                             break;
                         case "gridSpan":
                             if (!spans.isEmpty()) spans.peek()[0] = Math.max(1, toInt(attr(p, "val"), 1));
+                            break;
+                        case "vMerge":
+                            if (inTcPr && !spans.isEmpty()) spans.peek()[1] = "restart".equals(attr(p, "val")) ? 1 : 2;
+                            break;
+                        case "shd":
+                            if (inTcPr && !spans.isEmpty()) {
+                                String fill = attr(p, "fill");
+                                if (fill != null && fill.matches("[0-9A-Fa-f]{6}")) spans.peek()[2] = Integer.parseInt(fill, 16) + 1;
+                            }
                             break;
                         default:
                             break;
@@ -651,6 +699,9 @@ final class DocHtml {
                     switch (n) {
                         case "pPr":
                             inPPr = false;
+                            break;
+                        case "tcPr":
+                            inTcPr = false;
                             break;
                         case "rPr":
                             inRPr = false;
@@ -681,7 +732,7 @@ final class DocHtml {
                                 if (listed) style.append("margin-inline-start:").append((ilvl + 1) * 24).append("px;");
                                 if (style.length() > 0) attrs.append(" style=\"").append(style).append('"');
                                 String body = para.length() == 0 ? "<br>" : para.toString();
-                                if (listed) body = "&bull; " + body;
+                                if (listed) body = listMarker(numFmts, counters, listId, ilvl) + body;
                                 out.peek().append('<').append(tag).append(attrs).append('>').append(body)
                                         .append("</").append(tag).append('>');
                                 para = null;
@@ -698,9 +749,27 @@ final class DocHtml {
                             break;
                         case "tc": {
                             StringBuilder cell = out.pop();
-                            int span = spans.isEmpty() ? 1 : spans.pop()[0];
-                            out.peek().append("<td").append(span > 1 ? " colspan=\"" + span + "\"" : "")
-                                    .append('>').append(cell).append("</td>");
+                            int[] ci = spans.isEmpty() ? new int[]{1, 0, 0} : spans.pop();
+                            int span = ci[0];
+                            TblState ts = tbls.isEmpty() ? null : tbls.peek();
+                            int colIdx = ts == null ? 0 : ts.col;
+                            if (ts != null) ts.col += span;
+                            if (ci[1] == 2 && ts != null && ts.open.containsKey(colIdx)) {
+                                ts.counts.get(ts.open.get(colIdx))[0]++;
+                                break;
+                            }
+                            StringBuilder td = new StringBuilder("<td");
+                            if (span > 1) td.append(" colspan=\"").append(span).append('"');
+                            if (ci[1] == 1 && ts != null) {
+                                ts.open.put(colIdx, ts.counts.size());
+                                ts.counts.add(new int[]{1});
+                                td.append(" rowspan=\"@@RS").append(ts.counts.size() - 1).append("@@\"");
+                            } else if (ts != null) {
+                                ts.open.remove(colIdx);
+                            }
+                            if (ci[2] != 0) td.append(" style=\"background:#")
+                                    .append(String.format(Locale.ROOT, "%06x", ci[2] - 1)).append('"');
+                            out.peek().append(td).append('>').append(cell).append("</td>");
                             break;
                         }
                         case "tr": {
@@ -709,7 +778,13 @@ final class DocHtml {
                             break;
                         }
                         case "tbl": {
-                            StringBuilder t = out.pop();
+                            String t = out.pop().toString();
+                            TblState ts = tbls.isEmpty() ? null : tbls.pop();
+                            if (ts != null) {
+                                for (int i = 0; i < ts.counts.size(); i++) {
+                                    t = t.replace("@@RS" + i + "@@", String.valueOf(ts.counts.get(i)[0]));
+                                }
+                            }
                             out.peek().append("<table>").append(t).append("</table>");
                             break;
                         }
@@ -724,8 +799,169 @@ final class DocHtml {
                 out.peek().append(top);
             }
             String body = out.peek().toString();
+            if (!fnIds.isEmpty() || !enIds.isEmpty()) {
+                StringBuilder nb = new StringBuilder("<hr>");
+                for (int i = 0; i < fnIds.size(); i++) {
+                    nb.append("<p class=\"note\"><a id=\"fn_").append(fnIds.get(i)).append("\"></a>[").append(i + 1)
+                            .append("] ").append(footnotes.get(fnIds.get(i))).append("</p>");
+                }
+                for (int i = 0; i < enIds.size(); i++) {
+                    nb.append("<p class=\"note\"><a id=\"en_").append(enIds.get(i)).append("\"></a>[e").append(i + 1)
+                            .append("] ").append(endnotes.get(enIds.get(i))).append("</p>");
+                }
+                body = body + nb;
+            }
             return page(body.isEmpty() ? "<p class=\"note\">—</p>" : body);
         }
+    }
+
+    // ------------------------------------------------------------------ DOCX helpers: tables, lists, notes
+
+    /** Row/column position and open vertical merges of one table while it is read. */
+    private static final class TblState {
+        int col;
+        final Map<Integer, Integer> open = new HashMap<>();
+        final List<int[]> counts = new ArrayList<>();
+    }
+
+    /** numId to the number format of each of its levels (bullet, decimal, lowerLetter ...). */
+    private static Map<String, String[]> numbering(ZipFile z) {
+        Map<String, String[]> result = new HashMap<>();
+        try {
+            byte[] data = entry(z, "word/numbering.xml");
+            if (data == null) return result;
+            Map<String, String[]> abs = new HashMap<>();
+            Map<String, String> nums = new HashMap<>();
+            XmlPullParser p = parser(data);
+            String absId = null;
+            String numId = null;
+            int lvl = -1;
+            int ev = p.getEventType();
+            while (ev != XmlPullParser.END_DOCUMENT) {
+                if (ev == XmlPullParser.START_TAG) {
+                    String n = local(p.getName());
+                    if (n.equals("abstractNum")) {
+                        absId = attr(p, "abstractNumId");
+                        lvl = -1;
+                        if (absId != null) abs.put(absId, new String[9]);
+                    } else if (n.equals("lvl") && absId != null) {
+                        lvl = toInt(attr(p, "ilvl"), 0);
+                    } else if (n.equals("numFmt") && absId != null && lvl >= 0 && lvl < 9) {
+                        abs.get(absId)[lvl] = attr(p, "val");
+                    } else if (n.equals("num")) {
+                        numId = attr(p, "numId");
+                        absId = null;
+                        lvl = -1;
+                    } else if (n.equals("abstractNumId") && numId != null) {
+                        nums.put(numId, attr(p, "val"));
+                    }
+                } else if (ev == XmlPullParser.END_TAG) {
+                    String n = local(p.getName());
+                    if (n.equals("abstractNum")) {
+                        absId = null;
+                        lvl = -1;
+                    } else if (n.equals("num")) {
+                        numId = null;
+                    }
+                }
+                ev = p.next();
+            }
+            for (Map.Entry<String, String> e : nums.entrySet()) {
+                String[] a = abs.get(e.getValue());
+                if (a != null) result.put(e.getKey(), a);
+            }
+        } catch (Throwable ignored) {
+        }
+        return result;
+    }
+
+    private static String listMarker(Map<String, String[]> fmts, Map<String, int[]> counters, String numId, int ilvl) {
+        String[] byLevel = numId == null ? null : fmts.get(numId);
+        int lv = Math.max(0, Math.min(ilvl, 8));
+        String fmt = byLevel != null && byLevel[lv] != null ? byLevel[lv] : "bullet";
+        if (fmt.equals("none")) return "";
+        if (fmt.equals("bullet")) return lv % 2 == 0 ? "&bull; " : "&#9702; ";
+        int[] c = counters.get(numId);
+        if (c == null) {
+            c = new int[9];
+            counters.put(numId, c);
+        }
+        c[lv]++;
+        for (int i = lv + 1; i < 9; i++) c[i] = 0;
+        return numText(fmt, c[lv]) + ". ";
+    }
+
+    private static String numText(String fmt, int n) {
+        switch (fmt) {
+            case "lowerLetter":
+                return letters(n, false);
+            case "upperLetter":
+                return letters(n, true);
+            case "lowerRoman":
+                return roman(n).toLowerCase(Locale.ROOT);
+            case "upperRoman":
+                return roman(n);
+            default:
+                return String.valueOf(n);
+        }
+    }
+
+    private static String letters(int n, boolean upper) {
+        StringBuilder sb = new StringBuilder();
+        int v = Math.max(1, n);
+        while (v > 0) {
+            v--;
+            sb.insert(0, (char) ((upper ? 'A' : 'a') + v % 26));
+            v /= 26;
+        }
+        return sb.toString();
+    }
+
+    private static String roman(int n) {
+        int[] vals = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};
+        String[] syms = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"};
+        StringBuilder sb = new StringBuilder();
+        int v = Math.max(1, Math.min(n, 3999));
+        for (int i = 0; i < vals.length; i++) {
+            while (v >= vals[i]) {
+                sb.append(syms[i]);
+                v -= vals[i];
+            }
+        }
+        return sb.toString();
+    }
+
+    /** Footnote / endnote id to its text (already escaped); separators are left out. */
+    private static Map<String, String> notes(ZipFile z, String part, String tag) {
+        Map<String, String> m = new LinkedHashMap<>();
+        try {
+            byte[] data = entry(z, part);
+            if (data == null) return m;
+            XmlPullParser p = parser(data);
+            String id = null;
+            StringBuilder sb = null;
+            int ev = p.getEventType();
+            while (ev != XmlPullParser.END_DOCUMENT) {
+                if (ev == XmlPullParser.START_TAG) {
+                    String n = local(p.getName());
+                    if (n.equals(tag)) {
+                        id = attr(p, "type") == null ? attr(p, "id") : null;
+                        sb = id == null ? null : new StringBuilder();
+                    } else if (n.equals("t") && sb != null) {
+                        sb.append(esc(p.nextText()));
+                    } else if (n.equals("p") && sb != null && sb.length() > 0) {
+                        sb.append("<br>");
+                    }
+                } else if (ev == XmlPullParser.END_TAG && local(p.getName()).equals(tag) && id != null && sb != null) {
+                    m.put(id, sb.toString());
+                    id = null;
+                    sb = null;
+                }
+                ev = p.next();
+            }
+        } catch (Throwable ignored) {
+        }
+        return m;
     }
 
     // ------------------------------------------------------------------ XLSX

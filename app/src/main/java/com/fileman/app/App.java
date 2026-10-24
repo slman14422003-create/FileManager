@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.app.Application;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 
 import java.util.ArrayList;
@@ -19,6 +21,8 @@ import androidx.core.view.WindowInsetsCompat;
  */
 public class App extends Application {
     private static final List<Activity> OPEN = new ArrayList<>();
+    private static Activity resumed;
+    private final Handler main = new Handler(Looper.getMainLooper());
 
     /** Screens currently alive (used to recreate them when the colour theme changes). */
     static List<Activity> openActivities() {
@@ -34,6 +38,11 @@ public class App extends Application {
         Lang.init(this);
         Appearance.applyMode(this);
         Wipe.resume(this);
+        // a drive plugged in while one of the main screens is open: ask what to do with it
+        Volumes.watch(this, () -> main.postDelayed(() -> {
+            Activity a = resumed;
+            if (a instanceof HomeActivity || a instanceof FileManagerActivity) UsbPrompt.check(a);
+        }, 1200));
         registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
             @Override
             public void onActivityCreated(Activity a, Bundle b) {
@@ -58,8 +67,19 @@ public class App extends Application {
                 ViewCompat.requestApplyInsets(content);
             }
 
-            @Override public void onActivityResumed(Activity a) { }
-            @Override public void onActivityPaused(Activity a) { }
+            @Override
+            public void onActivityResumed(final Activity a) {
+                resumed = a;
+                if (a instanceof HomeActivity) main.postDelayed(() -> {
+                    if (resumed == a) UsbPrompt.check(a);
+                }, 700);
+            }
+
+            @Override
+            public void onActivityPaused(Activity a) {
+                if (resumed == a) resumed = null;
+            }
+
             @Override public void onActivityStopped(Activity a) { }
             @Override public void onActivitySaveInstanceState(Activity a, Bundle b) { }
             @Override

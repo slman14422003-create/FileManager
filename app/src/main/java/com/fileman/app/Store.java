@@ -113,6 +113,14 @@ public final class Store {
         sp(c).edit().putStringSet(key, new LinkedHashSet<>(s)).apply();
     }
 
+    public static Set<String> usbSeen(Context c) {
+        return getSet(c, "usb_seen");
+    }
+
+    public static void setUsbSeen(Context c, Set<String> s) {
+        putSet(c, "usb_seen", s);
+    }
+
     public static Set<String> blockedPkgs(Context c) {
         return getSet(c, "inst_blocked");
     }

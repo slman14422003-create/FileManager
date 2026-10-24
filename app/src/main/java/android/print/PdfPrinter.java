@@ -4,6 +4,7 @@ import android.os.CancellationSignal;
 import android.os.ParcelFileDescriptor;
 
 import java.io.File;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Writes what a {@link PrintDocumentAdapter} (for example the one of a WebView) lays out straight to a PDF file, without
@@ -18,7 +19,11 @@ public final class PdfPrinter {
     private PdfPrinter() {
     }
 
-    public static void print(final PrintDocumentAdapter adapter, PrintAttributes attrs, final File out, final Done done) {
+    public static void print(final PrintDocumentAdapter adapter, PrintAttributes attrs, final File out, final Done target) {
+        final AtomicBoolean once = new AtomicBoolean();
+        final Done done = ok -> {
+            if (once.compareAndSet(false, true)) target.finished(ok);
+        };
         try {
             adapter.onStart();
             adapter.onLayout(null, attrs, new CancellationSignal(), new PrintDocumentAdapter.LayoutResultCallback() {
