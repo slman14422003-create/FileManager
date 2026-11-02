@@ -140,12 +140,8 @@ public class Dlg extends AlertDialog.Builder {
         return Math.max(1, Ui.dp(c, 1) / 2);
     }
 
-    private static GradientDrawable card(Context c, float radiusDp) {
-        GradientDrawable g = new GradientDrawable();
-        g.setColor(Ui.color(c, R.color.surface));
-        g.setCornerRadius(Ui.dp(c, (int) radiusDp));
-        g.setStroke(hairline(c), Ui.color(c, R.color.stroke_soft));
-        return g;
+    private static android.graphics.drawable.Drawable card(Context c, float radiusDp) {
+        return Glass.fill(c, Ui.dp(c, (int) radiusDp));
     }
 
     private static GradientDrawable halo(int color) {
@@ -560,6 +556,7 @@ public class Dlg extends AlertDialog.Builder {
         Window win = d.getWindow();
         if (win != null) {
             win.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+            Glass.window(win);
         }
         if (sheet) return;
         focusSingleField(d);

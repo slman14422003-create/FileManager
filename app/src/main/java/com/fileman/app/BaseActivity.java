@@ -32,7 +32,19 @@ public abstract class BaseActivity extends AppCompatActivity {
             c.setAppearanceLightNavigationBars(light);
         } catch (Throwable ignored) {
         }
+        if (glassBackdrop()) Glass.backdrop(this);
+        if (aiButton()) Ai.attach(this);
         Layout.constrain(this, constrainContent());
+    }
+
+    /** The floating assistant button is shown on every normal screen; full-window viewers opt out. */
+    protected boolean aiButton() {
+        return true;
+    }
+
+    /** Screens that draw their own full-window content (media, PDF) return false to skip the glass backdrop. */
+    protected boolean glassBackdrop() {
+        return true;
     }
 
     protected void useGroupedBackground() {
