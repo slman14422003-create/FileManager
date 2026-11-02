@@ -61,6 +61,17 @@ public final class Glass {
         return new LayerDrawable(new Drawable[]{body, sheen, edge});
     }
 
+    /** Near-opaque panel for dialogs and sheets so nothing behind them shows through the text. */
+    public static Drawable solid(Context c, float radiusPx) {
+        boolean night = Appearance.isNight(c);
+        int base = Ui.color(c, R.color.surface);
+        GradientDrawable body = new GradientDrawable();
+        body.setCornerRadius(radiusPx);
+        body.setColor(night ? 0xFF2C2C30 : 0xFFF4F4F8);
+        body.setStroke(Math.max(1, Ui.dp(c, 1) / 2), withAlpha(Color.WHITE, night ? 0x26 : 0xB0));
+        return body;
+    }
+
     /** Lighter variant for small floating controls (header buttons, chips). */
     public static Drawable chip(Context c, float radiusPx) {
         boolean night = Appearance.isNight(c);
@@ -150,7 +161,11 @@ public final class Glass {
                 outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radiusPx);
             }
         });
-        v.setupWith(target).setBlurRadius(blurRadius);
+        Context c = v.getContext();
+        int surface = Ui.color(c, R.color.surface);
+        v.setupWith(target).setFrameClearDrawable(new ColorDrawable(Ui.color(c, R.color.bg)))
+                .setBlurRadius(blurRadius)
+                .setOverlayColor(withAlpha(surface, 0xB0));
     }
 
     /** Applies glass to a dialog or sheet window: blurred scene behind it on Android 12+, translucent panel everywhere. */
@@ -160,9 +175,11 @@ public final class Glass {
             if (Build.VERSION.SDK_INT >= 31 && windowBlurSupported(w.getContext())) {
                 w.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
                 WindowManager.LayoutParams lp = w.getAttributes();
-                lp.setBlurBehindRadius(Ui.dp(w.getContext(), 26));
+                lp.setBlurBehindRadius(Ui.dp(w.getContext(), 20));
                 w.setAttributes(lp);
-                w.setDimAmount(0.18f);
+                w.setDimAmount(0.4f);
+            } else {
+                w.setDimAmount(0.5f);
             }
         } catch (Throwable ignored) {
         }

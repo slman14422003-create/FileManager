@@ -89,13 +89,15 @@ final class NavBar {
         if (target != null) {
             GlassBar glass = new GlassBar(a, column, barHeight + gap);
             Glass.setup(glass, target, radius, 22f);
-            glass.setElevation(Ui.dp(a, 8));
             glass.addView(bar, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT));
             FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                     Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
             flp.setMargins(Ui.dp(a, 20), 0, Ui.dp(a, 20), Ui.dp(a, 10));
+            View shadow = new NavShadow(a);
+            content.addView(shadow, new FrameLayout.LayoutParams(flp));
+            glass.shadow = shadow;
             content.addView(glass, flp);
             glass.reserve(true);
             holder = glass;
@@ -122,6 +124,7 @@ final class NavBar {
         private final View column;
         private final int extra;
         private boolean reserved;
+        View shadow;
 
         GlassBar(Activity a, View column, int extra) {
             super(a);
@@ -140,7 +143,31 @@ final class NavBar {
         @Override
         public void setVisibility(int visibility) {
             super.setVisibility(visibility);
+            if (shadow != null) shadow.setVisibility(visibility);
             reserve(visibility == View.VISIBLE);
+        }
+    }
+
+    /** Hand-drawn soft shadow: elevation shadows do not survive blur recording. */
+    private static final class NavShadow extends View {
+        private final android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final float step;
+
+        NavShadow(Activity a) {
+            super(a);
+            step = Ui.dp(a, 1.4f);
+            p.setColor(0xFF000000);
+            setClickable(false);
+        }
+
+        @Override
+        protected void onDraw(android.graphics.Canvas cv) {
+            float h = getHeight(), w = getWidth(), dy = step * 2.5f;
+            for (int i = 9; i >= 1; i--) {
+                p.setAlpha(Math.max(2, 13 - i));
+                float g = i * step;
+                cv.drawRoundRect(-g, -g + dy, w + g, h + g + dy, h / 2f + g, h / 2f + g, p);
+            }
         }
     }
 
