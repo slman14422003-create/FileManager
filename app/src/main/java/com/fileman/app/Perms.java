@@ -187,14 +187,9 @@ public final class Perms {
 
     public static void requestBattery(Activity a) {
         try {
-            a.startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                    Uri.parse("package:" + a.getPackageName())));
+            a.startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
         } catch (Exception e) {
-            try {
-                a.startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
-            } catch (Exception ignored) {
-                openAppSettings(a);
-            }
+            openAppSettings(a);
         }
     }
 

@@ -49,6 +49,11 @@ import java.util.concurrent.Executors;
  */
 public class ImageViewActivity extends BaseActivity {
     @Override
+    protected boolean glassBackdrop() {
+        return false;
+    }
+
+    @Override
     protected boolean constrainContent() {
         return false;
     }

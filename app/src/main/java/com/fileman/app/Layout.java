@@ -86,15 +86,27 @@ public final class Layout {
     /** Keeps the bottom bar a comfortable width on big windows. */
     static void refreshNav(Activity a) {
         View bar = a.findViewById(android.R.id.content).findViewWithTag(NAV_TAG);
-        if (bar == null || !(bar.getLayoutParams() instanceof LinearLayout.LayoutParams)) return;
-        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) bar.getLayoutParams();
+        if (bar == null) return;
+        ViewGroup.LayoutParams p = bar.getLayoutParams();
         int max = a.getResources().getDimensionPixelSize(R.dimen.nav_max_width);
         int avail = Math.round(a.getResources().getConfiguration().screenWidthDp * a.getResources().getDisplayMetrics().density);
-        int w = max > 0 && avail - 2 * lp.leftMargin > max ? max : ViewGroup.LayoutParams.MATCH_PARENT;
-        if (lp.width != w || lp.gravity != Gravity.CENTER_HORIZONTAL) {
-            lp.width = w;
-            lp.gravity = Gravity.CENTER_HORIZONTAL;
-            bar.setLayoutParams(lp);
+        if (p instanceof LinearLayout.LayoutParams) {
+            LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) p;
+            int w = max > 0 && avail - 2 * lp.leftMargin > max ? max : ViewGroup.LayoutParams.MATCH_PARENT;
+            if (lp.width != w || lp.gravity != Gravity.CENTER_HORIZONTAL) {
+                lp.width = w;
+                lp.gravity = Gravity.CENTER_HORIZONTAL;
+                bar.setLayoutParams(lp);
+            }
+        } else if (p instanceof FrameLayout.LayoutParams) {
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) p;
+            int w = max > 0 && avail - 2 * lp.leftMargin > max ? max : ViewGroup.LayoutParams.MATCH_PARENT;
+            int g = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+            if (lp.width != w || lp.gravity != g) {
+                lp.width = w;
+                lp.gravity = g;
+                bar.setLayoutParams(lp);
+            }
         }
     }
 }

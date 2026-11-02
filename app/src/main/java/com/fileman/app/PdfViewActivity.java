@@ -46,6 +46,11 @@ import java.util.concurrent.Executors;
 /** PDF viewer built on the platform PdfRenderer: scrolling pages, pinch / double-tap / button zoom, page counter. */
 public class PdfViewActivity extends BaseActivity {
     @Override
+    protected boolean glassBackdrop() {
+        return false;
+    }
+
+    @Override
     protected boolean constrainContent() {
         return false;
     }

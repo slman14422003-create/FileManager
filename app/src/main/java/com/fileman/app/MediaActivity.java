@@ -59,6 +59,11 @@ import java.util.concurrent.Executors;
  */
 public class MediaActivity extends BaseActivity {
     @Override
+    protected boolean glassBackdrop() {
+        return false;
+    }
+
+    @Override
     protected boolean constrainContent() {
         return false;
     }

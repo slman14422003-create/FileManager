@@ -473,7 +473,14 @@ public class FileManagerActivity extends BaseActivity {
         searchView.setOnFocusChangeListener((v, focus) -> {
             if (navBar != null) navBar.setVisibility(focus || !selected.isEmpty() ? View.GONE : View.VISIBLE);
         });
-        if (getIntent().getBooleanExtra("search", false)) setSearchOpen(true, true);
+        if (getIntent().getBooleanExtra("search", false)) {
+            setSearchOpen(true, true);
+            String q0 = getIntent().getStringExtra("q");
+            if (q0 != null && !q0.isEmpty()) {
+                searchView.setText(q0);
+                searchView.setSelection(q0.length());
+            }
+        }
     }
 
     @Override
@@ -575,6 +582,29 @@ public class FileManagerActivity extends BaseActivity {
         updateChrome();
         updateEmptyView();
         scheduleKids();
+    }
+
+    /** After creating / renaming items in the open folder: patch just those rows instead of listing the folder again. */
+    private void patchNames(final File dir, final String... names) {
+        if (mode != M_DIR || cur == null || !cur.equals(dir)) {
+            refresh();
+            return;
+        }
+        final long my = gen;
+        final boolean hidden = showHidden;
+        io.execute(() -> {
+            final Map<String, Entry> upd = new LinkedHashMap<>();
+            for (String n : names) {
+                if (n == null || n.startsWith(".fmdel-") || (!hidden && n.startsWith("."))) continue;
+                File f = new File(dir, n);
+                upd.put(f.getAbsolutePath(), f.exists() ? new Entry(f) : null);
+            }
+            post(() -> {
+                if (my != gen || mode != M_DIR || !dir.equals(cur)) return;
+                applyDelta(upd);
+                storageAt = 0;
+            });
+        });
     }
 
     private void liveRefresh() {
@@ -1933,19 +1963,27 @@ public class FileManagerActivity extends BaseActivity {
                         toast(R.string.fm_bad_name);
                         return;
                     }
-                    File t = new File(cur, n);
-                    if (t.exists()) {
-                        toast(R.string.fm_exists);
-                        return;
-                    }
-                    boolean ok;
-                    try {
-                        ok = folder ? t.mkdirs() : t.createNewFile();
-                    } catch (IOException ex) {
-                        ok = false;
-                    }
-                    if (!ok) toast(R.string.fm_create_failed);
-                    refresh();
+                    final File dir = cur;
+                    final File t = new File(dir, n);
+                    final String nn = n;
+                    io.execute(() -> {
+                        boolean ok;
+                        if (t.exists()) {
+                            post(() -> toast(R.string.fm_exists));
+                            return;
+                        }
+                        try {
+                            ok = folder ? t.mkdirs() : t.createNewFile();
+                        } catch (IOException ex) {
+                            ok = false;
+                        }
+                        final boolean fok = ok;
+                        if (fok) rescan(new String[]{t.getAbsolutePath()});
+                        post(() -> {
+                            if (!fok) toast(R.string.fm_create_failed);
+                            patchNames(dir, nn);
+                        });
+                    });
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .show();
@@ -2303,7 +2341,12 @@ public class FileManagerActivity extends BaseActivity {
     }
 
     private void deleteFast(final List<File> files) {
-        showBusy(getString(R.string.fm_deleting));
+        final boolean[] shownBusy = new boolean[1];
+        final Runnable late = () -> {
+            shownBusy[0] = true;
+            showBusy(getString(R.string.fm_deleting));
+        };
+        ui.postDelayed(late, 450);
         final java.util.concurrent.atomic.AtomicBoolean stop = new java.util.concurrent.atomic.AtomicBoolean();
         io.execute(() -> {
             final Wipe.Stash st = Wipe.stash(this, files);
@@ -2323,15 +2366,20 @@ public class FileManagerActivity extends BaseActivity {
             final Wipe.Result res = r;
             final boolean more = !st.hidden.isEmpty();
             post(() -> {
+                ui.removeCallbacks(late);
                 hideBusy();
-                if (!more) opDone(res.cancelled ? null : getString(R.string.fm_done_n, files.size()));
+                if (shownBusy[0] && !more) opDone(res.cancelled ? null : getString(R.string.fm_done_n, files.size()));
                 scheduleTip(4000);
                 if (res.cancelled) toast(R.string.fm_cancelled);
                 else if (!res.failed.isEmpty()) {
                     info(getString(R.string.error), getString(R.string.fm_del_failed_n, res.failed.size())
                             + "\n" + android.text.TextUtils.join("\n", res.failed.subList(0, Math.min(8, res.failed.size()))));
                 } else toast(getString(R.string.fm_done_n, files.size()));
-                refresh();
+                if (res.cancelled || !res.failed.isEmpty() || mode != M_DIR) refresh();
+                else {
+                    storageAt = 0;
+                    updateChrome();
+                }
             });
             if (more) {
                 // the items are already out of sight; free their data in the background
@@ -2414,9 +2462,10 @@ public class FileManagerActivity extends BaseActivity {
                             rescan(new String[]{f.getAbsolutePath(), t.getAbsolutePath()});
                         }
                         final boolean fok = ok;
+                        final File parent = f.getParentFile();
                         post(() -> {
                             if (!fok) toast(R.string.fm_rename_failed);
-                            refresh();
+                            patchNames(parent, f.getName(), t.getName());
                         });
                     });
                 })
