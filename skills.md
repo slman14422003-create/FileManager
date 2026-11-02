@@ -188,3 +188,14 @@
 - activity_home: الزر btnUsb في الزاوية العلوية يظهر فقط عند وجود وحدة، ويفتح شاشتها (أو يسأل أي وحدة عند وجود أكثر من واحدة).
 - النصوص في strings_usb.xml بالعربية والإنجليزية.
 - لم يُشغَّل البناء محليًا، يجب التحقق من نجاحه على GitHub Actions.
+
+## مهمة: واجهة الزجاج وأندرويد 17 والمساعد
+- Glass (جديد): أسطح زجاجية (ألوان surface وsurface_high وfield صارت شفافة جزئيًا)، خلفية متدرجة لكل شاشة، وبلور حقيقي عبر وحدة blurview (مكتبة BlurView 4 منسوخة داخل المشروع).
+- NavBar: الشريط السفلي صار BlurView فوق BlurTarget يلف جذر الشاشة، ويحجز هامشًا سفليًا ويحرره عند إخفائه (GlassBar).
+- Dlg: نوافذ الحوار والأوراق السفلية بلوحة زجاجية، وبلور خلفي للنافذة على أندرويد 12 فأحدث.
+- BaseActivity: glassBackdrop() وaiButton() يمكن تعطيلهما في شاشات العرض الكامل (Media وImage وPdf وShareScan).
+- Ai (جديد): زر مساعد عائم في كل شاشة يفتح ورقة باقتراحات حسب الشاشة وحقل أوامر. كلمات المطابقة في strings_ai.xml. يعمل على الجهاز فقط.
+- أندرويد 17: compileSdk وtargetSdk = 37، وgradle.properties فيه android.suppressUnsupportedCompileSdk=37 لأن AGP 8.13 لا يعرف 37، وCI يثبّت منصة android-37. أُضيف إذن ACCESS_LOCAL_NETWORK مع طلبه وقت التشغيل في ShareSendActivity وShareReceiveActivity.
+- الأذونات: حُذف ENFORCE_UPDATE_OWNERSHIP وREQUEST_IGNORE_BATTERY_OPTIMIZATIONS، وPerms.requestBattery يفتح شاشة إعدادات البطارية مباشرة.
+- السرعة في FileManagerActivity: الإنشاء وإعادة التسمية صارا على خيط الإدخال والإخراج ويحدّثان الصفوف المتأثرة فقط (patchNames)، والحذف لا يعرض نافذة الانتظار إلا إذا تجاوز 450 مللي ثانية ولا يعيد تحميل المجلد عند النجاح.
+- لم يُشغَّل البناء محليًا، يجب التحقق من نجاحه على GitHub Actions.
