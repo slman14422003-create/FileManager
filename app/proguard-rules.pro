@@ -32,3 +32,7 @@
 -dontwarn org.apache.commons.**
 
 -keepclassmembers class androidx.appcompat.widget.ButtonBarLayout { public void setAllowStacking(boolean); }
+
+# Glass UI (BlurView module)
+-keep class eightbitlab.com.blurview.** { *; }
+-dontwarn android.renderscript.**
