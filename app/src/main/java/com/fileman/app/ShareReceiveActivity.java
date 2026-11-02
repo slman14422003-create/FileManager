@@ -219,6 +219,18 @@ public class ShareReceiveActivity extends BaseActivity {
 
     private void connect(final ShareLink l) {
         link = l;
+        if (Build.VERSION.SDK_INT >= 37
+                && checkSelfPermission("android.permission.ACCESS_LOCAL_NETWORK") != PackageManager.PERMISSION_GRANTED) {
+            afterPerm = () -> {
+                if (checkSelfPermission("android.permission.ACCESS_LOCAL_NETWORK") == PackageManager.PERMISSION_GRANTED) connect(l);
+                else {
+                    Toast.makeText(this, R.string.sh_perm_denied, Toast.LENGTH_LONG).show();
+                    showStart();
+                }
+            };
+            permLauncher.launch(new String[]{"android.permission.ACCESS_LOCAL_NETWORK"});
+            return;
+        }
         if (!l.ssid.isEmpty()) {
             String[] p = needed();
             if (checkSelfPermission(p[0]) != PackageManager.PERMISSION_GRANTED) {

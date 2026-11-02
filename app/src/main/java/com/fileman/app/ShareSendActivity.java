@@ -734,8 +734,20 @@ public class ShareSendActivity extends BaseActivity {
         return true;
     }
 
+    private boolean lanReady(final Runnable again) {
+        if (Build.VERSION.SDK_INT < 37) return true;
+        final String lan = "android.permission.ACCESS_LOCAL_NETWORK";
+        if (checkSelfPermission(lan) == PackageManager.PERMISSION_GRANTED) return true;
+        afterPerm = () -> {
+            if (checkSelfPermission(lan) == PackageManager.PERMISSION_GRANTED) again.run();
+            else Toast.makeText(this, R.string.sh_perm_denied, Toast.LENGTH_LONG).show();
+        };
+        permLauncher.launch(new String[]{lan});
+        return false;
+    }
+
     private boolean radioChecks(int m, Runnable again) {
-        if (m == M_NETWORK) return true;
+        if (m == M_NETWORK) return lanReady(again);
         if (!radioReady(again)) return false;
         if (m == M_DIRECT && !ShareNet.wifiEnabled(this)) {
             new Dlg(this).setTitle(R.string.sx_wifi_off_title).setMessage(R.string.sx_wifi_off_send)

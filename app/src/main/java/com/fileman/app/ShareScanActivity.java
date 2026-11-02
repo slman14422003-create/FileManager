@@ -54,6 +54,16 @@ public class ShareScanActivity extends BaseActivity {
     private TextView hint;
 
     @Override
+    protected boolean glassBackdrop() {
+        return false;
+    }
+
+    @Override
+    protected boolean aiButton() {
+        return false;
+    }
+
+    @Override
     protected boolean constrainContent() {
         return false;
     }
