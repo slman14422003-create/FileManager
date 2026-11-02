@@ -32,7 +32,18 @@ public abstract class BaseActivity extends AppCompatActivity {
             c.setAppearanceLightNavigationBars(light);
         } catch (Throwable ignored) {
         }
-        if (glassBackdrop()) Glass.backdrop(this);
+        if (glassBackdrop()) {
+            Glass.backdrop(this);
+            try {
+                getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+                getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
+                if (android.os.Build.VERSION.SDK_INT >= 29) {
+                    getWindow().setStatusBarContrastEnforced(false);
+                    getWindow().setNavigationBarContrastEnforced(false);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
         if (aiButton()) Ai.attach(this);
         Layout.constrain(this, constrainContent());
     }

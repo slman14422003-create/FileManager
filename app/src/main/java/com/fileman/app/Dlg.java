@@ -141,7 +141,7 @@ public class Dlg extends AlertDialog.Builder {
     }
 
     private static android.graphics.drawable.Drawable card(Context c, float radiusDp) {
-        return Glass.fill(c, Ui.dp(c, (int) radiusDp));
+        return Glass.solid(c, Ui.dp(c, (int) radiusDp));
     }
 
     private static GradientDrawable halo(int color) {

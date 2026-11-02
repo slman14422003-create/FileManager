@@ -55,7 +55,7 @@ final class Ai {
         b.setImageResource(R.drawable.ic_ai);
         b.setImageTintList(ColorStateList.valueOf(Ui.color(a, R.color.accent)));
         b.setScaleType(ImageView.ScaleType.CENTER);
-        b.setBackground(Glass.fill(a, Ui.dp(a, 24)));
+        b.setBackground(Glass.solid(a, Ui.dp(a, 24)));
         b.setElevation(Ui.dp(a, 6));
         b.setContentDescription(a.getString(R.string.ai_title));
         b.setClickable(true);
