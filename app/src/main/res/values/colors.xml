@@ -3,9 +3,9 @@
     <!-- DAY palette: iOS system colours (white, grouped grey #F2F2F7, iOS blue). Night counterpart: values-night/colors.xml (pure AMOLED black). -->
     <color name="bg">#FFFFFF</color>
     <color name="bg_group">#F2F2F7</color>
-    <color name="surface">#FFFFFF</color>
-    <color name="surface_high">#EEEEF2</color>
-    <color name="field">#F2F2F7</color>
+    <color name="surface">#B8FFFFFF</color>
+    <color name="surface_high">#C8EEEEF2</color>
+    <color name="field">#B0F2F2F7</color>
     <color name="stroke">#4D3C3C43</color>
     <color name="stroke_soft">#EBEBF0</color>
     <color name="text_primary">#000000</color>
@@ -34,8 +34,8 @@
 
     <!-- GRAY mode: mid-grey surfaces (applied as an overlay on top of the night resources). -->
     <color name="gray_bg">#3A3A3F</color>
-    <color name="gray_surface">#47474D</color>
-    <color name="gray_surface_high">#54545B</color>
+    <color name="gray_surface">#B847474D</color>
+    <color name="gray_surface_high">#C854545B</color>
     <color name="gray_stroke">#61616A</color>
     <color name="gray_text_primary">#F5F5F7</color>
     <color name="gray_text_secondary">#C0C0C8</color>
@@ -43,9 +43,9 @@
 
     <color name="amoled_bg">#000000</color>
     <color name="amoled_group">#000000</color>
-    <color name="amoled_surface">#0E0E10</color>
-    <color name="amoled_surface_high">#1A1A1D</color>
-    <color name="amoled_field">#0E0E10</color>
+    <color name="amoled_surface">#B80E0E10</color>
+    <color name="amoled_surface_high">#C81A1A1D</color>
+    <color name="amoled_field">#B00E0E10</color>
     <color name="amoled_stroke">#2A2A2E</color>
     <color name="amoled_stroke_soft">#1A1A1D</color>
     <color name="amoled_text_primary">#FFFFFF</color>
@@ -55,9 +55,9 @@
 
     <color name="midnight_bg">#0B1020</color>
     <color name="midnight_group">#0B1020</color>
-    <color name="midnight_surface">#141B2E</color>
-    <color name="midnight_surface_high">#1D2640</color>
-    <color name="midnight_field">#141B2E</color>
+    <color name="midnight_surface">#B8141B2E</color>
+    <color name="midnight_surface_high">#C81D2640</color>
+    <color name="midnight_field">#B0141B2E</color>
     <color name="midnight_stroke">#2A3558</color>
     <color name="midnight_stroke_soft">#1D2640</color>
     <color name="midnight_text_primary">#F2F5FF</color>
@@ -67,9 +67,9 @@
 
     <color name="sand_bg">#FAF7F2</color>
     <color name="sand_group">#F1ECE3</color>
-    <color name="sand_surface">#FFFDF9</color>
-    <color name="sand_surface_high">#EAE4D8</color>
-    <color name="sand_field">#F1ECE3</color>
+    <color name="sand_surface">#B8FFFDF9</color>
+    <color name="sand_surface_high">#C8EAE4D8</color>
+    <color name="sand_field">#B0F1ECE3</color>
     <color name="sand_stroke">#D9D1C2</color>
     <color name="sand_stroke_soft">#EAE4D8</color>
     <color name="sand_text_primary">#1F1B16</color>
