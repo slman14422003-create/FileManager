@@ -102,7 +102,7 @@ public final class Glass {
     /** Puts the glass backdrop behind a screen. */
     public static void backdrop(Activity a) {
         try {
-            a.getWindow().setBackgroundDrawable(backdrop(a));
+            a.getWindow().setBackgroundDrawable(backdrop((Context) a));
         } catch (Throwable ignored) {
         }
     }
@@ -121,7 +121,7 @@ public final class Glass {
         BlurTarget t = new BlurTarget(a);
         t.setTag(TARGET_TAG);
         View back = new View(a);
-        back.setBackground(backdrop(a));
+        back.setBackground(backdrop((Context) a));
         t.addView(back, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
         t.addView(first, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
