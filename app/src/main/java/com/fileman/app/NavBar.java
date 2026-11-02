@@ -155,7 +155,7 @@ final class NavBar {
 
         NavShadow(Activity a) {
             super(a);
-            step = Ui.dp(a, 1.4f);
+            step = Ui.dp(a, 1) * 1.4f;
             p.setColor(0xFF000000);
             setClickable(false);
         }
