@@ -50,6 +50,10 @@ public class SettingsActivity extends BaseActivity {
                         + getString(Appearance.current(this).name), false, true),
                 v -> startActivity(new Intent(this, ThemeActivity.class))));
 
+        content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_brand_mark, true,
+                getString(R.string.ic_title), getString(R.string.ic_sub), false, true),
+                v -> startActivity(new Intent(this, IconActivity.class))));
+
         content.addView(Ui.sectionTitle(this, getString(R.string.set_general)));
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_language, false,
                 getString(R.string.set_language), languageName(), false, true), v -> pickLanguage()));
