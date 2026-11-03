@@ -337,7 +337,7 @@ final class Blur {
         try {
             w.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
             WindowManager.LayoutParams lp = w.getAttributes();
-            lp.blurBehindRadius = Ui.dp(c, strong ? 26 : 18);
+            lp.setBlurBehindRadius(Ui.dp(c, strong ? 26 : 18));
             w.setAttributes(lp);
         } catch (Throwable ignored) {
         }
