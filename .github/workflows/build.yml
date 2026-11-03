@@ -94,7 +94,7 @@ jobs:
           fi
           # 2) only the launcher and the screens that replace the system installer / Files app (install, open link, file picker) may be exported
           M=app/src/main/AndroidManifest.xml
-          EXP="$(grep -B1 'android:exported="true"' $M | grep -o 'android:name="[^"]*"' | sort | tr '\n' ' ')"
+          EXP="$(grep -B1 'android:exported="true"' $M | grep -o 'android:name="[^"]*"' | grep -v 'android:name="\.Icon' | sort | tr '\n' ' ')"
           [ "$EXP" = 'android:name=".HomeActivity" android:name=".InstallActivity" android:name=".OpenActivity" android:name=".PickActivity" ' ] || { echo "::error::only HomeActivity, InstallActivity, OpenActivity and PickActivity may be exported (found: $EXP)"; exit 1; }
           # the install screen must only read the data URI it is opened with (no path/text extras from other apps)
           for X in InstallActivity OpenActivity PickActivity; do
