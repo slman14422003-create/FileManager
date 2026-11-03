@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="usb_found_title">تم اكتشاف وحدة تخزين خارجية</string>
+    <string name="usb_found_msg">%1$s\n%2$s</string>
+    <string name="usb_browse">عرض</string>
+    <string name="usb_exit">خروج</string>
+    <string name="usb_pick">اختر وحدة التخزين</string>
+    <string name="usb_btn">وحدة التخزين الخارجية</string>
+    <string name="usb_free">المتاح %1$s</string>
+    <string name="usb_badge_ro">قراءة فقط</string>
+    <string name="usb_open_root">تصفح كل الملفات</string>
+    <string name="usb_contents">المحتويات</string>
+    <string name="usb_empty">الوحدة فارغة</string>
+    <string name="usb_removed">تمت إزالة الوحدة</string>
+</resources>
