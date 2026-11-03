@@ -85,4 +85,16 @@
     <string name="ai_working">جارٍ التحليل…</string>
     <string name="set_blur">تأثير الزجاج (البلور)</string>
     <string name="set_blur_sub">تغبيش حي خلف الأشرطة والقوائم والنوافذ</string>
+    <string name="ic_title">أيقونة التطبيق</string>
+    <string name="ic_sub">اختر شكل أيقونة التطبيق</string>
+    <string name="ic_note">تتغير أيقونة الشاشة الرئيسية خلال ثوانٍ قليلة.</string>
+    <string name="ic_blue">أزرق</string>
+    <string name="ic_violet">بنفسجي</string>
+    <string name="ic_green">أخضر</string>
+    <string name="ic_orange">برتقالي</string>
+    <string name="ic_red">أحمر</string>
+    <string name="ic_pink">وردي</string>
+    <string name="ic_gold">ذهبي</string>
+    <string name="ic_night">أزرق ليلي</string>
+    <string name="ic_graphite">رمادي داكن</string>
 </resources>

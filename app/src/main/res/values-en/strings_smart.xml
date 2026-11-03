@@ -85,4 +85,16 @@
     <string name="ai_working">Analyzing…</string>
     <string name="set_blur">Glass effect (blur)</string>
     <string name="set_blur_sub">Live blur behind bars, menus and dialogs</string>
+    <string name="ic_title">App icon</string>
+    <string name="ic_sub">Choose how the app icon looks</string>
+    <string name="ic_note">The home screen icon changes within a few seconds.</string>
+    <string name="ic_blue">Blue</string>
+    <string name="ic_violet">Violet</string>
+    <string name="ic_green">Green</string>
+    <string name="ic_orange">Orange</string>
+    <string name="ic_red">Red</string>
+    <string name="ic_pink">Pink</string>
+    <string name="ic_gold">Gold</string>
+    <string name="ic_night">Midnight blue</string>
+    <string name="ic_graphite">Dark graphite</string>
 </resources>
