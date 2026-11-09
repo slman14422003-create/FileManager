@@ -56,7 +56,11 @@ public final class Ui {
 
     /** Unified minimalist icon box: a soft neutral card that follows the current theme (light grey by
      *  day, elevated dark grey by night) — never a flat black square. */
-    public static android.graphics.drawable.Drawable outlineBox(Context c, float radiusPx) {
+    public static android.graphics.drawable.Drawable outlineBox(final Context c, final float radiusPx) {
+        return cachedShape(c, (1L << 62) | (Float.floatToIntBits(radiusPx) & 0xFFFFFFFFL), () -> buildOutlineBox(c, radiusPx));
+    }
+
+    private static android.graphics.drawable.Drawable buildOutlineBox(Context c, float radiusPx) {
         android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
         g.setCornerRadius(radiusPx);
         g.setColor(color(c, R.color.surface_high));
@@ -74,7 +78,13 @@ public final class Ui {
      * {@code solidFill} true: a fully-saturated square in {@code colorRes} with a white glyph (primary actions).
      * {@code solidFill} false: a soft tinted wash of {@code colorRes} with a coloured glyph (secondary actions).
      */
-    public static android.graphics.drawable.Drawable colorTile(Context c, int sizePx, int colorRes, boolean solidFill) {
+    public static android.graphics.drawable.Drawable colorTile(final Context c, final int sizePx, final int colorRes,
+                                                               final boolean solidFill) {
+        long key = (1L << 61) | ((long) sizePx << 32) | ((long) colorRes << 1) | (solidFill ? 1L : 0L);
+        return cachedShape(c, key, () -> buildColorTile(c, sizePx, colorRes, solidFill));
+    }
+
+    private static android.graphics.drawable.Drawable buildColorTile(Context c, int sizePx, int colorRes, boolean solidFill) {
         android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
         g.setCornerRadius(sizePx * 0.26f);
         int tint = color(c, colorRes);
@@ -105,7 +115,65 @@ public final class Ui {
      * Colour by resource id. The accent family follows the user's colour theme (resolved through the
      * context's theme); every other colour comes from the day / night resources.
      */
+    private static final java.util.WeakHashMap<android.content.res.Resources.Theme, android.util.SparseIntArray> COLORS =
+            new java.util.WeakHashMap<>();
+    private static final java.util.WeakHashMap<android.content.res.Resources.Theme,
+            java.util.HashMap<Long, android.graphics.drawable.Drawable.ConstantState>> SHAPES = new java.util.WeakHashMap<>();
+
+    /** Forgets resolved colours and shapes; called whenever a theme is (re)applied. */
+    static void clearCaches() {
+        synchronized (COLORS) {
+            COLORS.clear();
+            SHAPES.clear();
+        }
+    }
+
     public static int color(Context c, int res) {
+        android.content.res.Resources.Theme th = c.getTheme();
+        synchronized (COLORS) {
+            android.util.SparseIntArray m = COLORS.get(th);
+            if (m != null) {
+                int i = m.indexOfKey(res);
+                if (i >= 0) return m.valueAt(i);
+            }
+        }
+        int v = resolveColor(c, res);
+        synchronized (COLORS) {
+            android.util.SparseIntArray m = COLORS.get(th);
+            if (m == null) {
+                m = new android.util.SparseIntArray();
+                COLORS.put(th, m);
+            }
+            m.put(res, v);
+        }
+        return v;
+    }
+
+    private static android.graphics.drawable.Drawable cachedShape(Context c, long key,
+                                                                  java.util.function.Supplier<android.graphics.drawable.Drawable> make) {
+        android.content.res.Resources.Theme th = c.getTheme();
+        android.graphics.drawable.Drawable.ConstantState cs = null;
+        synchronized (COLORS) {
+            java.util.HashMap<Long, android.graphics.drawable.Drawable.ConstantState> m = SHAPES.get(th);
+            if (m != null) cs = m.get(key);
+        }
+        if (cs != null) return cs.newDrawable(c.getResources());
+        android.graphics.drawable.Drawable d = make.get();
+        android.graphics.drawable.Drawable.ConstantState s = d.getConstantState();
+        if (s != null) {
+            synchronized (COLORS) {
+                java.util.HashMap<Long, android.graphics.drawable.Drawable.ConstantState> m = SHAPES.get(th);
+                if (m == null) {
+                    m = new java.util.HashMap<>();
+                    SHAPES.put(th, m);
+                }
+                m.put(key, s);
+            }
+        }
+        return d;
+    }
+
+    private static int resolveColor(Context c, int res) {
         int attr = 0;
         if (res == R.color.accent) attr = R.attr.cAccent;
         else if (res == R.color.accent_text) attr = R.attr.cAccentText;

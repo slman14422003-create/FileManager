@@ -103,6 +103,7 @@ public class ShareSendActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Perms.requestLocalNetwork(this);
         setContentView(R.layout.activity_detail);
         useGroupedBackground();
         titleView = findViewById(R.id.title);

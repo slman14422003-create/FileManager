@@ -160,6 +160,7 @@ public class HomeActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        AutoOrganize.sortDownloadsIfDue(this);
         boolean access = Perms.hasAllFiles(this);
         if (access != hadAccess) {
             stats = null;

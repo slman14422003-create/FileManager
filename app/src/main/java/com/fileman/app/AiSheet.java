@@ -55,6 +55,7 @@ final class AiSheet {
         }
         add(a, labels, icons, acts, R.string.sm_clean, R.drawable.ic_chart, SmartActivity.M_CLEAN);
         add(a, labels, icons, acts, R.string.sm_org, R.drawable.ic_folder, SmartActivity.M_ORG);
+        add(a, labels, icons, acts, R.string.sm_auto, R.drawable.ic_sort, SmartActivity.M_AUTO);
         add(a, labels, icons, acts, R.string.sm_name, R.drawable.ic_file, SmartActivity.M_NAME);
         add(a, labels, icons, acts, R.string.sm_find, R.drawable.ic_search, SmartActivity.M_FIND);
         add(a, labels, icons, acts, R.string.sm_guard, R.drawable.ic_shield, SmartActivity.M_GUARD);

@@ -48,11 +48,17 @@ final class SmartIndex {
         final File f;
         final int matched;
         final double score;
+        final long mod;
 
         Hit(File f, int matched, double score) {
+            this(f, matched, score, 0L);
+        }
+
+        Hit(File f, int matched, double score, long mod) {
             this.f = f;
             this.matched = matched;
             this.score = score;
+            this.mod = mod;
         }
     }
 
@@ -81,8 +87,38 @@ final class SmartIndex {
             {"\u0625\u064a\u062c\u0627\u0631", "\u0627\u064a\u062c\u0627\u0631", "rent", "lease"},
             {"\u062a\u0630\u0643\u0631\u0629", "\u062a\u0630\u0627\u0643\u0631", "ticket", "boarding"},
             {"\u0648\u0635\u0641\u0629", "\u0648\u0635\u0641\u0627\u062a", "recipe"},
-            {"\u0637\u0628\u064a", "\u0635\u062d\u064a", "medical", "health", "\u062a\u062d\u0644\u064a\u0644"}
+            {"\u0637\u0628\u064a", "\u0635\u062d\u064a", "medical", "health", "\u062a\u062d\u0644\u064a\u0644"},
+            {"\u0633\u064a\u0627\u0631\u0629", "\u0645\u0631\u0643\u0628\u0629", "car", "vehicle", "\u0631\u062e\u0635\u0629"},
+            {"\u0643\u062a\u0627\u0628", "\u0643\u062a\u0628", "book", "ebook", "\u0645\u0646\u0647\u062c"},
+            {"\u0636\u0631\u064a\u0628\u0629", "\u0636\u0631\u0627\u0626\u0628", "tax", "vat"},
+            {"\u0645\u064a\u0632\u0627\u0646\u064a\u0629", "budget", "\u062d\u0633\u0627\u0628\u0627\u062a", "accounts"},
+            {"\u0645\u062d\u0627\u0636\u0631\u0629", "\u0645\u062d\u0627\u0636\u0631\u0627\u062a", "lecture", "notes", "\u0645\u0644\u062e\u0635"},
+            {"\u0645\u0634\u0631\u0648\u0639", "\u0645\u0634\u0627\u0631\u064a\u0639", "project", "proposal", "\u0639\u0631\u0636"},
+            {"\u0627\u0634\u062a\u0631\u0627\u0643", "subscription", "\u062a\u062c\u062f\u064a\u062f", "renewal"},
+            {"\u062c\u062f\u0648\u0644", "schedule", "timetable", "\u0645\u0648\u0627\u0639\u064a\u062f"}
     };
+
+    // folder names for the first 16 groups above (null: no folder), used to sort documents by topic
+    private static final String[] GROUP_FOLDER = {"Invoices", "Bills", "Bills", "Contracts", "Resumes", "Certificates",
+            "IDs", "Reports", null, "Payslips", "Bank", "Insurance", "Rent", "Tickets", "Recipes", "Medical"};
+
+    static Set<String> topics() {
+        Set<String> s = new HashSet<>();
+        for (String g : GROUP_FOLDER) if (g != null) s.add(g);
+        return s;
+    }
+
+    /** The topic a document name points to (invoice, contract, certificate...), or null. */
+    static String topicFolder(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        String stem = dot > 0 ? fileName.substring(0, dot) : fileName;
+        for (String t : tokens(normalize(stem))) {
+            if (t.length() < 3 && !t.equals("cv")) continue;
+            Integer g = GROUP_OF.get(t);
+            if (g != null && g < GROUP_FOLDER.length && GROUP_FOLDER[g] != null) return GROUP_FOLDER[g];
+        }
+        return null;
+    }
 
     private static final Map<String, Integer> GROUP_OF = new HashMap<>();
 
@@ -282,14 +318,62 @@ final class SmartIndex {
         return alts;
     }
 
+    private static String leaf(String path) {
+        return path.substring(path.lastIndexOf('/') + 1);
+    }
+
+    /** Typing slips: one wrong, missing or extra letter (two for long words). */
+    private static boolean near(String a, String b) {
+        int la = a.length();
+        int lb = b.length();
+        int max = la >= 8 ? 2 : la >= 4 ? 1 : 0;
+        if (max == 0 || Math.abs(la - lb) > max) return false;
+        int[] prev = new int[lb + 1];
+        int[] cur = new int[lb + 1];
+        for (int j = 0; j <= lb; j++) prev[j] = j;
+        for (int i = 1; i <= la; i++) {
+            cur[0] = i;
+            int rowMin = cur[0];
+            for (int j = 1; j <= lb; j++) {
+                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+                cur[j] = Math.min(Math.min(cur[j - 1] + 1, prev[j] + 1), prev[j - 1] + cost);
+                if (cur[j] < rowMin) rowMin = cur[j];
+            }
+            if (rowMin > max) return false;
+            int[] sw = prev;
+            prev = cur;
+            cur = sw;
+        }
+        return prev[lb] <= max;
+    }
+
+    private static double recency(long now, long mod) {
+        return 0.5 * Math.exp(-Math.max(0L, now - mod) / (90.0 * 86400000.0));
+    }
+
+    /**
+     * Keywords with synonyms, plus what the sentence means: "photos from last week", "large videos",
+     * "latest invoice pdf". Typos are forgiven when the exact pass finds little. Newer files rank higher.
+     */
     static List<Hit> search(Context c, String query, int limit) {
-        List<String> qt = tokens(normalize(query));
+        SmartQuery sq = SmartQuery.parse(query);
+        List<String> qt = tokens(normalize(sq.rest));
         List<Hit> hits = new ArrayList<>();
-        if (qt.isEmpty()) return hits;
+        boolean onlyFilter = qt.isEmpty();
+        if (onlyFilter && !sq.hasFilter()) return hits;
+        long now = System.currentTimeMillis();
         List<List<String>> alts = new ArrayList<>();
         for (String q : qt) alts.add(alternatives(q));
         int need = Math.max(1, (qt.size() + 1) / 2);
-        for (Entry e : load(c)) {
+        List<Entry> all = load(c);
+        Set<String> seen = new HashSet<>();
+        for (Entry e : all) {
+            if (!sq.accept(leaf(e.path), e.mod, e.size)) continue;
+            double rec = recency(now, e.mod);
+            if (onlyFilter) {
+                hits.add(new Hit(new File(e.path), 0, rec, e.mod));
+                continue;
+            }
             int matched = 0;
             double score = 0;
             for (List<String> group : alts) {
@@ -309,10 +393,35 @@ final class SmartIndex {
                     score += best;
                 }
             }
-            if (matched >= need) hits.add(new Hit(new File(e.path), matched, score));
+            if (matched >= need) {
+                hits.add(new Hit(new File(e.path), matched, score + rec, e.mod));
+                seen.add(e.path);
+            }
         }
-        Collections.sort(hits, (a, b) -> a.matched != b.matched ? Integer.compare(b.matched, a.matched)
-                : Double.compare(b.score, a.score));
+        if (!onlyFilter && hits.size() < 10) {
+            for (Entry e : all) {
+                if (seen.contains(e.path) || !sq.accept(leaf(e.path), e.mod, e.size)) continue;
+                String[] words = e.name.trim().split(" ");
+                int matched = 0;
+                for (String q : qt) {
+                    for (String w : words) {
+                        if (near(q, w)) {
+                            matched++;
+                            break;
+                        }
+                    }
+                }
+                if (matched >= need) {
+                    hits.add(new Hit(new File(e.path), matched, 1.5 * matched + recency(now, e.mod), e.mod));
+                    if (hits.size() >= limit * 2) break;
+                }
+            }
+        }
+        final boolean byDate = onlyFilter || sq.recent;
+        Collections.sort(hits, (a, b) -> {
+            if (byDate) return Long.compare(b.mod, a.mod);
+            return a.matched != b.matched ? Integer.compare(b.matched, a.matched) : Double.compare(b.score, a.score);
+        });
         if (hits.size() > limit) return new ArrayList<>(hits.subList(0, limit));
         return hits;
     }

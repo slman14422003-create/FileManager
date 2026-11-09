@@ -70,6 +70,7 @@ public final class Appearance {
     }
 
     public static void applyTo(Resources.Theme theme, Context c) {
+        Ui.clearCaches();
         theme.applyStyle(current(c).style, true);
         int overlay = overlayStyle(Store.themeMode(c));
         if (overlay != 0) theme.applyStyle(overlay, true);

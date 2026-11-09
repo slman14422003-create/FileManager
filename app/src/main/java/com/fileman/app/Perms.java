@@ -163,6 +163,22 @@ public final class Perms {
         return Notifs.allowed(c);
     }
 
+    private static final String LOCAL_NET = "android.permission.ACCESS_LOCAL_NETWORK";
+
+    /** Android 17 (targetSdk 37) asks before an app talks to other devices on the local network. */
+    public static boolean needsLocalNetwork(Context c) {
+        return Build.VERSION.SDK_INT >= 37 && c.getApplicationInfo().targetSdkVersion >= 37
+                && c.checkSelfPermission(LOCAL_NET) != android.content.pm.PackageManager.PERMISSION_GRANTED;
+    }
+
+    public static void requestLocalNetwork(Activity a) {
+        if (!needsLocalNetwork(a)) return;
+        try {
+            a.requestPermissions(new String[]{LOCAL_NET}, 4037);
+        } catch (Exception ignored) {
+        }
+    }
+
     public static void requestNotifications(Activity a) {
         if (Build.VERSION.SDK_INT >= 33) {
             try {

@@ -339,6 +339,10 @@ final class Arc implements Closeable {
         }
     }
 
+    boolean isZip() {
+        return kind == K_ZIP;
+    }
+
     /** Visits every wanted file entry once, in archive order. Works for every format. */
     void walk(Want want, Visitor v) throws IOException {
         switch (kind) {

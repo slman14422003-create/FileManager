@@ -490,6 +490,7 @@ public class FileManagerActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (mode == M_DIR) AutoOrganize.sortDownloadsIfDue(this);
         if (volWatch == null) volWatch = Volumes.watch(this, () -> ui.postDelayed(this::volumesChanged, 700));
         scheduleTip(25000);
         boolean g = Perms.hasAllFiles(this);
@@ -2178,7 +2179,12 @@ public class FileManagerActivity extends BaseActivity {
         bgHidden = false;
     }
 
+    private volatile long lastBusyPost;
+
     private void setBusy(final String t) {
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - lastBusyPost < 150) return;   // thousands of small files used to flood the UI thread with updates
+        lastBusyPost = now;
         OpService.update(t, -1);
         post(() -> {
             if (busyText != null) busyText.setText(t);
@@ -2252,29 +2258,106 @@ public class FileManagerActivity extends BaseActivity {
     }
 
     private void copyTree(File src, File dst) throws IOException {
+        final List<File[]> jobs = new ArrayList<>();
+        planCopy(src, dst, jobs, 0);
+        if (jobs.isEmpty()) return;
+        if (jobs.size() < 6) {
+            for (File[] j : jobs) copyOne(j[0], j[1]);
+            return;
+        }
+        final java.util.concurrent.atomic.AtomicInteger next = new java.util.concurrent.atomic.AtomicInteger();
+        final java.util.concurrent.atomic.AtomicReference<Throwable> fail = new java.util.concurrent.atomic.AtomicReference<>();
+        final int n = Math.min(3, Math.max(2, Runtime.getRuntime().availableProcessors() / 2));
+        final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(n);
+        for (int k = 0; k < n; k++) {
+            Thread w = new Thread(() -> {
+                try {
+                    int i;
+                    while (fail.get() == null && (i = next.getAndIncrement()) < jobs.size()) {
+                        File[] j = jobs.get(i);
+                        copyOne(j[0], j[1]);
+                    }
+                } catch (Throwable ex) {
+                    fail.compareAndSet(null, ex);
+                } finally {
+                    done.countDown();
+                }
+            }, "copy-" + k);
+            w.start();
+        }
+        try {
+            done.await();
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            fail.compareAndSet(null, ie);
+        }
+        Throwable f = fail.get();
+        if (f instanceof IOException) throw (IOException) f;
+        if (f instanceof RuntimeException) throw (RuntimeException) f;
+        if (f != null) throw new IOException(String.valueOf(f.getMessage()));
+    }
+
+    /** Creates the folders (cheap) and lists the files to copy, so the copying itself can run on several threads. */
+    private void planCopy(File src, File dst, List<File[]> jobs, int depth) throws IOException {
         if (cancelled) throw new Cancel();
+        if (depth > 200) throw new IOException(src.getName());
         if (src.isDirectory()) {
             if (!dst.exists() && !dst.mkdirs()) {
                 throw new IOException(getString(R.string.fm_err_mkdir, dst.getName()));
             }
             File[] kids = src.listFiles();
-            if (kids != null) for (File k : kids) copyTree(k, new File(dst, k.getName()));
+            if (kids != null) for (File k : kids) planCopy(k, new File(dst, k.getName()), jobs, depth + 1);
         } else {
-            setBusy(src.getName());
-            try (java.nio.channels.FileChannel in = new FileInputStream(src).getChannel();
-                 java.nio.channels.FileChannel out = new FileOutputStream(dst).getChannel()) {
-                long size = in.size();
-                long pos = 0;
-                while (pos < size) {
-                    if (cancelled) throw new Cancel();
-                    long n = in.transferTo(pos, Math.min(8L << 20, size - pos), out);
-                    if (n <= 0) break;
-                    pos += n;
+            jobs.add(new File[]{src, dst});
+        }
+    }
+
+    private void copyOne(File src, File dst) throws IOException {
+        if (cancelled) throw new Cancel();
+        setBusy(src.getName());
+        try (java.nio.channels.FileChannel in = new FileInputStream(src).getChannel();
+             java.nio.channels.FileChannel out = new FileOutputStream(dst).getChannel()) {
+            long size = in.size();
+            long pos = 0;
+            while (pos < size) {
+                if (cancelled) throw new Cancel();
+                long w = in.transferTo(pos, Math.min(8L << 20, size - pos), out);
+                if (w <= 0) break;
+                pos += w;
+            }
+        }
+        //noinspection ResultOfMethodCallIgnored
+        dst.setLastModified(src.lastModified());
+    }
+
+    /** Several threads unpack a zip side by side; progress follows the bytes written. */
+    private int fastZip(Arc arc, File dest, long room, final long total) throws IOException {
+        if (arc.items.size() > Arc.MAX_ENTRIES) throw new IOException(getString(R.string.fm_err_zip_unsafe));
+        final java.util.concurrent.atomic.AtomicLong written = new java.util.concurrent.atomic.AtomicLong();
+        final int[] last = {-1};
+        return FastExtract.zip(arc, dest, room, new FastExtract.Host() {
+            @Override
+            public boolean cancelled() {
+                return FileManagerActivity.this.cancelled;
+            }
+
+            @Override
+            public void name(String name) {
+                setBusy(name);
+            }
+
+            @Override
+            public void bytes(long n) {
+                long d = written.addAndGet(n);
+                if (total > 0) {
+                    int pct = (int) Math.min(99, d * 100 / total);
+                    if (pct != last[0]) {
+                        last[0] = pct;
+                        setBusyPercent(pct);
+                    }
                 }
             }
-            //noinspection ResultOfMethodCallIgnored
-            dst.setLastModified(src.lastModified());
-        }
+        });
     }
 
     private void copyOrClean(File src, File dst) throws IOException {
@@ -2608,7 +2691,9 @@ public class FileManagerActivity extends BaseActivity {
                 final long room = Math.max(0L, dest.getUsableSpace() - 64L * 1024 * 1024);
                 if (total > room) throw new IOException(getString(R.string.zip_no_space, Fmt.size(total), Fmt.size(room)));
                 try {
-                    arc.walk(it -> true, (it, in) -> {
+                    if (arc.isZip() && arc.items.size() > 1) {
+                        count[0] = fastZip(arc, dest, room, fTotal);
+                    } else arc.walk(it -> true, (it, in) -> {
                         if (cancelled) throw new Cancel();
                         if (count[0] > Arc.MAX_ENTRIES) throw new IOException(getString(R.string.fm_err_zip_unsafe));
                         File out = new File(dest, it.name);

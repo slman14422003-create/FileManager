@@ -25,7 +25,7 @@ import java.util.concurrent.Executors;
 
 public class SmartActivity extends BaseActivity {
     static final String EXTRA = "mode";
-    static final String M_CLEAN = "clean", M_ORG = "organize", M_NAME = "rename", M_FIND = "find", M_GUARD = "guard";
+    static final String M_CLEAN = "clean", M_ORG = "organize", M_NAME = "rename", M_FIND = "find", M_GUARD = "guard", M_AUTO = "auto";
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -97,6 +97,8 @@ public class SmartActivity extends BaseActivity {
 
     private int titleRes() {
         switch (mode) {
+            case M_AUTO:
+                return R.string.sm_auto;
             case M_ORG:
                 return R.string.sm_org;
             case M_NAME:
@@ -112,6 +114,8 @@ public class SmartActivity extends BaseActivity {
 
     private int subRes() {
         switch (mode) {
+            case M_AUTO:
+                return R.string.sm_auto_sub;
             case M_ORG:
                 return R.string.sm_org_sub;
             case M_NAME:
@@ -146,6 +150,9 @@ public class SmartActivity extends BaseActivity {
         }
         needPerm = false;
         switch (mode) {
+            case M_AUTO:
+                scanAuto();
+                break;
             case M_ORG:
             case M_NAME:
                 scanMoves();
@@ -352,6 +359,7 @@ public class SmartActivity extends BaseActivity {
             });
             content.addView(b);
         }
+        if (organize) content.addView(autoToggle());
         if (moves.isEmpty()) {
             content.addView(Ui.body(this, getString(organize ? R.string.sm_org_none : R.string.sm_name_none), 14,
                     R.color.text_secondary));
@@ -400,6 +408,127 @@ public class SmartActivity extends BaseActivity {
                 Dlg.result(this, n > 0, getString(titleRes()),
                         getString(organize ? R.string.sm_org_done : R.string.sm_name_done, n));
                 scanMoves();
+            });
+        });
+    }
+
+    // ------------------------------------------------------------------ organize everything
+
+    private Button autoToggle() {
+        final Button b = Ui.block(this, Ui.button(this, R.string.cancel, false));
+        b.setText(AutoOrganize.autoDownloads(this) ? R.string.sm_auto_dl_on : R.string.sm_auto_dl_off);
+        b.setOnClickListener(v -> {
+            AutoOrganize.setAutoDownloads(this, !AutoOrganize.autoDownloads(this));
+            b.setText(AutoOrganize.autoDownloads(this) ? R.string.sm_auto_dl_on : R.string.sm_auto_dl_off);
+        });
+        return b;
+    }
+
+    private void scanAuto() {
+        scanning();
+        final long my = ++gen;
+        final boolean deep = AutoOrganize.deep(this);
+        io.execute(() -> {
+            final List<SmartPlan.Move> r = AutoOrganize.plan(this, deep, () -> !alive(my));
+            ui.post(() -> {
+                if (!alive(my)) return;
+                moves = r;
+                renderAuto();
+            });
+        });
+    }
+
+    private void renderAuto() {
+        busy(false);
+        content.removeAllViews();
+        final boolean deep = AutoOrganize.deep(this);
+        final int undo = SmartPlan.journalSize(this);
+        if (undo > 0) {
+            Button b = Ui.block(this, Ui.button(this, R.string.cancel, false));
+            b.setText(getString(R.string.sm_undo, undo));
+            b.setOnClickListener(v -> {
+                busy(true);
+                io.execute(() -> {
+                    final int n = SmartPlan.undo(this);
+                    ui.post(() -> {
+                        if (destroyed) return;
+                        busy(false);
+                        Dlg.result(this, n > 0, getString(titleRes()), getString(R.string.sm_undone, n));
+                        scanAuto();
+                    });
+                });
+            });
+            content.addView(b);
+        }
+        Button scope = Ui.block(this, Ui.button(this, R.string.cancel, false));
+        scope.setText(deep ? R.string.sm_auto_mode_deep : R.string.sm_auto_mode_safe);
+        scope.setOnClickListener(v -> {
+            AutoOrganize.setDeep(this, !deep);
+            scanAuto();
+        });
+        content.addView(scope);
+        content.addView(autoToggle());
+        if (moves.isEmpty()) {
+            content.addView(Ui.body(this, getString(R.string.sm_auto_none), 14, R.color.text_secondary));
+            return;
+        }
+        java.util.LinkedHashMap<String, List<SmartPlan.Move>> groups = new java.util.LinkedHashMap<>();
+        for (SmartPlan.Move m : moves) {
+            List<SmartPlan.Move> g = groups.get(m.group);
+            if (g == null) {
+                g = new ArrayList<>();
+                groups.put(m.group, g);
+            }
+            g.add(m);
+        }
+        content.addView(Ui.noteCard(this, getString(R.string.sm_auto_summary, moves.size(), groups.size()), R.color.accent_text));
+        content.addView(Ui.body(this, getString(R.string.sm_auto_protected), 12, R.color.text_secondary));
+        action = Ui.block(this, Ui.button(this, R.string.delete, true));
+        action.setOnClickListener(v -> applyAuto());
+        content.addView(action);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        for (java.util.Map.Entry<String, List<SmartPlan.Move>> en : groups.entrySet()) {
+            final List<SmartPlan.Move> list = en.getValue();
+            long bytes = 0;
+            StringBuilder names = new StringBuilder();
+            for (int i = 0; i < list.size(); i++) {
+                bytes += list.get(i).from.length();
+                if (i < 3) {
+                    if (names.length() > 0) names.append(", ");
+                    names.append(list.get(i).from.getName());
+                }
+            }
+            if (list.size() > 3) names.append(" \u2026");
+            String title = getString(R.string.sm_auto_group, en.getKey(), list.size());
+            CheckBox cb = checkRow(title, Fmt.size(bytes) + " \u00b7 " + names, true);
+            cb.setOnCheckedChangeListener((b, on) -> {
+                for (SmartPlan.Move m : list) m.checked = on;
+                updateAutoAction();
+            });
+            box.addView(cb);
+        }
+        Ui.group(this, box);
+        content.addView(box);
+        updateAutoAction();
+    }
+
+    private void updateAutoAction() {
+        int n = 0;
+        for (SmartPlan.Move m : moves) if (m.checked) n++;
+        action.setText(getString(R.string.sm_auto_apply, n));
+        action.setEnabled(n > 0);
+    }
+
+    private void applyAuto() {
+        busy(true);
+        io.execute(() -> {
+            final int n = SmartPlan.apply(this, moves);
+            ui.post(() -> {
+                if (destroyed) return;
+                busy(false);
+                Dlg.result(this, n > 0, getString(titleRes()), getString(R.string.sm_org_done, n));
+                scanAuto();
             });
         });
     }

@@ -151,9 +151,31 @@ public class ExternalDocs extends DocumentsProvider {
     @Override
     public ParcelFileDescriptor openDocument(String documentId, String mode, CancellationSignal signal)
             throws FileNotFoundException {
-        File f = fileFor(documentId);
-        return ParcelFileDescriptor.open(f, ParcelFileDescriptor.parseMode(mode));
+        final File f = fileFor(documentId);
+        final int m = ParcelFileDescriptor.parseMode(mode);
+        if ((m & ParcelFileDescriptor.MODE_WRITE_ONLY) == 0) return ParcelFileDescriptor.open(f, m);
+        File parent = f.getParentFile();
+        if (parent != null && !parent.exists() && !parent.mkdirs()) throw new FileNotFoundException("no folder");
+        try {
+            // once the other app closes the file, tell the media database so the new file shows up everywhere
+            return ParcelFileDescriptor.open(f, m, new android.os.Handler(android.os.Looper.getMainLooper()), e -> {
+                try {
+                    if (getContext() != null) {
+                        android.media.MediaScannerConnection.scanFile(getContext(), new String[]{f.getAbsolutePath()}, null, null);
+                    }
+                } catch (Throwable ignored) {
+                }
+            });
+        } catch (IOException e) {
+            throw new FileNotFoundException(String.valueOf(e.getMessage()));
+        }
     }
+
+    @Override
+    public void removeDocument(String documentId, String parentDocumentId) throws FileNotFoundException {
+        deleteDocument(documentId);
+    }
+
 
     @Override
     public String createDocument(String parentDocumentId, String mimeType, String displayName)

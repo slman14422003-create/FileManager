@@ -20,12 +20,12 @@ def hasSigning = signStore && signStorePass && signAlias && signKeyPass
 
 android {
     namespace = 'com.fileman.app'
-    compileSdk = 36   // Android 16
+    compileSdk = 37   // Android 17
 
     defaultConfig {
         applicationId = "app.fileman.mgr"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         // CI run number keeps versionCode increasing so a new build always installs over the old one
         versionCode = (System.getenv('VERSION_CODE_OVERRIDE') ?: (10 + (System.getenv('GITHUB_RUN_NUMBER') ?: '0').toInteger()).toString()).toInteger()
         versionName = System.getenv('APP_VERSION_NAME') ?: "2.0"

@@ -66,6 +66,7 @@ public class ShareScanActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Perms.requestLocalNetwork(this);
         Map<DecodeHintType, Object> hints = new EnumMap<>(DecodeHintType.class);
         hints.put(DecodeHintType.POSSIBLE_FORMATS, Collections.singletonList(BarcodeFormat.QR_CODE));
         hints.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);

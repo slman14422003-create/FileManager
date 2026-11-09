@@ -81,7 +81,10 @@ public class PickActivity extends Activity {
         int asked = getIntent() == null ? 0 : getIntent().getFlags();
         int flags = Intent.FLAG_GRANT_READ_URI_PERMISSION;
         if (forceWrite || (asked & Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != 0) flags |= Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
-        if ((asked & Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION) != 0) flags |= Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION;
+        // the system picker always makes these grants durable; apps call takePersistableUriPermission on the result
+        // and treat the SecurityException as a failed save even though the file was written
+        boolean durable = ACTION_TREE.equals(action) || ACTION_CREATE.equals(action) || ACTION_OPEN.equals(action);
+        if (durable || (asked & Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION) != 0) flags |= Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION;
         return flags;
     }
 

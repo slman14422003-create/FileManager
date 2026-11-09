@@ -387,8 +387,10 @@ final class ZipReader implements Closeable {
         if (method != STORED && method != DEFLATED) throw new ZipException("unsupported method " + method);
         if (e.dataStart < 0) {
             byte[] lh = new byte[30];
-            raf.seek(e.offset);
-            raf.readFully(lh);
+            synchronized (raf) {
+                raf.seek(e.offset);
+                raf.readFully(lh);
+            }
             if (u32(lh, 0) != 0x04034b50L) throw new ZipException("bad local header");
             e.dataStart = e.offset + 30 + u16(lh, 26) + u16(lh, 28);
         }

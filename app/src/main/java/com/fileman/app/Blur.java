@@ -60,7 +60,7 @@ final class Blur {
     static boolean enabled(Context c) {
         SharedPreferences sp = c.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         if (sp.contains(K_ON)) return sp.getBoolean(K_ON, true);
-        return !weakDevice(c);
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S;   // the pre-12 path is software blur: opt-in only
     }
 
     static void setEnabled(Context c, boolean on) {
@@ -282,8 +282,9 @@ final class Blur {
             int base = surface ? Ui.color(a, R.color.surface) : st.tint;
             int overlay = (base & 0x00FFFFFF) | (alpha << 24);
             boolean modern = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S;
-            v.setupWith(st.target, modern ? 1f : 4f, false)
-                    .setBlurRadius(modern ? 30f : 6f)
+            // BlurView 3: radius 10 at scale 3 looks like radius 30 at scale 1 but blurs a 9x smaller snapshot
+            v.setupWith(st.target, modern ? 3f : 6f, false)
+                    .setBlurRadius(modern ? 10f : 5f)
                     .setOverlayColor(overlay);
             if (r > 0) v.setBackground(edge(a, r));
         } else {

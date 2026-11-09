@@ -60,7 +60,7 @@ final class SmartPlan {
         return n;
     }
 
-    private static String folderFor(String name) {
+    static String folderFor(String name) {
         String low = name.toLowerCase(Locale.ROOT);
         if (WA.matcher(name).find() || low.contains("whatsapp")) return "WhatsApp";
         if (TG.matcher(name).find() || low.startsWith("telegram")) return "Telegram";
@@ -87,7 +87,7 @@ final class SmartPlan {
         }
     }
 
-    private static boolean partialName(String name) {
+    static boolean partialName(String name) {
         String e = Cats.extOf(name);
         return e.equals("crdownload") || e.equals("part") || e.equals("download") || e.equals("tmp")
                 || e.equals("temp") || e.equals("opdownload") || e.equals("partial");
