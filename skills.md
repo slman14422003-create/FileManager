@@ -206,5 +206,5 @@
 - FastExtract: استخراج zip بعدة خيوط. FileManagerActivity: نسخ متوازٍ (planCopy/copyOne) وتخفيف setBusy. ZipReader: قراءة الترويسة داخل synchronized.
 - AutoOrganize + SmartActivity.M_AUTO: خطة ترتيب للجهاز تُعرض قبل التنفيذ مع تراجع، وترتيب التنزيلات الجديدة تلقائيًا عند onResume (قابل للإيقاف).
 - SmartQuery + SmartIndex.search: فهم النوع والوقت والحجم وتسامح مع الأخطاء الإملائية.
-- أندرويد 17: compileSdk/targetSdk 37، android.suppressUnsupportedCompileSdk=37، منصة android-37 في build.yml، إذن ACCESS_LOCAL_NETWORK يُطلب في شاشات المشاركة.
+- أندرويد 17: targetSdk 37 مع بقاء compileSdk 36 (حزمة SDK لأندرويد 17 اسمها platforms;android-37.0 وتحتاج AGP 9.1.1+ وGradle 9.3.1 للترقية الكاملة)، إذن ACCESS_LOCAL_NETWORK يُطلب في شاشات المشاركة.
 - لم يُشغَّل البناء محليًا.
