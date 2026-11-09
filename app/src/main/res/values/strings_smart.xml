@@ -97,4 +97,15 @@
     <string name="ic_gold">ذهبي</string>
     <string name="ic_night">أزرق ليلي</string>
     <string name="ic_graphite">رمادي داكن</string>
+    <string name="sm_auto">ترتيب الجهاز تلقائيًا</string>
+    <string name="sm_auto_sub">يخطط لترتيب ملفات الجهاز حسب النوع والموضوع، يعرض الخطة، ثم ينفذها مع تراجع</string>
+    <string name="sm_auto_none">لا توجد ملفات تحتاج ترتيبًا. الملفات الجديدة جدًا والتنزيلات غير المكتملة تُترك.</string>
+    <string name="sm_auto_summary">الخطة: نقل %1$d ملف إلى %2$d مجلدًا. راجعها وألغِ ما لا تريده قبل التنفيذ.</string>
+    <string name="sm_auto_apply">تنفيذ الخطة (%1$d)</string>
+    <string name="sm_auto_group">%1$s — %2$d ملف</string>
+    <string name="sm_auto_protected">لا يُمس: ملفات النظام ومجلد Android والكاميرا والمجلدات المخفية والمشاريع والمجلدات المرتبة سابقًا.</string>
+    <string name="sm_auto_mode_safe">النطاق: الملفات السائبة فقط (اضغط للتوسيع)</string>
+    <string name="sm_auto_mode_deep">النطاق: يشمل المجلدات المبعثرة (اضغط للتضييق)</string>
+    <string name="sm_auto_dl_on">ترتيب التنزيلات الجديدة تلقائيًا: مفعّل (اضغط للإيقاف)</string>
+    <string name="sm_auto_dl_off">ترتيب التنزيلات الجديدة تلقائيًا: متوقف (اضغط للتفعيل)</string>
 </resources>

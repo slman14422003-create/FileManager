@@ -198,3 +198,13 @@
 - activity_home: الزر btnUsb في الزاوية العلوية يظهر فقط عند وجود وحدة، ويفتح شاشتها (أو يسأل أي وحدة عند وجود أكثر من واحدة).
 - النصوص في strings_usb.xml بالعربية والإنجليزية.
 - لم يُشغَّل البناء محليًا، يجب التحقق من نجاحه على GitHub Actions.
+
+## مهمة: أداء، تنزيل Claude، استخراج متوازٍ، ترتيب تلقائي، أندرويد 17
+- PickActivity.grantFlags: منح دائم (persistable) دائمًا لـ OPEN_DOCUMENT وCREATE_DOCUMENT وOPEN_DOCUMENT_TREE (سبب محتمل لظهور "فشل التنزيل" مع أن الملف يُحفظ). ExternalDocs.openDocument يمسح الوسائط عند إغلاق الملف المكتوب وأضيف removeDocument. لم يُجرَّب على جهاز.
+- Ui.color وoutlineBox وcolorTile صارت مخزنة مؤقتًا لكل Theme (تُمسح في Appearance.applyTo) لتخفيف bind الصفوف.
+- Blur: مقياس 3 ونصف قطر 10 على أندرويد 12+ (مكافئ لنصف قطر 30 بمقياس 1 حسب BlurView 3)، والتأثير على أقل من 12 اختياري افتراضيًا.
+- FastExtract: استخراج zip بعدة خيوط. FileManagerActivity: نسخ متوازٍ (planCopy/copyOne) وتخفيف setBusy. ZipReader: قراءة الترويسة داخل synchronized.
+- AutoOrganize + SmartActivity.M_AUTO: خطة ترتيب للجهاز تُعرض قبل التنفيذ مع تراجع، وترتيب التنزيلات الجديدة تلقائيًا عند onResume (قابل للإيقاف).
+- SmartQuery + SmartIndex.search: فهم النوع والوقت والحجم وتسامح مع الأخطاء الإملائية.
+- أندرويد 17: compileSdk/targetSdk 37، android.suppressUnsupportedCompileSdk=37، منصة android-37 في build.yml، إذن ACCESS_LOCAL_NETWORK يُطلب في شاشات المشاركة.
+- لم يُشغَّل البناء محليًا.

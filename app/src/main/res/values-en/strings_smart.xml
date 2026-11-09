@@ -97,4 +97,15 @@
     <string name="ic_gold">Gold</string>
     <string name="ic_night">Midnight blue</string>
     <string name="ic_graphite">Dark graphite</string>
+    <string name="sm_auto">Organize device automatically</string>
+    <string name="sm_auto_sub">Plans how to sort your files by kind and topic, shows the plan, then applies it with undo</string>
+    <string name="sm_auto_none">Nothing needs organizing. Very new files and unfinished downloads are left alone.</string>
+    <string name="sm_auto_summary">Plan: move %1$d files into %2$d folders. Review it and untick anything you do not want.</string>
+    <string name="sm_auto_apply">Apply plan (%1$d)</string>
+    <string name="sm_auto_group">%1$s — %2$d files</string>
+    <string name="sm_auto_protected">Never touched: system files, the Android folder, camera, hidden items, projects and folders already organized.</string>
+    <string name="sm_auto_mode_safe">Scope: loose files only (tap to widen)</string>
+    <string name="sm_auto_mode_deep">Scope: includes messy folders (tap to narrow)</string>
+    <string name="sm_auto_dl_on">Auto-sort new downloads: on (tap to turn off)</string>
+    <string name="sm_auto_dl_off">Auto-sort new downloads: off (tap to turn on)</string>
 </resources>
