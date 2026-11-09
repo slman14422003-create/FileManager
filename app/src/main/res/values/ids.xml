@@ -6,4 +6,5 @@
     <item name="tag_glass_spec" type="id" />
     <item name="tag_glass_done" type="id" />
     <item name="tag_pad" type="id" />
+    <item name="tag_holder" type="id" />
 </resources>

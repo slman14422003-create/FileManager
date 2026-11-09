@@ -36,6 +36,7 @@
         <item name="colorControlActivated">?attr/cAccentText</item>
         <item name="android:textColorLink">?attr/cAccentText</item>
         <item name="android:windowAnimationStyle">@style/ActivityAnim</item>
+        <item name="colorControlHighlight">@android:color/transparent</item>
         <item name="android:seekBarStyle">@style/IosSeekBar</item>
         <item name="seekBarStyle">@style/IosSeekBar</item>
     </style>

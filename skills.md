@@ -208,3 +208,8 @@
 - SmartQuery + SmartIndex.search: فهم النوع والوقت والحجم وتسامح مع الأخطاء الإملائية.
 - أندرويد 17: targetSdk 37 مع بقاء compileSdk 36 (حزمة SDK لأندرويد 17 اسمها platforms;android-37.0 وتحتاج AGP 9.1.1+ وGradle 9.3.1 للترقية الكاملة)، إذن ACCESS_LOCAL_NETWORK يُطلب في شاشات المشاركة.
 - لم يُشغَّل البناء محليًا.
+
+## جولة ثانية: سلاسة، تصميم iOS، سجل المنتقي
+- PickLog: يكتب Download/FileManager-picker-log.txt (اتصالات المنتقي والمزوّد ومن استدعاها والاستثناءات) لتشخيص "فشل التنزيل" في Claude. ExternalDocs يقبل كل وحدات التخزين ويفتح الملف بواصف عادي (بدون OnCloseListener).
+- التمييز: أزرق iOS (007AFF نهارًا و0A84FF ليلًا)؛ كل ripple في drawable صار selector بوميض رمادي عند الضغط (row_press)، وcolorControlHighlight شفاف.
+- FileAdapter: ViewHolder (tag_holder)، كاش للألوان، خيوط المصغّرات بأولوية خلفية، طلب معدل إطارات عالٍ (API 35+)، اهتزاز عند الضغط المطوّل.
