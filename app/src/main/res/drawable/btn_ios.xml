@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/ripple">
-    <item>
+<selector xmlns:android="http://schemas.android.com/apk/res/android" android:exitFadeDuration="220">
+    <item android:state_pressed="true">
+        <layer-list>
+<item>
         <layer-list>
             <item android:height="0.5dp" android:gravity="top">
                 <shape android:shape="rectangle">
@@ -9,9 +11,24 @@
             </item>
         </layer-list>
     </item>
-    <item android:id="@android:id/mask">
+<item>
         <shape android:shape="rectangle">
-            <solid android:color="#FFFFFF" />
+            <solid android:color="@color/row_press" />
         </shape>
     </item>
-</ripple>
+        </layer-list>
+    </item>
+    <item>
+        <layer-list>
+<item>
+        <layer-list>
+            <item android:height="0.5dp" android:gravity="top">
+                <shape android:shape="rectangle">
+                    <solid android:color="?attr/cStroke" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+        </layer-list>
+    </item>
+</selector>

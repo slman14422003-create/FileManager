@@ -1,8 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/ripple_on_accent">
-    <item>
+<selector xmlns:android="http://schemas.android.com/apk/res/android" android:exitFadeDuration="220">
+    <item android:state_pressed="true">
+        <layer-list>
+<item>
         <shape android:shape="oval">
             <solid android:color="?attr/cAccent" />
         </shape>
     </item>
-</ripple>
+<item><shape android:shape="oval"><solid android:color="@color/row_press" /></shape></item>
+        </layer-list>
+    </item>
+    <item>
+        <layer-list>
+<item>
+        <shape android:shape="oval">
+            <solid android:color="?attr/cAccent" />
+        </shape>
+    </item>
+        </layer-list>
+    </item>
+</selector>
