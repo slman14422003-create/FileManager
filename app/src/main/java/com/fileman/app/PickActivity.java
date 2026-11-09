@@ -32,7 +32,7 @@ public class PickActivity extends Activity {
         Intent in = getIntent();
         action = in == null || in.getAction() == null ? "" : in.getAction();
         PickLog.add(this, "picker " + action + " from " + getCallingPackage() + " type=" + (in == null ? null : in.getType())
-                + " title=" + (in == null ? null : in.getStringExtra(Intent.EXTRA_TITLE)) + " flags=0x"
+                + " title=" + PickRequest.title(in) + " flags=0x"
                 + Integer.toHexString(in == null ? 0 : in.getFlags()), null);
         if (savedInstanceState == null) {
             Intent i = new Intent(this, FileManagerActivity.class);
