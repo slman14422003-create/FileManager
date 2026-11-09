@@ -469,8 +469,15 @@ public final class Ui {
             ld.setLayerInsetStart(1, dp(c, inset));
             base = ld;
         }
-        card.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(color(c, R.color.ripple)), base, mask));
+        GradientDrawable press = new GradientDrawable();
+        press.setColor(color(c, R.color.row_press));
+        press.setCornerRadii(radii);
+        android.graphics.drawable.StateListDrawable flash = new android.graphics.drawable.StateListDrawable();
+        flash.setExitFadeDuration(220);   // like UIKit: the row greys instantly and fades back when released
+        flash.addState(new int[]{android.R.attr.state_pressed}, press);
+        flash.addState(new int[]{}, new android.graphics.drawable.ColorDrawable(0));
+        card.setBackground(new android.graphics.drawable.LayerDrawable(
+                new android.graphics.drawable.Drawable[]{base, flash}));
     }
 
     /** Groups every run of consecutive row cards inside a container. */

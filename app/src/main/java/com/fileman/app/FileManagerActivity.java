@@ -183,7 +183,27 @@ public class FileManagerActivity extends BaseActivity {
     }
 
     private final ExecutorService io = Executors.newFixedThreadPool(3);
-    private final ExecutorService thumbIo = Executors.newFixedThreadPool(2);
+    private final ExecutorService thumbIo = Executors.newFixedThreadPool(2, r -> new Thread(() -> {
+        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
+        r.run();
+    }, "thumb"));
+    private final android.util.SparseArray<ColorStateList> tints = new android.util.SparseArray<>();
+
+    private ColorStateList tint(int color) {
+        ColorStateList t = tints.get(color);
+        if (t == null) {
+            t = ColorStateList.valueOf(color);
+            tints.put(color, t);
+        }
+        return t;
+    }
+
+    /** Views of one list row, found once when the row is inflated instead of on every bind. */
+    private static final class RowViews {
+        ImageView icon, thumb;
+        TextView title, sub, date;
+        View pin, fav, check;
+    }
     private final ExecutorService kidsIo = Executors.newSingleThreadExecutor();
     private long kidsGen;
     private final Runnable kidsNotify = () -> {
@@ -296,12 +316,15 @@ public class FileManagerActivity extends BaseActivity {
         searchView = findViewById(R.id.search);
         crumbRow = findViewById(R.id.crumbRow);
         listView = findViewById(R.id.list);
+        if (android.os.Build.VERSION.SDK_INT >= 35) listView.setRequestedFrameRate(View.REQUESTED_FRAME_RATE_CATEGORY_HIGH);
+        listView.setScrollingCacheEnabled(false);
         if (loadingBar instanceof ProgressBar) Ui.tint(this, (ProgressBar) loadingBar);
 
         adapter = new FileAdapter();
         listView.setAdapter(adapter);
         listView.setOnItemClickListener((p, v, pos, id) -> onItemClick(pos));
         listView.setOnItemLongClickListener((p, v, pos, id) -> {
+            v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
             toggleSelect(pos);
             return true;
         });
@@ -1578,25 +1601,40 @@ public class FileManagerActivity extends BaseActivity {
 
         @Override
         public View getView(int pos, View v, ViewGroup parent) {
-            if (v == null) v = getLayoutInflater().inflate(R.layout.item_file, parent, false);
+            RowViews h;
+            if (v == null) {
+                v = getLayoutInflater().inflate(R.layout.item_file, parent, false);
+                h = new RowViews();
+                h.icon = v.findViewById(R.id.icon);
+                h.thumb = v.findViewById(R.id.thumb);
+                h.title = v.findViewById(R.id.title);
+                h.sub = v.findViewById(R.id.sub);
+                h.date = v.findViewById(R.id.date);
+                h.pin = v.findViewById(R.id.pin);
+                h.fav = v.findViewById(R.id.fav);
+                h.check = v.findViewById(R.id.check);
+                h.thumb.setBackground(Ui.outlineBox(FileManagerActivity.this, Ui.dp(FileManagerActivity.this, 10)));
+                h.thumb.setClipToOutline(true);
+                v.setTag(R.id.tag_holder, h);
+            } else {
+                h = (RowViews) v.getTag(R.id.tag_holder);
+            }
             final Entry e = shown.get(pos);
             final String path = e.f.getAbsolutePath();
             boolean sel = selected.contains(path);
             int type = typeOf(e);
             int color = Ui.color(FileManagerActivity.this, e.dir ? R.color.accent : colorFor(type));
 
-            ImageView icon = v.findViewById(R.id.icon);
-            ImageView thumb = v.findViewById(R.id.thumb);
+            ImageView icon = h.icon;
+            ImageView thumb = h.thumb;
             icon.setImageResource(iconFor(type));
             if (e.dir) {
                 Ui.outlineIcon(FileManagerActivity.this, icon, 10);
             } else {
-                icon.setImageTintList(ColorStateList.valueOf(color));
+                icon.setImageTintList(tint(color));
                 icon.setBackground(Ui.colorTile(FileManagerActivity.this, Ui.dp(FileManagerActivity.this, 40),
                         colorFor(type), false));
             }
-            thumb.setBackground(Ui.outlineBox(FileManagerActivity.this, Ui.dp(FileManagerActivity.this, 10)));
-            thumb.setClipToOutline(true);
             thumb.setTag(path);
             Bitmap cached = (type == T_IMG || type == T_APK || type == T_VID) ? thumbs.get(path + "|" + e.mod) : null;
             if (cached != null) {
@@ -1609,7 +1647,7 @@ public class FileManagerActivity extends BaseActivity {
                 if (type == T_IMG || type == T_APK || type == T_VID) loadThumb(e, type, thumb, icon);
             }
 
-            ((TextView) v.findViewById(R.id.title)).setText(e.name);
+            h.title.setText(e.name);
             StringBuilder sub = new StringBuilder();
             if (e.dir) {
                 sub.append(e.kids == KIDS_UNKNOWN ? "\u2026" : e.kids < 0 ? getString(R.string.fm_unreadable) : getString(R.string.fm_items_n, e.kids));
@@ -1620,12 +1658,12 @@ public class FileManagerActivity extends BaseActivity {
                 File p = e.f.getParentFile();
                 if (p != null) sub.append(" · ").append(p.getAbsolutePath());
             }
-            ((TextView) v.findViewById(R.id.sub)).setText(sub.toString());
-            ((TextView) v.findViewById(R.id.date)).setText(dateFmt.format(new Date(e.mod)));
+            h.sub.setText(sub.toString());
+            h.date.setText(dateFmt.format(new Date(e.mod)));
 
-            v.findViewById(R.id.pin).setVisibility(pinSet().contains(path) ? View.VISIBLE : View.GONE);
-            v.findViewById(R.id.fav).setVisibility(favSet().contains(path) ? View.VISIBLE : View.GONE);
-            v.findViewById(R.id.check).setVisibility(sel ? View.VISIBLE : View.GONE);
+            h.pin.setVisibility(pinSet().contains(path) ? View.VISIBLE : View.GONE);
+            h.fav.setVisibility(favSet().contains(path) ? View.VISIBLE : View.GONE);
+            h.check.setVisibility(sel ? View.VISIBLE : View.GONE);
             Ui.shapeRow(FileManagerActivity.this, v, pos == 0, pos == shown.size() - 1,
                     sel ? R.color.accent_soft : R.color.surface);
             v.animate().cancel();

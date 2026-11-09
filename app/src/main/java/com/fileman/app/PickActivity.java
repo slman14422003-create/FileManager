@@ -31,6 +31,9 @@ public class PickActivity extends Activity {
         super.onCreate(savedInstanceState);
         Intent in = getIntent();
         action = in == null || in.getAction() == null ? "" : in.getAction();
+        PickLog.add(this, "picker " + action + " from " + getCallingPackage() + " type=" + (in == null ? null : in.getType())
+                + " title=" + (in == null ? null : in.getStringExtra(Intent.EXTRA_TITLE)) + " flags=0x"
+                + Integer.toHexString(in == null ? 0 : in.getFlags()), null);
         if (savedInstanceState == null) {
             Intent i = new Intent(this, FileManagerActivity.class);
             if (ACTION_TREE.equals(action)) {
@@ -71,6 +74,7 @@ public class PickActivity extends Activity {
                 finishFiles(data);
             }
         } catch (Exception e) {
+            PickLog.add(this, "picker FAILED", e);
             Toast.makeText(this, R.string.open_link_failed, Toast.LENGTH_SHORT).show();
             setResult(RESULT_CANCELED);
             finish();
@@ -116,6 +120,7 @@ public class PickActivity extends Activity {
         Intent r = new Intent();
         r.setData(ExternalDocs.documentUri(out));
         r.addFlags(grantFlags(true));
+        PickLog.add(this, "picker result " + r.getData() + " flags=0x" + Integer.toHexString(r.getFlags()), null);
         setResult(RESULT_OK, r);
         finish();
     }

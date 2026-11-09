@@ -61,10 +61,7 @@ public class ExternalDocs extends DocumentsProvider {
         File f = new File(docId);
         try {
             String canon = f.getCanonicalPath();
-            String root = base().getCanonicalPath();
-            if (!canon.equals(root) && !canon.startsWith(root + File.separator)) {
-                throw new FileNotFoundException("outside storage");
-            }
+            if (!insideVolume(canon)) throw new FileNotFoundException("outside storage");
             if (getContext() != null && !Safe.mayExpose(getContext(), f)) {
                 throw new FileNotFoundException("private");
             }
@@ -72,6 +69,34 @@ public class ExternalDocs extends DocumentsProvider {
             throw new FileNotFoundException(e.getMessage());
         }
         return f;
+    }
+
+    /** Shared storage of this user plus every mounted card or USB volume (a save may have been made there). */
+    private boolean insideVolume(String canon) throws IOException {
+        String root = base().getCanonicalPath();
+        if (canon.equals(root) || canon.startsWith(root + File.separator)) return true;
+        if (android.os.Build.VERSION.SDK_INT >= 30 && getContext() != null) {
+            android.os.storage.StorageManager sm = (android.os.storage.StorageManager) getContext().getSystemService(android.content.Context.STORAGE_SERVICE);
+            if (sm != null) {
+                for (android.os.storage.StorageVolume v : sm.getStorageVolumes()) {
+                    File d = v.getDirectory();
+                    if (d == null) continue;
+                    String r = d.getCanonicalPath();
+                    if (canon.equals(r) || canon.startsWith(r + File.separator)) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void log(String what, Throwable e) {
+        if (getContext() == null) return;
+        String who = null;
+        try {
+            who = getCallingPackage();
+        } catch (Throwable ignored) {
+        }
+        PickLog.add(getContext(), "provider " + what + " from " + who, e);
     }
 
     private static String mimeOf(File f) {
@@ -151,23 +176,20 @@ public class ExternalDocs extends DocumentsProvider {
     @Override
     public ParcelFileDescriptor openDocument(String documentId, String mode, CancellationSignal signal)
             throws FileNotFoundException {
-        final File f = fileFor(documentId);
-        final int m = ParcelFileDescriptor.parseMode(mode);
-        if ((m & ParcelFileDescriptor.MODE_WRITE_ONLY) == 0) return ParcelFileDescriptor.open(f, m);
-        File parent = f.getParentFile();
-        if (parent != null && !parent.exists() && !parent.mkdirs()) throw new FileNotFoundException("no folder");
         try {
-            // once the other app closes the file, tell the media database so the new file shows up everywhere
-            return ParcelFileDescriptor.open(f, m, new android.os.Handler(android.os.Looper.getMainLooper()), e -> {
-                try {
-                    if (getContext() != null) {
-                        android.media.MediaScannerConnection.scanFile(getContext(), new String[]{f.getAbsolutePath()}, null, null);
-                    }
-                } catch (Throwable ignored) {
-                }
-            });
-        } catch (IOException e) {
-            throw new FileNotFoundException(String.valueOf(e.getMessage()));
+            final File f = fileFor(documentId);
+            int m = ParcelFileDescriptor.parseMode(mode);
+            if ((m & ParcelFileDescriptor.MODE_WRITE_ONLY) != 0) {
+                File parent = f.getParentFile();
+                if (parent != null && !parent.exists() && !parent.mkdirs()) throw new FileNotFoundException("no folder");
+                m |= ParcelFileDescriptor.MODE_CREATE;
+            }
+            ParcelFileDescriptor pfd = ParcelFileDescriptor.open(f, m);
+            log("open " + mode + " " + f.getName() + " ok", null);
+            return pfd;
+        } catch (FileNotFoundException | RuntimeException e) {
+            log("open " + mode + " FAILED " + documentId, e);
+            throw e;
         }
     }
 
@@ -194,6 +216,7 @@ public class ExternalDocs extends DocumentsProvider {
         } catch (IOException e) {
             throw new FileNotFoundException(e.getMessage());
         }
+        log("create " + out.getName() + " ok", null);
         return docIdFor(out);
     }
 
