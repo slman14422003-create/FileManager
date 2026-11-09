@@ -20,7 +20,7 @@ def hasSigning = signStore && signStorePass && signAlias && signKeyPass
 
 android {
     namespace = 'com.fileman.app'
-    compileSdk = 37   // Android 17
+    compileSdk = 36   // Android 16 (targetSdk 37 does not need the 37 platform)
 
     defaultConfig {
         applicationId = "app.fileman.mgr"
