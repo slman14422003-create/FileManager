@@ -31,7 +31,8 @@ final class BusyBox {
         text.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
         text.setTextColor(Ui.color(c, R.color.text_secondary));
         text.setTextSize(14);
-        text.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        text.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+        text.setGravity(Gravity.CENTER);
         top.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         percent = new TextView(c);
@@ -51,8 +52,8 @@ final class BusyBox {
         bar.setMax(100);
         bar.setIndeterminate(true);
         bar.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(Ui.color(c, R.color.accent)));
-        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(c, 8));
-        bp.topMargin = Ui.dp(c, 14);
+        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(c, 5));
+        bp.topMargin = Ui.dp(c, 12);
         view.addView(bar, bp);
     }
 

@@ -38,7 +38,7 @@ public class PermissionsActivity extends BaseActivity {
         content.addView(Ui.sectionTitle(this, getString(R.string.perm_section_needed)));
 
         final boolean missing = !Perms.hasAllFiles(this) || !Perms.hasMedia(this) || !Perms.canInstall(this)
-                || !Perms.hasNotifications(this);
+                || !Perms.hasNotifications(this) || Perms.needsLocalNetwork(this);
         Row fix = new Row(R.drawable.ic_check_circle, missing, getString(R.string.perm_fix_title),
                 getString(missing ? R.string.perm_fix_sub : R.string.perm_all_ok), false, missing);
         content.addView(Ui.rowView(this, content, fix, (View v) -> Perms.fixNext(this)));
@@ -83,6 +83,18 @@ public class PermissionsActivity extends BaseActivity {
             if (Perms.hasNotifications(this)) Perms.openAppSettings(this);
             else Perms.requestNotifications(this);
         }));
+
+        if (Build.VERSION.SDK_INT >= 37) {
+            boolean ln = !Perms.needsLocalNetwork(this);
+            Row rl = new Row(R.drawable.ic_shield, true, getString(R.string.perm_localnet_title),
+                    getString(R.string.perm_localnet_sub), false, !ln);
+            rl.badge(getString(ln ? R.string.perm_granted : R.string.perm_denied),
+                    Ui.color(this, ln ? R.color.ok : R.color.bad));
+            content.addView(Ui.rowView(this, content, rl, (View v) -> {
+                if (Perms.needsLocalNetwork(this)) Perms.requestLocalNetwork(this);
+                else Perms.openAppSettings(this);
+            }));
+        }
 
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_shield, false,
                 getString(R.string.pk_perm_installer), getString(R.string.pk_perm_installer_sub), false, false)

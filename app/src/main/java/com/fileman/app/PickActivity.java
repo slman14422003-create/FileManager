@@ -2,9 +2,14 @@ package com.fileman.app;
 
 import android.app.Activity;
 import android.content.ClipData;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.webkit.MimeTypeMap;
 import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
@@ -105,24 +110,53 @@ public class PickActivity extends Activity {
         finish();
     }
 
-    private void finishCreate(String dirPath, String name) throws java.io.IOException {
-        File dir = dirPath == null ? null : new File(dirPath);
-        if (dir == null || !dir.isDirectory() || !dir.canWrite() || !Safe.mayExpose(this, dir)) {
-            fail();
-            return;
-        }
+    private void finishCreate(String dirPath, String name) {
         String n = name == null || name.trim().isEmpty() ? "file" : name.trim().replace('/', '_');
-        File out = ExternalDocs.uniqueIn(dir, n, false);
-        if (!out.createNewFile()) {
+        Uri uri = null;
+        boolean durable = true;
+        File dir = dirPath == null ? null : new File(dirPath);
+        // direct write only with full file access: without it the old code fell back to the app's private folder
+        if (Perms.hasAllFiles(this) && dir != null && dir.isDirectory() && dir.canWrite() && Safe.mayExpose(this, dir)) {
+            try {
+                File out = ExternalDocs.uniqueIn(dir, n, false);
+                if (out.createNewFile()) uri = ExternalDocs.documentUri(out);
+            } catch (Exception e) {
+                PickLog.add(this, "picker direct create FAILED", e);
+            }
+        }
+        if (uri == null && Build.VERSION.SDK_INT >= 29) {
+            uri = createInDownloads(n);
+            durable = false;   // MediaStore rows are not document URIs: a persistable flag would make takePersistableUriPermission throw
+        }
+        if (uri == null) {
             fail();
             return;
         }
         Intent r = new Intent();
-        r.setData(ExternalDocs.documentUri(out));
-        r.addFlags(grantFlags(true));
-        PickLog.add(this, "picker result " + r.getData() + " flags=0x" + Integer.toHexString(r.getFlags()), null);
+        r.setData(uri);
+        r.setClipData(ClipData.newRawUri("", uri));
+        int flags = grantFlags(true);
+        if (!durable) flags &= ~Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION;
+        r.addFlags(flags);
+        PickLog.add(this, "picker result " + uri + " flags=0x" + Integer.toHexString(r.getFlags()), null);
         setResult(RESULT_OK, r);
         finish();
+    }
+
+    /** A new empty file in the public Download folder; needs no storage permission (Android 10+). */
+    private Uri createInDownloads(String name) {
+        try {
+            String ext = name.lastIndexOf('.') >= 0 ? name.substring(name.lastIndexOf('.') + 1).toLowerCase(java.util.Locale.ROOT) : "";
+            String mime = ext.isEmpty() ? null : MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext);
+            ContentValues cv = new ContentValues();
+            cv.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
+            cv.put(MediaStore.MediaColumns.MIME_TYPE, mime == null ? "application/octet-stream" : mime);
+            cv.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+            return getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+        } catch (Exception e) {
+            PickLog.add(this, "picker mediastore create FAILED", e);
+            return null;
+        }
     }
 
     private void finishFiles(Intent data) throws Exception {

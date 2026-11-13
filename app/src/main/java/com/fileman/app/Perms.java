@@ -133,6 +133,10 @@ public final class Perms {
             requestNotifications(a);
             return true;
         }
+        if (needsLocalNetwork(a)) {
+            requestLocalNetwork(a);
+            return true;
+        }
         return false;
     }
 

@@ -81,6 +81,8 @@ public class ZipBrowseActivity extends BaseActivity {
     private LinearLayout crumbRow;
     private ListView list;
     private Button extractBtn;
+    private View statCard;
+    private TextView statFiles, statSize, statPacked, selInfo;
     private ListAdapter adapter;
     private AlertDialog busyDialog;
 
@@ -108,6 +110,15 @@ public class ZipBrowseActivity extends BaseActivity {
         empty = findViewById(R.id.empty);
         list = findViewById(R.id.list);
         extractBtn = findViewById(R.id.extractBtn);
+        statCard = findViewById(R.id.statCard);
+        statFiles = findViewById(R.id.statFiles);
+        statSize = findViewById(R.id.statSize);
+        statPacked = findViewById(R.id.statPacked);
+        selInfo = findViewById(R.id.selInfo);
+        android.graphics.drawable.GradientDrawable cardBg = new android.graphics.drawable.GradientDrawable();
+        cardBg.setColor(Ui.color(this, R.color.surface));
+        cardBg.setCornerRadius(Ui.dp(this, 14));
+        statCard.setBackground(cardBg);
         findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
         findViewById(R.id.btnRefresh).setVisibility(View.GONE);
         ImageButton more = findViewById(R.id.btnA1);
@@ -299,6 +310,13 @@ public class ZipBrowseActivity extends BaseActivity {
         empty.setVisibility(shown.isEmpty() ? View.VISIBLE : View.GONE);
         empty.setText(tree.isEmpty() ? R.string.zip_empty : R.string.zip_folder_empty);
         boolean any = !tree.isEmpty();
+        statCard.setVisibility(any && cur.isEmpty() && query.isEmpty() ? View.VISIBLE : View.GONE);
+        statFiles.setText(String.valueOf(fileCount));
+        statSize.setText(Fmt.size(totalSize));
+        statPacked.setText(Fmt.size(totalPacked > 0 ? totalPacked : zip.length()));
+        selInfo.setVisibility(any ? View.VISIBLE : View.GONE);
+        selInfo.setText(selected.isEmpty() ? getString(R.string.zip_sel_hint)
+                : getString(R.string.zip_sel_n, selected.size()));
         extractBtn.setVisibility(any ? View.VISIBLE : View.GONE);
         extractBtn.setText(selected.isEmpty() ? getString(R.string.zip_extract_all)
                 : getString(R.string.zip_extract_sel, selected.size()));
@@ -595,6 +613,7 @@ public class ZipBrowseActivity extends BaseActivity {
                 getString(R.string.zip_dest_download), getString(R.string.zip_dest_pick)};
         Dlg sheetDlg = new Dlg(this);
         sheetDlg.setTitle(titleRes);
+        sheetDlg.setMessage(zip.getName());
         sheetDlg.setItems(items, new int[]{R.drawable.ic_folder, R.drawable.ic_add, R.drawable.ic_download, R.drawable.ic_open}, (dlg, which) -> {
             if (which == 0) d.to(parent);
             else if (which == 1) d.to(unique(parent, stripExt(zip.getName())));
@@ -760,7 +779,7 @@ public class ZipBrowseActivity extends BaseActivity {
                 if (ferr == 0 && ftext == null) {
                     selected.clear();
                     refreshChrome();
-                    new Dlg(this).setTitle(R.string.zip_extract_all).setMessage(msg)
+                    new Dlg(this).setTitle(R.string.zip_done_title).setMessage(msg)
                             .setPositiveButton(R.string.zip_item_open, (d, w) -> {
                                 android.content.Intent i = new android.content.Intent(this, FileManagerActivity.class);
                                 i.putExtra("path", dest.getAbsolutePath());

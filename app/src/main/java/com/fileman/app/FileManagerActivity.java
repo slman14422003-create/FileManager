@@ -1793,6 +1793,13 @@ public class FileManagerActivity extends BaseActivity {
 
     /** Returns the open folder to PickActivity (folder pick and save-as modes). */
     private void finishDir() {
+        if (saveName != null && !Perms.hasAllFiles(this)) {
+            // no full file access: the save goes to the public Download folder through MediaStore
+            File dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            setResult(RESULT_OK, new Intent().putExtra("picked_dir", dl.getAbsolutePath()).putExtra("save_name", saveName));
+            finish();
+            return;
+        }
         if (mode != M_DIR || cur == null || !cur.isDirectory()) {
             toast(R.string.fm_open_folder_first);
             return;
