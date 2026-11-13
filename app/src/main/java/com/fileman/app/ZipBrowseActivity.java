@@ -430,7 +430,11 @@ public class ZipBrowseActivity extends BaseActivity {
     // ------------------------------------------------------------------ menu
 
     private void moreMenu() {
-        String[] items = {getString(R.string.zip_select_all), getString(R.string.zip_info),
+        final boolean cached = inIncoming();
+        String[] items = cached
+                ? new String[]{getString(R.string.zip_select_all), getString(R.string.zip_info),
+                getString(R.string.fm_open_with), getString(R.string.zip_save_copy)}
+                : new String[]{getString(R.string.zip_select_all), getString(R.string.zip_info),
                 getString(R.string.fm_open_with)};
         new Dlg(this).setTitle(zip.getName()).setItems(items, (d, which) -> {
             if (which == 0) {
@@ -442,8 +446,10 @@ public class ZipBrowseActivity extends BaseActivity {
                         .setMessage(getString(R.string.zip_info_body, fileCount, Fmt.size(totalSize),
                                 Fmt.size(totalPacked > 0 ? totalPacked : zip.length())))
                         .setPositiveButton(android.R.string.ok, null).show();
-            } else {
+            } else if (which == 2) {
                 Opener.external(this, zip, true);
+            } else {
+                saveCopyToDownloads();
             }
         }).show();
     }
@@ -847,6 +853,25 @@ public class ZipBrowseActivity extends BaseActivity {
             }
         }
         if (isFinishing() && !inPreviewCache()) deleteTree(new File(getCacheDir(), "zipview"));
+    }
+
+    /** True when the archive is only a temporary copy of a file received from another app. */
+    private boolean inIncoming() {
+        try {
+            return zip.getCanonicalPath().startsWith(new File(getCacheDir(), "incoming").getCanonicalPath() + File.separator);
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private void saveCopyToDownloads() {
+        io.execute(() -> {
+            final boolean ok = SaveCopy.toDownloads(this, zip);
+            ui.post(() -> {
+                if (destroyed) return;
+                Toast.makeText(this, ok ? R.string.zip_saved_copy : R.string.zip_save_failed, Toast.LENGTH_LONG).show();
+            });
+        });
     }
 
     /** True when this archive was itself unpacked from another archive (nested zip). */
