@@ -983,4 +983,12 @@
     <string name="as_fav_t">A folder you visit often</string>
     <string name="as_fav_m">You opened \"%1$s\" %2$d times today. Add it to favorites for quick access?</string>
     <string name="as_fav_y">Add to favorites</string>
+    <string name="perm_localnet_title">Local network (Android 17)</string>
+    <string name="perm_localnet_sub">To share files between two phones on the same network</string>
+    <string name="zip_stat_files">Files</string>
+    <string name="zip_stat_size">Size</string>
+    <string name="zip_stat_packed">Packed</string>
+    <string name="zip_sel_hint">Touch and hold an item to select it</string>
+    <string name="zip_sel_n">%d selected</string>
+    <string name="zip_done_title">Extraction complete</string>
 </resources>

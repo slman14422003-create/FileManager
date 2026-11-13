@@ -983,4 +983,12 @@
     <string name="as_fav_t">مجلد تزوره كثيرًا</string>
     <string name="as_fav_m">فتحت مجلد «%1$s» %2$d مرات اليوم. تبي أضيفه إلى المفضلة للوصول السريع؟</string>
     <string name="as_fav_y">إضافة للمفضلة</string>
+    <string name="perm_localnet_title">إذن الشبكة المحلية (أندرويد 17)</string>
+    <string name="perm_localnet_sub">لمشاركة الملفات بين هاتفين على الشبكة نفسها</string>
+    <string name="zip_stat_files">ملفات</string>
+    <string name="zip_stat_size">الحجم</string>
+    <string name="zip_stat_packed">المضغوط</string>
+    <string name="zip_sel_hint">اضغط مطولًا على أي عنصر لتحديده</string>
+    <string name="zip_sel_n">%d عنصر محدد</string>
+    <string name="zip_done_title">تم الاستخراج</string>
 </resources>
