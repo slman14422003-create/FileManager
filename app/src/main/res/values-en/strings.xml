@@ -991,4 +991,7 @@
     <string name="zip_sel_hint">Touch and hold an item to select it</string>
     <string name="zip_sel_n">%d selected</string>
     <string name="zip_done_title">Extraction complete</string>
+    <string name="zip_save_copy">Save a copy to Downloads</string>
+    <string name="zip_saved_copy">Saved to Downloads</string>
+    <string name="zip_save_failed">Could not save to Downloads</string>
 </resources>

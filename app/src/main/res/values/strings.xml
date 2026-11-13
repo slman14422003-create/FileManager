@@ -991,4 +991,7 @@
     <string name="zip_sel_hint">اضغط مطولًا على أي عنصر لتحديده</string>
     <string name="zip_sel_n">%d عنصر محدد</string>
     <string name="zip_done_title">تم الاستخراج</string>
+    <string name="zip_save_copy">حفظ نسخة في التنزيلات</string>
+    <string name="zip_saved_copy">تم الحفظ في مجلد التنزيلات</string>
+    <string name="zip_save_failed">تعذّر الحفظ في التنزيلات</string>
 </resources>
