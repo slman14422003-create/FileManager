@@ -36,7 +36,7 @@ public class PickActivity extends Activity {
         super.onCreate(savedInstanceState);
         Intent in = getIntent();
         action = in == null || in.getAction() == null ? "" : in.getAction();
-        PickLog.add(this, "picker " + action + " from " + getCallingPackage() + " type=" + (in == null ? null : in.getType())
+        PickLog.add(this, "picker v" + BuildConfig.VERSION_NAME + " " + action + " from " + getCallingPackage() + " type=" + (in == null ? null : in.getType())
                 + " title=" + PickRequest.title(in) + " flags=0x"
                 + Integer.toHexString(in == null ? 0 : in.getFlags()), null);
         if (savedInstanceState == null) {

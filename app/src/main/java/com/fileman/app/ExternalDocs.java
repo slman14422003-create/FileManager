@@ -151,6 +151,7 @@ public class ExternalDocs extends DocumentsProvider {
 
     @Override
     public Cursor queryDocument(String documentId, String[] projection) throws FileNotFoundException {
+        log("query " + documentId, null);
         MatrixCursor c = new MatrixCursor(cols(projection, DOC_COLUMNS));
         File f = fileFor(documentId);
         if (!f.exists()) throw new FileNotFoundException();
@@ -176,6 +177,7 @@ public class ExternalDocs extends DocumentsProvider {
     @Override
     public ParcelFileDescriptor openDocument(String documentId, String mode, CancellationSignal signal)
             throws FileNotFoundException {
+        log("open-start " + mode + " " + documentId, null);
         try {
             final File f = fileFor(documentId);
             int m = ParcelFileDescriptor.parseMode(mode);
@@ -202,6 +204,7 @@ public class ExternalDocs extends DocumentsProvider {
     @Override
     public String createDocument(String parentDocumentId, String mimeType, String displayName)
             throws FileNotFoundException {
+        log("create-start " + parentDocumentId + " name=" + displayName, null);
         File dir = fileFor(parentDocumentId);
         if (!dir.isDirectory()) throw new FileNotFoundException();
         String name = displayName == null ? "" : displayName.replace('/', '_').trim();
@@ -271,6 +274,7 @@ public class ExternalDocs extends DocumentsProvider {
 
     @Override
     public String getDocumentType(String documentId) throws FileNotFoundException {
+        log("type " + documentId, null);
         return mimeOf(fileFor(documentId));
     }
 }
