@@ -49,7 +49,6 @@ public class OpenActivity extends Activity {
             ClipData cd = in.getClipData();
             if (cd != null && cd.getItemCount() > 0) data = cd.getItemAt(0).getUri();
         }
-        if (data == null) data = streamUri(in);
         if (data == null) {
             finish();
             return;
@@ -62,24 +61,6 @@ public class OpenActivity extends Activity {
         }
         final Uri link = data;
         new Thread(() -> route(in, link)).start();
-    }
-
-    @SuppressWarnings("deprecation")
-    private static Uri streamUri(Intent in) {
-        try {
-            if (android.os.Build.VERSION.SDK_INT >= 33) {
-                Uri u = in.getParcelableExtra(Intent.EXTRA_STREAM, Uri.class);
-                if (u != null) return u;
-                java.util.ArrayList<Uri> l = in.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri.class);
-                return l == null || l.isEmpty() ? null : l.get(0);
-            }
-            Object o = in.getParcelableExtra(Intent.EXTRA_STREAM);
-            if (o instanceof Uri) return (Uri) o;
-            java.util.ArrayList<Uri> l = in.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
-            return l == null || l.isEmpty() ? null : l.get(0);
-        } catch (Throwable t) {
-            return null;
-        }
     }
 
     @Override
