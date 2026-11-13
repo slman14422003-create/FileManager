@@ -66,6 +66,7 @@ public class PickActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != REQ_PICK) return;
         if (resultCode != RESULT_OK || data == null) {
+            PickLog.add(this, "picker cancelled action=" + action + " code=" + resultCode, null);
             setResult(RESULT_CANCELED);
             finish();
             return;
@@ -111,6 +112,8 @@ public class PickActivity extends Activity {
     }
 
     private void finishCreate(String dirPath, String name) {
+        PickLog.add(this, "picker create dir=" + dirPath + " name=" + name + " allFiles=" + Perms.hasAllFiles(this)
+                + " sdk=" + Build.VERSION.SDK_INT, null);
         String n = name == null || name.trim().isEmpty() ? "file" : name.trim().replace('/', '_');
         Uri uri = null;
         boolean durable = true;
@@ -193,6 +196,7 @@ public class PickActivity extends Activity {
     }
 
     private void fail() {
+        PickLog.add(this, "picker fail action=" + action, null);
         Toast.makeText(this, R.string.fm_private_blocked, Toast.LENGTH_SHORT).show();
         setResult(RESULT_CANCELED);
         finish();

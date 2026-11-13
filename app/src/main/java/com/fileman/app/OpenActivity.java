@@ -28,6 +28,14 @@ public class OpenActivity extends Activity {
             finish();
             return;
         }
+        android.net.Uri ref = null;
+        try {
+            ref = getReferrer();
+        } catch (Throwable ignored) {
+        }
+        PickLog.add(this, "open " + in.getAction() + " from " + ref + " type=" + in.getType()
+                + " data=" + in.getData() + " clip=" + (in.getClipData() == null ? 0 : in.getClipData().getItemCount())
+                + " flags=0x" + Integer.toHexString(in.getFlags()), null);
         if ("android.intent.action.VIEW_DOWNLOADS".equals(in.getAction())) {
             openDir(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
             return;
@@ -73,6 +81,7 @@ public class OpenActivity extends Activity {
         UriFiles.cleanIncoming(this);
         final String type = in.getType();
         File real = UriFiles.resolve(this, link);
+        PickLog.add(this, "open resolved " + link + " -> " + real, null);
         if (real != null && real.isDirectory()) {
             final File dir = real;
             runOnUiThread(() -> openDir(dir));
@@ -103,6 +112,7 @@ public class OpenActivity extends Activity {
             try {
                 file = UriFiles.copyToCache(this, link);
             } catch (Exception e) {
+                PickLog.add(this, "open copy FAILED " + link, e);
                 fail(R.string.open_link_failed);
                 return;
             }
@@ -135,6 +145,7 @@ public class OpenActivity extends Activity {
     }
 
     private void fail(final int msg) {
+        PickLog.add(this, "open fail " + getString(msg), null);
         runOnUiThread(() -> {
             if (gone) return;
             Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
