@@ -23,6 +23,10 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
@@ -64,6 +68,7 @@ public class PdfViewActivity extends BaseActivity {
     private float defaultRatio = 1.414f;
     private boolean night = false;
     private boolean rotationLocked = false;
+    private String openedPwd = null;
 
     private View loading;
     private TextView subtitle;
@@ -142,6 +147,7 @@ public class PdfViewActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_pdf);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        hideNavigationBar();
         String path = getIntent().getStringExtra("path");
         file = path == null ? null : new File(path);
         if (file == null || !file.isFile()) {
@@ -169,9 +175,9 @@ public class PdfViewActivity extends BaseActivity {
                     new String[]{getString(R.string.rd_night) + (night ? "  ✓" : ""),
                             getString(R.string.rd_page_jump),
                             getString(R.string.pdf_lock_rotation) + (rotationLocked ? "  ✓" : ""),
-                            getString(R.string.v_print)},
+                            getString(R.string.px_title)},
                     new int[]{R.drawable.ic_night, R.drawable.ic_list_play, R.drawable.ic_rotate, R.drawable.ic_file_text},
-                    new Runnable[]{this::toggleNight, this::askPage, this::toggleRotationLock, this::printPdf});
+                    new Runnable[]{this::toggleNight, this::askPage, this::toggleRotationLock, this::openExport});
         });
         night = Store.intPref(this, "pdf_night", 0) == 1;
 
@@ -184,7 +190,7 @@ public class PdfViewActivity extends BaseActivity {
     }
 
     /** Android 15+ can open password protected files: the constructor with LoadParams is reached by reflection. */
-    private PdfRenderer newRenderer(ParcelFileDescriptor fd, String pwd) throws IOException {
+    static PdfRenderer newRenderer(ParcelFileDescriptor fd, String pwd) throws IOException {
         if (pwd == null) return new PdfRenderer(fd);
         try {
             Class<?> bc = Class.forName("android.graphics.pdf.LoadParams$Builder");
@@ -216,6 +222,7 @@ public class PdfViewActivity extends BaseActivity {
                 renderer = null;
                 pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY);
                 renderer = newRenderer(pfd, pwd);
+                openedPwd = pwd;
                 pageCount = renderer.getPageCount();
                 if (pageCount > 0) {
                     PdfRenderer.Page p = renderer.openPage(0);
@@ -265,47 +272,10 @@ public class PdfViewActivity extends BaseActivity {
         d.show();
     }
 
-    /** Hands the original file to the system print service (also "save as PDF"). */
-    private void printPdf() {
-        try {
-            android.print.PrintManager pm = (android.print.PrintManager) getSystemService(Context.PRINT_SERVICE);
-            final String name = file.getName();
-            pm.print(name, new android.print.PrintDocumentAdapter() {
-                @Override
-                public void onLayout(android.print.PrintAttributes o, android.print.PrintAttributes n,
-                                     android.os.CancellationSignal c, LayoutResultCallback cb, Bundle extras) {
-                    if (c.isCanceled()) {
-                        cb.onLayoutCancelled();
-                        return;
-                    }
-                    cb.onLayoutFinished(new android.print.PrintDocumentInfo.Builder(name)
-                            .setContentType(android.print.PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
-                            .setPageCount(pageCount > 0 ? pageCount : android.print.PrintDocumentInfo.PAGE_COUNT_UNKNOWN).build(), true);
-                }
-
-                @Override
-                public void onWrite(android.print.PageRange[] pages, ParcelFileDescriptor dest,
-                                    android.os.CancellationSignal c, WriteResultCallback cb) {
-                    try (java.io.InputStream in = new java.io.FileInputStream(file);
-                         java.io.OutputStream out = new java.io.FileOutputStream(dest.getFileDescriptor())) {
-                        byte[] buf = new byte[1 << 16];
-                        int r;
-                        while ((r = in.read(buf)) > 0) {
-                            if (c.isCanceled()) {
-                                cb.onWriteCancelled();
-                                return;
-                            }
-                            out.write(buf, 0, r);
-                        }
-                        cb.onWriteFinished(new android.print.PageRange[]{android.print.PageRange.ALL_PAGES});
-                    } catch (IOException e) {
-                        cb.onWriteFailed(String.valueOf(e.getMessage()));
-                    }
-                }
-            }, null);
-        } catch (Exception e) {
-            Toast.makeText(this, R.string.v_pdf_failed, Toast.LENGTH_SHORT).show();
-        }
+    /** Save / print options screen (format, pages, compression, password...). */
+    private void openExport() {
+        startActivity(new android.content.Intent(this, PdfExportActivity.class)
+                .putExtra("path", file.getAbsolutePath()).putExtra("pwd", openedPwd));
     }
 
     // ------------------------------------------------------------------ viewer
@@ -523,6 +493,22 @@ public class PdfViewActivity extends BaseActivity {
             }
         }
         view.animateZoom(next, view.getWidth() / 2f, view.getHeight() / 2f);
+    }
+
+    /** Hides the system navigation bar (portrait and landscape); a swipe from the edge shows it briefly. */
+    private void hideNavigationBar() {
+        try {
+            WindowInsetsControllerCompat c = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+            c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            c.hide(WindowInsetsCompat.Type.navigationBars());
+        } catch (Throwable ignored) {
+        }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) hideNavigationBar();
     }
 
     @Override

@@ -218,6 +218,7 @@
         <activity android:name=".ImageViewActivity" android:exported="false" android:documentLaunchMode="always" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />
         <activity android:name=".MediaActivity" android:exported="false" android:documentLaunchMode="always" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />
         <activity android:name=".ContactsActivity" android:exported="false" android:documentLaunchMode="always" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".PdfExportActivity" android:exported="false" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />
         <activity android:name=".PdfViewActivity" android:exported="false" android:documentLaunchMode="always" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />
         <activity android:name=".DocViewActivity" android:exported="false" android:documentLaunchMode="always" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />
         <activity android:name=".IconActivity" android:exported="false" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />
