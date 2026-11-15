@@ -302,6 +302,13 @@
                 <data android:mimeType="application/java-archive" />
                 <data android:mimeType="application/vnd.comicbook+zip" />
             </intent-filter>
+            <!-- any file shared from another app is saved to the public Download folder -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW_DOWNLOADS" />
                 <category android:name="android.intent.category.DEFAULT" />

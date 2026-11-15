@@ -52,6 +52,15 @@ public class OpenActivity extends Activity {
             openDir(Environment.getExternalStorageDirectory());
             return;
         }
+        if (isSend(in)) {
+            final java.util.ArrayList<Uri> shared = sharedUris(in);
+            if (shared.isEmpty()) {
+                finish();
+                return;
+            }
+            new Thread(() -> saveShared(shared)).start();
+            return;
+        }
         Uri data = in.getData();
         if (data == null) {
             ClipData cd = in.getClipData();
@@ -130,6 +139,51 @@ public class OpenActivity extends Activity {
                 Opener.open(this, target, false);
             }
             finish();
+        });
+    }
+
+    private static boolean isSend(Intent in) {
+        String a = in.getAction();
+        return Intent.ACTION_SEND.equals(a) || Intent.ACTION_SEND_MULTIPLE.equals(a);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static java.util.ArrayList<Uri> sharedUris(Intent in) {
+        java.util.ArrayList<Uri> out = new java.util.ArrayList<>();
+        ClipData cd = in.getClipData();
+        if (cd != null) {
+            for (int k = 0; k < cd.getItemCount(); k++) {
+                Uri u = cd.getItemAt(k).getUri();
+                if (u != null && !out.contains(u)) out.add(u);
+            }
+        }
+        try {
+            Uri one = in.getParcelableExtra(Intent.EXTRA_STREAM);
+            if (one != null && !out.contains(one)) out.add(one);
+            java.util.ArrayList<Uri> many = in.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+            if (many != null) for (Uri u : many) if (u != null && !out.contains(u)) out.add(u);
+        } catch (Throwable ignored) {
+        }
+        return out;
+    }
+
+    /** A file shared to this app is a download: it goes to the public Download folder, not to the cache. */
+    private void saveShared(java.util.ArrayList<Uri> uris) {
+        int ok = 0;
+        for (Uri u : uris) {
+            String saved = SaveCopy.uriToDownloads(this, u);
+            PickLog.add(this, "share saved " + u + " -> " + saved, null);
+            if (saved != null) ok++;
+        }
+        final boolean good = ok > 0;
+        runOnUiThread(() -> {
+            if (gone) return;
+            Toast.makeText(this, good ? R.string.zip_saved_copy : R.string.zip_save_failed, Toast.LENGTH_LONG).show();
+            if (good) {
+                openDir(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
+            } else {
+                finish();
+            }
         });
     }
 

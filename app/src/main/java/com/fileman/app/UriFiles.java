@@ -121,7 +121,7 @@ final class UriFiles {
         return out;
     }
 
-    private static String clean(String name) {
+    static String clean(String name) {
         if (name == null) return "file";
         String s = name.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_").trim();
         if (s.length() > 120) {
