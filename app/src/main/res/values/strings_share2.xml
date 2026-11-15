@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sx_pick_title">ماذا تريد أن ترسل؟</string>
+    <string name="sx_pick_hint">اختر نوعًا أو أكثر ثم تابع</string>
+    <string name="sx_t_files">ملفات</string>
+    <string name="sx_t_folder">مجلد</string>
+    <string name="sx_t_apps">تطبيقات</string>
+    <string name="sx_t_contacts">جهات الاتصال</string>
+    <string name="sx_t_text">نص</string>
+    <string name="sx_t_all">كل شيء</string>
+    <string name="sx_next">اختيار طريقة الاتصال</string>
+
+    <string name="sx_m_title">كيف تريد الاتصال؟</string>
+    <string name="sx_m_rec">موصى به</string>
+    <string name="sx_m_hotspot">نقطة اتصال تلقائية</string>
+    <string name="sx_m_hotspot_sub">ينشئ هاتفك شبكة مؤقتة ويدخل عليها الجهاز الآخر بمسح الكود</string>
+    <string name="sx_m_direct">Wi-Fi Direct</string>
+    <string name="sx_m_direct_sub">اتصال مباشر بين الهاتفين بدون راوتر أو إنترنت</string>
+    <string name="sx_m_network">الشبكة الحالية أو نقطة اتصال يدوية</string>
+    <string name="sx_m_network_sub">إذا كان الجهازان على نفس الواي فاي أو فعّلت نقطة الاتصال بنفسك</string>
+    <string name="sx_m_system">مشاركة النظام (Quick Share وغيرها)</string>
+    <string name="sx_m_system_sub">إرسال عبر Quick Share أو البلوتوث أو أي تطبيق آخر</string>
+    <string name="sx_sys_many">عدد الملفات كبير على مشاركة النظام، استخدم إحدى الطرق الأخرى</string>
+    <string name="sx_sys_none">هذه العناصر لا تدعمها مشاركة النظام، استخدم نقطة الاتصال أو Wi-Fi Direct</string>
+    <string name="sx_switch">تغيير طريقة الاتصال</string>
+    <string name="sx_switch_sub">إذا تعذّر اتصال الجهاز الآخر جرّب طريقة مختلفة</string>
+
+    <string name="sx_fail_title">تعذّر تجهيز الاتصال</string>
+    <string name="sx_fail_direct">جرّب Wi-Fi Direct</string>
+    <string name="sx_fail_hotspot">جرّب نقطة الاتصال</string>
+    <string name="sx_fail_net">الشبكة الحالية</string>
+    <string name="sx_hs_r1">لا توجد قناة واي فاي متاحة الآن، جرّب Wi-Fi Direct أو الشبكة الحالية</string>
+    <string name="sx_hs_r2">تعذّر إنشاء نقطة الاتصال المؤقتة، جرّب Wi-Fi Direct أو فعّل نقطة الاتصال يدويًا</string>
+    <string name="sx_hs_r3">نقطة اتصال أخرى أو مشاركة الإنترنت تعمل الآن، أوقفها ثم أعد المحاولة أو استخدم الشبكة الحالية</string>
+    <string name="sx_hs_r4">إعدادات الجهاز تمنع إنشاء نقطة اتصال مؤقتة، جرّب Wi-Fi Direct أو الشبكة الحالية</string>
+    <string name="sx_p2p_unsupported">هذا الجهاز لا يدعم Wi-Fi Direct، جرّب نقطة الاتصال التلقائية</string>
+    <string name="sx_p2p_busy">Wi-Fi Direct مشغول بعملية أخرى، أوقفها ثم أعد المحاولة أو جرّب نقطة الاتصال</string>
+    <string name="sx_p2p_fail">تعذّر تفعيل Wi-Fi Direct، جرّب نقطة الاتصال التلقائية</string>
+
+    <string name="sx_wifi_off_title">تفعيل الواي فاي</string>
+    <string name="sx_wifi_off_msg">الواي فاي مغلق. فعّله ثم ارجع للتطبيق ليتصل بالجهاز المرسل تلقائيًا</string>
+    <string name="sx_wifi_off_send">Wi-Fi Direct يحتاج الواي فاي مفعّلًا. فعّله ثم اختر الطريقة مرة أخرى</string>
+    <string name="sx_open_wifi">فتح الواي فاي</string>
+    <string name="sx_open_hotspot">إعدادات نقطة الاتصال</string>
+    <string name="sx_open_net">إعدادات الشبكة</string>
+    <string name="sx_open_net_sub">فعّل نقطة اتصال أو اتصل بواي فاي ثم ارجع</string>
+    <string name="sx_net_none_title">لا توجد شبكة</string>
+    <string name="sx_net_none_msg">فعّل نقطة اتصال على هذا الهاتف أو اتصل بشبكة واي فاي يتصل بها الجهاز الآخر أيضًا، ثم ارجع للتطبيق</string>
+    <string name="sx_recv_net_title">غير متصل بواي فاي</string>
+    <string name="sx_recv_net_msg">هذا الكود يعمل على شبكة مشتركة. اتصل بواي فاي المرسل أو نقطة اتصاله ثم ارجع للتطبيق</string>
+    <string name="sx_try_anyway">حاول على أي حال</string>
+
+    <string name="sx_live_steps">1. على الجهاز الآخر افتح «استلام» وامسح هذا الكود\n2. انتظر حتى يتصل الجهازان\n3. اختر الملفات من الجهاز الآخر وابدأ التنزيل</string>
+    <string name="sx_live_wait_net">بانتظار الشبكة، فعّل نقطة الاتصال أو اتصل بواي فاي</string>
+    <string name="sx_fail_tips">تأكد من:\n• شاشة المرسل مفتوحة والكود ما زال ظاهرًا\n• الهاتفان قريبان من بعضهما\n• الواي فاي مفعّل عندك\n• إذا استمر الفشل اطلب من المرسل تغيير طريقة الاتصال إلى Wi-Fi Direct</string>
+
+    <string name="sx_c_title">اختر جهات الاتصال</string>
+    <string name="sx_c_search">بحث بالاسم</string>
+    <string name="sx_c_all">تحديد الكل</string>
+    <string name="sx_c_none">إلغاء التحديد</string>
+    <string name="sx_c_count">%1$d جهة محددة</string>
+    <string name="sx_c_perm">نحتاج إذن جهات الاتصال لإرسالها</string>
+    <string name="sx_c_empty">لا توجد جهات اتصال</string>
+    <string name="sx_x_title">إرسال نص</string>
+    <string name="sx_x_hint">اكتب النص أو الصقه هنا</string>
+
+    <string name="sx_hub_how">1. اختر ما تريد إرساله  2. اختر طريقة الاتصال  3. امسح الكود من الجهاز الآخر</string>
+</resources>
