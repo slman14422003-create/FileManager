@@ -147,7 +147,7 @@ public class OpenActivity extends Activity {
         return Intent.ACTION_SEND.equals(a) || Intent.ACTION_SEND_MULTIPLE.equals(a);
     }
 
-    @SuppressWarnings("deprecation")
+    /** Shared streams come from the ClipData only (the system copies EXTRA_STREAM into it); no extras are read. */
     private static java.util.ArrayList<Uri> sharedUris(Intent in) {
         java.util.ArrayList<Uri> out = new java.util.ArrayList<>();
         ClipData cd = in.getClipData();
@@ -156,13 +156,6 @@ public class OpenActivity extends Activity {
                 Uri u = cd.getItemAt(k).getUri();
                 if (u != null && !out.contains(u)) out.add(u);
             }
-        }
-        try {
-            Uri one = in.getParcelableExtra(Intent.EXTRA_STREAM);
-            if (one != null && !out.contains(one)) out.add(one);
-            java.util.ArrayList<Uri> many = in.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
-            if (many != null) for (Uri u : many) if (u != null && !out.contains(u)) out.add(u);
-        } catch (Throwable ignored) {
         }
         return out;
     }

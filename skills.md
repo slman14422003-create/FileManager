@@ -222,4 +222,4 @@
 - AndroidManifest: فلتر SEND وSEND_MULTIPLE لكل الأنواع (*/*) على OpenActivity.
 - VIEW يبقى كما هو (فتح مؤقت من الكاش).
 - لم يُشغَّل البناء محليًا.
-
+- حارس البناء (Network guard): الأنشطة المصدّرة (InstallActivity وOpenActivity وPickActivity) ممنوع أن تقرأ extras من نوع String أو Parcelable أو Serializable. لذلك sharedUris يقرأ ClipData فقط (النظام ينسخ EXTRA_STREAM إليها)، ولا يُستعمل getParcelableExtra في OpenActivity.
