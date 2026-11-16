@@ -56,7 +56,7 @@ final class DocHtml {
     private static final long IMAGE_BUDGET = 16L * 1024 * 1024;
 
     /** Per-conversion counter of embedded image bytes (single conversion at a time per activity). */
-    private static final class Budget {
+    static final class Budget {
         long images = 0;
     }
 
@@ -163,6 +163,18 @@ final class DocHtml {
             + ".tb{border:1px solid #d6d9de;border-radius:10px;padding:4px 10px;margin:6px 0}"
             + ".hf{color:#7a8290;font-size:13px;margin:0 0 10px;padding-bottom:6px;border-bottom:1px dashed #d6d9de}"
             + ".pbk{display:block;border-top:1px dashed #c9d0dc;margin:14px 0}.cm{color:#7a8290}";
+
+    /** Wide content (sheets): the page grows to the content and the viewer zooms out so it fits the screen width. */
+    private static String fitPage(String body) {
+        return "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+                + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,minimum-scale=0.05,maximum-scale=8\">"
+                + "<style>" + css() + FIT_CSS + "</style></head><body><div class=\"paper fit\">" + body + "</div></body></html>";
+    }
+
+    private static final String FIT_CSS = ".paper.fit{max-width:none;width:max-content;min-width:calc(100% - 20px);box-sizing:border-box;overflow:visible}"
+            + ".fit .sheet{overflow:visible;max-width:none;max-height:none}"
+            + ".fit .sheet table{width:auto}.fit .sheet td{max-width:360px}"
+            + "body{width:max-content;min-width:100%;box-sizing:border-box}";
 
     private static String page(String body) {
         return "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
@@ -274,7 +286,7 @@ final class DocHtml {
     }
 
     /** Relationship id to part path, for a ".rels" file next to a part in baseDir. */
-    private static Map<String, String> rels(ZipFile z, String relsPath, String baseDir) {
+    static Map<String, String> rels(ZipFile z, String relsPath, String baseDir) {
         Map<String, String> m = new HashMap<>();
         try {
             byte[] d = entry(z, relsPath);
@@ -317,7 +329,7 @@ final class DocHtml {
     }
 
     /** Embeds an image of the package as a data URI (null when unsupported or too big). */
-    private static String image(ZipFile z, String part, Budget budget) {
+    static String image(ZipFile z, String part, Budget budget) {
         if (part == null) return null;
         String mime = mimeOfImage(part);
         if (mime == null) return null;
@@ -1325,7 +1337,7 @@ final class DocHtml {
                 }
                 emitXSheet(readSheet(data, shared, st), st, html);
             }
-            return page(html.toString());
+            return fitPage(html.toString());
         }
     }
 
@@ -1594,7 +1606,7 @@ final class DocHtml {
                 }
                 emitSheet(rows, sh.truncated, sh.truncated, html);
             }
-            return page(html.toString());
+            return fitPage(html.toString());
         }
     }
 
@@ -1686,7 +1698,7 @@ final class DocHtml {
     }
 
     /** Series of a chart part as a small table: categories down the side, one column per series. */
-    private static String chartHtml(ZipFile z, String part) {
+    static String chartHtml(ZipFile z, String part) {
         try {
             byte[] d = part == null ? null : entry(z, part);
             if (d == null) return "";
@@ -2111,6 +2123,12 @@ final class DocHtml {
     }
 
     static String pptx(File f) throws Exception {
+        try {
+            String live = PptxLive.render(f);
+            if (live != null) return live;
+        } catch (Throwable ignored) {
+            // fall back to the flowing text view below
+        }
         try (ZipFile z = new ZipFile(f)) {
             List<String> slides = new ArrayList<>();
             byte[] pres = entry(z, "ppt/presentation.xml");
@@ -2449,7 +2467,7 @@ final class DocHtml {
             html.append("<p class=\"note\">").append(Lang.isAr() ? "تم عرض أول " + MAX_ROWS + " صف فقط."
                     : "Showing only the first " + MAX_ROWS + " rows.").append("</p>");
         }
-        return page(html.toString());
+        return fitPage(html.toString());
     }
 
     // ------------------------------------------------------------------ RTF
