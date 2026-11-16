@@ -46,12 +46,25 @@ public class IconActivity extends BaseActivity {
     }
 
     private int current() {
-        PackageManager pm = getPackageManager();
+        return currentIndex(this);
+    }
+
+    /** Index of the launcher icon the user picked (the enabled activity-alias); the first one when none is explicit. */
+    static int currentIndex(android.content.Context c) {
+        PackageManager pm = c.getPackageManager();
         for (int i = 0; i < KEYS.length; i++) {
-            int st = pm.getComponentEnabledSetting(alias(i));
-            if (st == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) return i;
+            try {
+                int st = pm.getComponentEnabledSetting(new ComponentName(c.getPackageName(), "com.fileman.app.Icon" + KEYS[i]));
+                if (st == PackageManager.COMPONENT_ENABLED_STATE_ENABLED) return i;
+            } catch (Throwable ignored) {
+            }
         }
         return 0;
+    }
+
+    /** Drawable of the icon the user picked, used by the start screen so it follows the chosen colour. */
+    static int currentIconRes(android.content.Context c) {
+        return ICONS[currentIndex(c)];
     }
 
     private void render() {

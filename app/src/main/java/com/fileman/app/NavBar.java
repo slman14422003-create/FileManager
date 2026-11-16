@@ -110,11 +110,9 @@ final class NavBar {
                 i = new Intent(a, SettingsActivity.class);
                 break;
         }
-        i.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        i.putExtra(Motion.EXTRA_FADE, true);
         a.startActivity(i);
-        if (selected != HOME) {
-            a.finish();
-            a.overridePendingTransition(0, 0);
-        }
+        if (selected != HOME) a.finish();
+        a.overridePendingTransition(R.anim.tab_in, R.anim.tab_out);
     }
 }

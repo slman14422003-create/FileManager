@@ -145,6 +145,14 @@ public final class Ui {
         }
     }
 
+    /** Forgets only what was resolved against one theme, so opening a screen does not cold-start the others. */
+    static void clearCaches(android.content.res.Resources.Theme theme) {
+        synchronized (COLORS) {
+            COLORS.remove(theme);
+            SHAPES.remove(theme);
+        }
+    }
+
     public static int color(Context c, int res) {
         android.content.res.Resources.Theme th = c.getTheme();
         synchronized (COLORS) {

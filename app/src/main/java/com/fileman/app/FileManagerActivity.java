@@ -206,8 +206,17 @@ public class FileManagerActivity extends BaseActivity {
     }
     private final ExecutorService kidsIo = Executors.newSingleThreadExecutor();
     private long kidsGen;
-    private final Runnable kidsNotify = () -> {
-        if (!isFinishing() && !isDestroyed()) this.adapter.notifyDataSetChanged();   // field is declared further down
+    private boolean scrolling;
+    private final Runnable kidsNotify = new Runnable() {
+        @Override
+        public void run() {
+            if (isFinishing() || isDestroyed()) return;
+            if (scrolling) {   // never rebind rows under the finger: wait until the list settles
+                ui.postDelayed(this, 300);
+                return;
+            }
+            adapter.notifyDataSetChanged();   // field is declared further down
+        }
     };
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final SimpleDateFormat dateFmt = new SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.US);
@@ -328,6 +337,16 @@ public class FileManagerActivity extends BaseActivity {
         listView.addHeaderView(listHeader, null, false);
         adapter = new FileAdapter();
         listView.setAdapter(adapter);
+        listView.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(android.widget.AbsListView view, int state) {
+                scrolling = state != SCROLL_STATE_IDLE;
+            }
+
+            @Override
+            public void onScroll(android.widget.AbsListView view, int first, int visible, int total) {
+            }
+        });
         listView.setOnItemClickListener((p, v, pos, id) -> onItemClick(pos - listView.getHeaderViewsCount()));
         listView.setOnItemLongClickListener((p, v, pos, id) -> {
             int at = pos - listView.getHeaderViewsCount();
@@ -794,6 +813,11 @@ public class FileManagerActivity extends BaseActivity {
     }
 
     private void navigate(File dir) {
+        navigate(dir, true);
+    }
+
+    private void navigate(File dir, boolean forward) {
+        if (listView != null && mode == M_DIR && cur != null && !dir.equals(cur)) Motion.pageIn(listView, forward);
         clearSelectionQuiet();
         ui.removeCallbacks(searchRun);
         suppressSearch = true;
@@ -863,7 +887,7 @@ public class FileManagerActivity extends BaseActivity {
         if (!isVolumeRoot(cur)) {
             File p = cur.getParentFile();
             if (p != null && p.canRead()) {
-                navigate(p);
+                navigate(p, false);
                 return;
             }
         }
@@ -1196,7 +1220,7 @@ public class FileManagerActivity extends BaseActivity {
                     e.kids = l == null ? -1 : l.length;
                     cacheKids(e.f.getAbsolutePath(), e.mod, e.kids);
                     ui.removeCallbacks(kidsNotify);
-                    ui.postDelayed(kidsNotify, 120);
+                    ui.postDelayed(kidsNotify, 200);
                 }
             });
         } catch (Exception ignored) {
@@ -1254,7 +1278,7 @@ public class FileManagerActivity extends BaseActivity {
             if (up != null && up.canRead()) {
                 final File target = up;
                 backCrumb.setText(folderLabel(up));
-                backCrumb.setOnClickListener(v -> navigate(target));
+                backCrumb.setOnClickListener(v -> navigate(target, false));
                 backCrumb.setVisibility(View.VISIBLE);
             } else {
                 backCrumb.setVisibility(View.GONE);
@@ -1357,7 +1381,7 @@ public class FileManagerActivity extends BaseActivity {
             boolean last = i == chain.size() - 1;
             crumbRow.addView(crumbSep());
             if (target.equals(internal)) {
-                ImageView d = crumbIcon(R.drawable.ic_drive, last ? null : v -> navigate(target));
+                ImageView d = crumbIcon(R.drawable.ic_drive, last ? null : v -> navigate(target, false));
                 d.setContentDescription(getString(R.string.fm_internal));
                 crumbRow.addView(d);
                 continue;
@@ -1368,7 +1392,7 @@ public class FileManagerActivity extends BaseActivity {
             c.setTextSize(14);
             c.setTextColor(Ui.color(this, last ? R.color.text_primary : R.color.accent_text));
             c.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
-            if (!last) c.setOnClickListener(v -> navigate(target));
+            if (!last) c.setOnClickListener(v -> navigate(target, false));
             crumbRow.addView(c);
         }
         crumbScroll.post(() -> ((HorizontalScrollView) crumbScroll).fullScroll(View.FOCUS_RIGHT));

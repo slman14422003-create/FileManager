@@ -793,16 +793,14 @@ public class MediaActivity extends BaseActivity {
     // ------------------------------------------------------------------ immersive / controls / lock
 
     private void goImmersive() {
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-        WindowInsetsControllerCompat c = new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
-        c.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars());
-        c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        Immersive.apply(this);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        if (Build.VERSION.SDK_INT >= 28) {
-            WindowManager.LayoutParams wl = getWindow().getAttributes();
-            wl.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
-            getWindow().setAttributes(wl);
-        }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus && video) Immersive.keep(this);
     }
 
     private void showControls(boolean show) {

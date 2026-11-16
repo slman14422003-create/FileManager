@@ -57,6 +57,7 @@ public abstract class BaseActivity extends AppCompatActivity {
             AiSheet.install(this);
         } catch (Throwable ignored) {
         }
+        if (savedInstanceState == null && !(this instanceof HomeActivity)) Motion.enterScreen(this);
     }
 
     /** Screens whose header and bars should blur what scrolls under them. Viewers and capture screens return false. */

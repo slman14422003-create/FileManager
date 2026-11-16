@@ -59,8 +59,7 @@ final class Blur {
 
     static boolean enabled(Context c) {
         SharedPreferences sp = c.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        if (sp.contains(K_ON)) return sp.getBoolean(K_ON, true);
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S;   // the pre-12 path is software blur: opt-in only
+        return sp.getBoolean(K_ON, false);   // live blur re-draws behind every scroll: opt-in from settings only
     }
 
     static void setEnabled(Context c, boolean on) {

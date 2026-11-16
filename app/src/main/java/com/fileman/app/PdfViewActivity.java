@@ -535,23 +535,16 @@ public class PdfViewActivity extends BaseActivity {
 
     /** Hides the status bar and the navigation bar; a swipe from the edge shows them briefly. */
     private void hideNavigationBar() {
-        try {
-            if (android.os.Build.VERSION.SDK_INT >= 28) {
-                WindowManager.LayoutParams lp = getWindow().getAttributes();
-                lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
-                getWindow().setAttributes(lp);
-            }
-            WindowInsetsControllerCompat c = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-            c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-            c.hide(WindowInsetsCompat.Type.systemBars());
-        } catch (Throwable ignored) {
-        }
+        Immersive.apply(this);
     }
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) hideNavigationBar();
+        if (hasFocus) {
+            hideNavigationBar();
+            Immersive.keep(this);
+        }
     }
 
     @Override

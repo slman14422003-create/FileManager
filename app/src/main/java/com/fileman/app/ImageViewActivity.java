@@ -170,27 +170,24 @@ public class ImageViewActivity extends BaseActivity {
      * together with the floating bars (see {@link #showBars}), so the status bar never looks like a separate strip.
      */
     private void setupWindow() {
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setBackgroundDrawable(new ColorDrawable(Color.BLACK));
-        getWindow().setStatusBarColor(Color.TRANSPARENT);
-        getWindow().setNavigationBarColor(Color.TRANSPARENT);
-        if (Build.VERSION.SDK_INT >= 29) {
-            getWindow().setStatusBarContrastEnforced(false);
-            getWindow().setNavigationBarContrastEnforced(false);
-        }
-        if (Build.VERSION.SDK_INT >= 28) {
-            WindowManager.LayoutParams wl = getWindow().getAttributes();
-            wl.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
-            getWindow().setAttributes(wl);
-        }
-        WindowInsetsControllerCompat c = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        Immersive.apply(this);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) Immersive.keep(this);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Immersive.keep(this);
     }
 
     private void setSystemBars(boolean show) {
-        WindowInsetsControllerCompat c = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        if (show) c.show(WindowInsetsCompat.Type.systemBars());
-        else c.hide(WindowInsetsCompat.Type.systemBars());
+        Immersive.hide(this);
     }
 
     private ImageButton iconButton(int icon, int descRes) {

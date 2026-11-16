@@ -66,10 +66,11 @@ public class HomeActivity extends BaseActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        SplashScreen.installSplashScreen(this);
+        SplashScreen.installSplashScreen(this).setOnExitAnimationListener(p -> p.remove());
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
         useGroupedBackground();
+        if (savedInstanceState == null) SplashOverlay.show(this);
         content = findViewById(R.id.content);
         findViewById(R.id.btnSearch).setOnClickListener(v -> {
             Intent i = new Intent(this, FileManagerActivity.class);
@@ -167,7 +168,7 @@ public class HomeActivity extends BaseActivity {
             hadAccess = access;
         }
         if (volWatch == null) volWatch = Volumes.watch(this, () -> ui.postDelayed(this::render, 700));
-        render();
+        if (!rendered || renderSignature() != renderSig) render();
         if (!access) Perms.promptFirstRun(this);
         else Updater.autoCheck(this, io, ui);
         if (access && (stats == null || System.currentTimeMillis() - statsAt > SCAN_MAX_AGE_MS)) startScan();
@@ -319,6 +320,27 @@ public class HomeActivity extends BaseActivity {
                 .setItems(names, (d, i) -> UsbPrompt.open(this, vols.get(i).root)).show();
     }
 
+    private boolean rendered;
+    private int renderSig;
+
+    /** Cheap fingerprint of everything the home screen shows, so coming back from another screen does not rebuild it. */
+    private int renderSignature() {
+        int h = Perms.hasAllFiles(this) ? 1 : 0;
+        h = h * 31 + System.identityHashCode(stats);
+        h = h * 31 + statsSig;
+        h = h * 31 + dlCount;
+        h = h * 31 + Long.hashCode(dlSize);
+        try {
+            h = h * 31 + (int) (Environment.getExternalStorageDirectory().getFreeSpace() >> 20);
+        } catch (Throwable ignored) {
+        }
+        h = h * 31 + String.valueOf(driveSub()).hashCode();
+        for (Volumes.Vol v : Volumes.removable(this)) h = h * 31 + (v.mounted ? 7 : 3);
+        h = h * 31 + Store.favorites(this).size();
+        h = h * 31 + getResources().getConfiguration().toString().hashCode();
+        return h;
+    }
+
     private void render() {
         updateUsb();
         final View scroller = (View) content.getParent();
@@ -368,6 +390,8 @@ public class HomeActivity extends BaseActivity {
         content.addView(tools);
 
         if (keepY > 0) scroller.post(() -> scroller.scrollTo(0, keepY));
+        rendered = true;
+        renderSig = renderSignature();
         if (!entered) {   // soft staggered entrance the first time the screen is drawn
             entered = true;
             for (int i = 0; i < Math.min(content.getChildCount(), 8); i++) Ui.enter(content.getChildAt(i), i);
