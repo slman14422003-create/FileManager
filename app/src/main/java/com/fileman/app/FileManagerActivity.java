@@ -1646,7 +1646,7 @@ public class FileManagerActivity extends BaseActivity {
 
             ImageView icon = h.icon;
             ImageView thumb = h.thumb;
-            icon.setImageResource(iconFor(type));
+            icon.setImageResource(Cats.iconForExt(Cats.extOf(e.f.getName()), type));
             Ui.iconChip(FileManagerActivity.this, icon,
                     Ui.color(FileManagerActivity.this, e.dir ? R.color.info : chipColorFor(type)));
             thumb.setTag(path);

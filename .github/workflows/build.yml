@@ -159,6 +159,10 @@ jobs:
             echo "SIGNING_KEY_PASSWORD=${KEY_PASSWORD:-$STORE_PASS}"
             echo "SIGNING_MODE=مفتاح المستودع الدائم"
           } >> "$GITHUB_ENV"
+          # pin the release certificate inside the app: a re-signed copy refuses to run (Integrity.java)
+          CERT=$(keytool -list -v -keystore "$RUNNER_TEMP/release.jks" -storepass "$STORE_PASS" -alias "$ALIAS" 2>/dev/null \
+            | grep -m1 'SHA256:' | sed 's/.*SHA256: *//' | tr -d ':' | tr 'A-F' 'a-f')
+          [ -n "$CERT" ] && echo "CERT_SHA256=$CERT" >> "$GITHUB_ENV"
           echo "permanent=true" >> "$GITHUB_OUTPUT"
 
       - name: Build APK

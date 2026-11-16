@@ -43,6 +43,12 @@ final class AiSheet {
             icons.add(R.drawable.ic_file_text);
             acts.add(() -> summarize(a, file));
         }
+        if (file != null && file.isFile() && Cats.typeOfExt(Cats.extOf(file.getName())) == Cats.T_APK) {
+            labels.add(a.getString(R.string.ai_apk_scan));
+            icons.add(R.drawable.ic_shield);
+            acts.add(() -> a.startActivity(new Intent(a, InstallActivity.class)
+                    .setData(android.net.Uri.fromFile(file))));
+        }
         if (file != null && file.isFile()) {
             labels.add(a.getString(R.string.ai_name));
             icons.add(R.drawable.ic_star);

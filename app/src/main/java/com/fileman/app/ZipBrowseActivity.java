@@ -442,7 +442,7 @@ public class ZipBrowseActivity extends BaseActivity {
                 sub = (cut < 0 ? "/" : "/" + n.path.substring(0, cut + 1)) + " · " + sub;
             }
             boolean sel = selected.contains(n.path);
-            Row r = new Row(sel ? R.drawable.ic_check_circle : Cats.iconFor(type), false, n.name, sub, false, n.dir && !sel)
+            Row r = new Row(sel ? R.drawable.ic_check_circle : Cats.iconForExt(Cats.extOf(n.name), type), false, n.name, sub, false, n.dir && !sel)
                     .tint(Ui.color(ZipBrowseActivity.this, sel ? R.color.accent_text : Cats.colorFor(type)));
             RowAdapter.bind(ZipBrowseActivity.this, v, r);
             Ui.shapeRow(ZipBrowseActivity.this, v, position == 0, position == shown.size() - 1,

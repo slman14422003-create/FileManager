@@ -44,7 +44,7 @@ import java.util.concurrent.Executors;
  * result in plain words.
  */
 public class InstallActivity extends BaseActivity {
-    private static final int S_LOADING = 0, S_READY = 1, S_INSTALLING = 2, S_DONE = 3, S_FAILED = 4, S_INVALID = 5;
+    private static final int S_LOADING = 0, S_READY = 1, S_INSTALLING = 2, S_DONE = 3, S_FAILED = 4, S_INVALID = 5, S_RISK = 6, S_BLOCKED = 7;
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -72,6 +72,8 @@ public class InstallActivity extends BaseActivity {
     private String obbNote;
     private boolean obbWarn;
     private boolean noConvert;
+    private SecurityScan.Result riskResult;
+    private Runnable riskTick;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -121,6 +123,10 @@ public class InstallActivity extends BaseActivity {
             @Override
             public void handleOnBackPressed() {
                 if (state == S_INSTALLING && installStarted) return;   // the system is working: do not drop the result
+                if (state == S_RISK || state == S_BLOCKED) {
+                    setState(S_READY);   // the warning lives inside the sheet: back returns to the package
+                    return;
+                }
                 finishWithResult();
             }
         });
@@ -387,6 +393,8 @@ public class InstallActivity extends BaseActivity {
         primary.setOnClickListener(pc);
         primary.setEnabled(true);
         secondary.setVisibility(s == null ? View.GONE : View.VISIBLE);
+        secondary.setEnabled(true);
+        secondary.setAlpha(1f);
         secondary.setText(s);
         secondary.setOnClickListener(sc);
     }
@@ -431,6 +439,10 @@ public class InstallActivity extends BaseActivity {
         progress.setVisibility(state == S_INSTALLING ? View.VISIBLE : View.GONE);
         progressText.setVisibility(state == S_INSTALLING ? View.VISIBLE : View.GONE);
         alerts.removeAllViews();
+        if (riskTick != null) {
+            ui.removeCallbacks(riskTick);
+            riskTick = null;
+        }
         infoBtn.setVisibility(state == S_READY ? View.VISIBLE : View.GONE);
         if (state != S_READY) {
             details.removeAllViews();
@@ -499,6 +511,12 @@ public class InstallActivity extends BaseActivity {
                         offerNative ? getString(R.string.cv_retry_native)
                                 : offerAll ? getString(R.string.pk_retry_all) : getString(R.string.in_close), second);
                 break;
+            case S_RISK:
+                renderRisk(false);
+                break;
+            case S_BLOCKED:
+                renderRisk(true);
+                break;
             default:   // S_INVALID
                 pkgView.setVisibility(View.GONE);
                 version.setText("");
@@ -507,6 +525,51 @@ public class InstallActivity extends BaseActivity {
                 buttons(getString(R.string.in_close), v -> finishWithResult(), null, null);
                 break;
         }
+    }
+
+    /** High-risk / blocked warning, drawn inside the install sheet itself instead of a separate dialog. */
+    private void renderRisk(final boolean blocked) {
+        final SecurityScan.Result sr = riskResult;
+        if (info == null || sr == null) {
+            setState(S_READY);
+            return;
+        }
+        showInfo();
+        pill(getString(blocked ? R.string.sec_blocked_t : R.string.sec_level_high), R.color.bad);
+        note(getString(blocked ? R.string.sec_blocked_m : R.string.sec_high_msg2));
+        int shown = 0;
+        for (SecurityScan.Finding f : sr.findings) {
+            if (f.level < 2) continue;
+            if (shown++ >= 3) break;
+            String t = f.arg > 0 ? getString(f.titleRes, f.arg) : getString(f.titleRes);
+            alerts.addView(Ui.noteCard(this, t + "\n" + getString(f.bodyRes), R.color.bad));
+        }
+        if (blocked) {
+            buttons(getString(R.string.sec_back), v -> setState(S_READY), null, null);
+            return;
+        }
+        final String label = getString(R.string.sec_install_anyway);
+        final int[] left = {SecurityScan.HIGH_RISK_WAIT_S};
+        buttons(getString(R.string.sec_back), v -> setState(S_READY),
+                label + " (" + left[0] + ")", v -> AuthGate.require(this, this::doInstall));
+        secondary.setEnabled(false);
+        secondary.setAlpha(0.5f);
+        riskTick = new Runnable() {
+            @Override
+            public void run() {
+                if (destroyed || state != S_RISK) return;
+                left[0]--;
+                if (left[0] <= 0) {
+                    secondary.setText(label);
+                    secondary.setAlpha(1f);
+                    secondary.setEnabled(true);
+                } else {
+                    secondary.setText(label + " (" + left[0] + ")");
+                    ui.postDelayed(this, 1000);
+                }
+            }
+        };
+        ui.postDelayed(riskTick, 1000);
     }
 
     private void renderReady() {
@@ -898,20 +961,15 @@ public class InstallActivity extends BaseActivity {
         final PkgInstaller.Info in = info;
         if (in == null) return;
         SecurityScan.Result sr = SecurityScan.scan(this, in);
+        riskResult = sr;
         if (sr.blocked) {
-            Dlg.result(this, false, getString(R.string.sec_blocked_t), getString(R.string.sec_blocked_m));
+            setState(S_BLOCKED);
             return;
         }
-        final Runnable go = () -> AuthGate.require(this, this::doInstall);
         if (sr.level == SecurityScan.HIGH && Store.instBool(this, "warn_high", true)) {
-            SecurityScan.hold(new Dlg(this).setTitle(getString(R.string.sec_high_title))
-                    .setIcon(R.drawable.ic_shield)
-                    .setMessage(getString(R.string.sec_high_msg, in.label.isEmpty() ? in.pkg : in.label))
-                    .setPositiveButton(R.string.sec_install_anyway, (d, w) -> go.run())
-                    .setNegativeButton(R.string.cancel, null)
-                    .show(), SecurityScan.HIGH_RISK_WAIT_S);
+            setState(S_RISK);
         } else {
-            go.run();
+            AuthGate.require(this, this::doInstall);
         }
     }
 
@@ -1059,7 +1117,8 @@ public class InstallActivity extends BaseActivity {
                 installStarted = false;
                 if (!destroyed) setState(S_READY);
             } else {
-                fail(friendly(st, msg), st + (msg == null || msg.isEmpty() ? "" : ": " + msg));
+                int dv = PkgInstaller.devVerifyMessage(i);
+                fail(dv != 0 ? getString(dv) : friendly(st, msg), st + (msg == null || msg.isEmpty() ? "" : ": " + msg));
             }
         }
     };

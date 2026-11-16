@@ -13,7 +13,7 @@ import java.util.Locale;
 
 /**
  * Records what other apps ask of the picker and of the documents provider (who, which call, what came out),
- * in Download/FileManager-picker-log.txt (cache folder when Download is not writable). It is the way to see
+ * in the app's own external files folder (Android/data/<package>/files) (cache folder when that is not writable). It is the way to see
  * why another app reports a failed save when the file manager believes it handed the file over.
  */
 final class PickLog {
@@ -30,7 +30,7 @@ final class PickLog {
             pw.println(new SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US).format(new Date()) + "  " + what);
             if (e != null) e.printStackTrace(pw);
             pw.flush();
-            File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            File dir = c.getExternalFilesDir(null);   // app-private: other apps cannot read the log
             File f = new File(dir, NAME);
             if (dir == null || !(dir.isDirectory() && dir.canWrite())) f = new File(c.getCacheDir(), NAME);
             if (f.exists() && f.length() > MAX) //noinspection ResultOfMethodCallIgnored
