@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sec_high_msg2">وجد فحص الحماية مخاطر عالية في هذه الحزمة. لا تثبّتها إلا إذا كنت تعرف مصدرها وتثق به.</string>
+    <string name="sec_back">رجوع</string>
+    <string name="pk_issue_dv">أندرويد 17: قد يتحقق النظام من هوية مطوّر التطبيق قبل التثبيت، وقد يحتاج اتصالاً بالإنترنت.</string>
+    <string name="pk_fail_dv">منع النظام التثبيت لأن مطوّر هذا التطبيق لم يُتحقق منه (التحقق من المطوّرين في أندرويد 17).</string>
+    <string name="pk_fail_dv_blocked">حظرت خدمة التحقق في النظام مطوّر هذا التطبيق، لذلك لا يمكن تثبيته.</string>
+    <string name="pk_fail_dv_net">تعذّر التحقق من المطوّر لعدم توفر الإنترنت. اتصل بالشبكة وأعد المحاولة.</string>
+    <string name="ai_apk_scan">فحص ذكي للحزمة قبل التثبيت</string>
+    <string name="integrity_fail">هذه النسخة من التطبيق معدّلة أو غير موقّعة من المطوّر الأصلي. ثبّت النسخة الأصلية.</string>
+</resources>
