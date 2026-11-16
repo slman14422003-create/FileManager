@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pdf_convert">تحويل إلى PDF</string>
+    <string name="pdf_converting">جارٍ التحويل إلى PDF</string>
+    <string name="pdf_wait">يرجى الانتظار قليلًا</string>
+    <string name="pdf_done">تم إنشاء ملف PDF</string>
+    <string name="pdf_done_msg">حُفظ باسم %1$s</string>
+    <string name="pdf_open">فتح</string>
+    <string name="pdf_failed">تعذّر إنشاء ملف PDF</string>
+    <string name="link_open_title">فتح الرابط</string>
+    <string name="link_open_msg">سيتم فتح هذا الرابط خارج التطبيق:\n%1$s</string>
+    <string name="link_open_go">فتح</string>
+    <string name="link_missing">لم يُعثر على الوجهة داخل المستند</string>
+</resources>

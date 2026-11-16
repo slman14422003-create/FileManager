@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sec_high_msg2">The safety scan found high risks in this package. Only install it if you know where it came from and trust it.</string>
+    <string name="sec_back">Back</string>
+    <string name="pk_issue_dv">Android 17: the system may verify who built this app before installing it, which can need an internet connection.</string>
+    <string name="pk_fail_dv">The system refused the install because this app\'s developer is not verified (Android 17 developer verification).</string>
+    <string name="pk_fail_dv_blocked">The system\'s verification service has blocked this app\'s developer, so it cannot be installed.</string>
+    <string name="pk_fail_dv_net">The developer could not be verified because there is no internet. Connect and try again.</string>
+    <string name="ai_apk_scan">Smart package check before installing</string>
+    <string name="integrity_fail">This copy of the app was modified or is not signed by the original developer. Install the original.</string>
+</resources>
