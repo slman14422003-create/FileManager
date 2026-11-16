@@ -233,3 +233,9 @@
 - DocxStyles + DocHtml.docx: style inheritance, character styles, caps, run/paragraph shading, indent and spacing, outline headings, style-based lists, text boxes (Fallback copy skipped), comments, headers/footers, page breaks.
 - Labels come from strings_office.xml. No external libraries were added (pure platform code).
 - Build not run locally; converters were tested on the JVM with sample files. Verify on GitHub Actions.
+
+## Task: dialogs and sheets in the selection-sheet style
+- Dlg: every dialog and sheet is now a floating glass card (radius 26, side margin 10dp, grip handle, bottom gravity, SheetAnim), like SelectionSheet and ActionSheet.
+- Choice lists (Extract to, More, ...): bold title with a small message, icon rows, Cancel pill, drag the grip to dismiss.
+- Alerts, progress (Downloading, Extracting via BusyBox) and input dialogs: start-aligned title and message, pill buttons (filled accent for the main action, soft accent for the others, red for destructive).
+- Build not run locally; verify on GitHub Actions.
