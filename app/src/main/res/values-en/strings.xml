@@ -451,7 +451,7 @@
     <string name="theme_auto_note">Follows the phone: light by day and dark when the system turns dark mode on.</string>
     <string name="theme_colors">App colors</string>
     <string name="theme_colors_note">The accent applies instantly to buttons, selection and the bottom bar. The default is Mono: white on dark, black on light.</string>
-    <string name="pk_beta2">2.0</string>
+    <string name="pk_beta2">1.0</string>
     <string name="pk_chip_blocked">Cannot install</string>
     <string name="pk_d_abi">Architecture</string>
     <string name="pk_d_abi_none">No native code: runs on any architecture</string>

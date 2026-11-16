@@ -1,14 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="pdf_convert">تحويل إلى PDF</string>
-    <string name="pdf_converting">جارٍ التحويل إلى PDF</string>
-    <string name="pdf_wait">يرجى الانتظار قليلًا</string>
-    <string name="pdf_done">تم إنشاء ملف PDF</string>
-    <string name="pdf_done_msg">حُفظ باسم %1$s</string>
-    <string name="pdf_open">فتح</string>
-    <string name="pdf_failed">تعذّر إنشاء ملف PDF</string>
-    <string name="link_open_title">فتح الرابط</string>
-    <string name="link_open_msg">سيتم فتح هذا الرابط خارج التطبيق:\n%1$s</string>
-    <string name="link_open_go">فتح</string>
-    <string name="link_missing">لم يُعثر على الوجهة داخل المستند</string>
+    <string name="doc_lbl_slide">Slide</string>
+    <string name="doc_lbl_hidden">Hidden</string>
+    <string name="doc_lbl_notes">Notes</string>
+    <string name="doc_lbl_chart">Chart</string>
+    <string name="doc_lbl_comments">Comments</string>
+    <string name="doc_lbl_header">Header</string>
+    <string name="doc_lbl_footer">Footer</string>
+    <string name="doc_lbl_cut">Showing only the first %1$d rows and %2$d columns.</string>
 </resources>

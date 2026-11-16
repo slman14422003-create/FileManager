@@ -451,7 +451,7 @@
     <string name="theme_auto_note">يتبع وضع الهاتف: فاتح في النهار وداكن عندما يفعّل النظام الوضع الداكن.</string>
     <string name="theme_colors">ألوان التطبيق</string>
     <string name="theme_colors_note">اللون التمييزي يُطبَّق فورًا على الأزرار والتحديد والشريط السفلي. الافتراضي أحادي: أبيض في الداكن وأسود في الفاتح.</string>
-    <string name="pk_beta2">2.0</string>
+    <string name="pk_beta2">1.0</string>
     <string name="pk_chip_blocked">لا يمكن التثبيت</string>
     <string name="pk_d_abi">المعمارية</string>
     <string name="pk_d_abi_none">بدون مكتبات أصلية: تعمل على كل المعمارات</string>
