@@ -132,7 +132,8 @@ final class DocHtml {
             + "padding:20px 18px;box-shadow:0 0 0 1px %RING%;overflow:hidden}"
             + "p{margin:0 0 .6em;white-space:pre-wrap}h1,h2,h3,h4,h5,h6{margin:.8em 0 .4em;line-height:1.3;color:#111}"
             + "h3{font-family:serif;font-size:19px;margin:1.1em 0 .5em}"
-            + "table{border-collapse:collapse;margin:10px 0}td,th{border:1px solid #d6d9de;padding:5px 9px;vertical-align:top}"
+            + "table{border-collapse:collapse;margin:10px 0;max-width:100%}td,th{border:1px solid #d6d9de;padding:5px 7px;vertical-align:top;"
+            + "overflow-wrap:anywhere;word-break:break-word}"
             + "img{max-width:100%;height:auto;border-radius:6px}"
             + ".sheet{overflow:auto;max-width:100%;max-height:78vh;border-radius:16px;border:1px solid #d6d9de;margin:8px 0}"
             + ".sheet tr:first-child>th.rh{position:sticky;top:0;z-index:2;border-bottom:2px solid #c9d0dc}"
@@ -918,7 +919,7 @@ final class DocHtml {
                                     t = t.replace("@@RS" + i + "@@", String.valueOf(ts.counts.get(i)[0]));
                                 }
                             }
-                            out.peek().append("<table>").append(t).append("</table>");
+                            out.peek().append("<div class=\"wide\"><table>").append(t).append("</table></div>");
                             break;
                         }
                         default:

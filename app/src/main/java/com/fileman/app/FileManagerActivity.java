@@ -2119,6 +2119,7 @@ public class FileManagerActivity extends BaseActivity {
         final List<String> labels = new ArrayList<>();
         final List<Integer> ids = new ArrayList<>();
         if (single && !one.isDirectory()) add(labels, ids, getString(R.string.fm_open_with), 0);
+        if (single && !one.isDirectory() && isOfficeEditable(one)) add(labels, ids, getString(R.string.de_edit), 11);
         if (single) add(labels, ids, getString(R.string.fm_rename), 1);
         add(labels, ids, getString(R.string.fm_details), 2);
         if (anyFile) add(labels, ids, getString(R.string.share), 3);
@@ -2173,6 +2174,9 @@ public class FileManagerActivity extends BaseActivity {
                         case 10:
                             PdfConvert.file(this, one, null);
                             break;
+                        case 11:
+                            DocEditActivity.open(this, one);
+                            break;
                         default:
                             copyText(one.getAbsolutePath());
                             break;
@@ -2201,10 +2205,17 @@ public class FileManagerActivity extends BaseActivity {
             case 9:
                 return R.drawable.ic_pin;
             case 10:
+            case 11:
                 return R.drawable.ic_file_text;
             default:
                 return R.drawable.ic_copy;
         }
+    }
+
+    /** Word (docx) and Excel (xlsx) files can be opened in the built-in editor. */
+    private static boolean isOfficeEditable(File f) {
+        String e = Cats.extOf(f.getName());
+        return e.equals("docx") || e.equals("xlsx");
     }
 
     private static void add(List<String> labels, List<Integer> ids, String l, int id) {

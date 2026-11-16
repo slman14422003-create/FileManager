@@ -117,6 +117,10 @@ public class DocViewActivity extends BaseActivity {
             }
             names.add(getString(R.string.v_print));
             acts.add(this::printPage);
+            if (ext.equals("docx") || ext.equals("xlsx")) {
+                names.add(getString(R.string.de_edit));
+                acts.add(() -> DocEditActivity.open(this, file));
+            }
             if (editable) {
                 names.add(getString(R.string.v_edit_text));
                 acts.add(() -> startActivity(new android.content.Intent(this, FileEditActivity.class)

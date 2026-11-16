@@ -35,3 +35,9 @@
 
 -keep class eightbitlab.com.blurview.** { *; }
 -dontwarn eightbitlab.com.blurview.**
+
+# Word / Excel editor: methods called from the editor page's JavaScript
+-keepclassmembers class com.fileman.app.DocEditActivity$Bridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keepattributes JavascriptInterface
