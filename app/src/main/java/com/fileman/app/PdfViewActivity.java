@@ -156,6 +156,7 @@ public class PdfViewActivity extends BaseActivity {
             return;
         }
         topBar = findViewById(R.id.pdfTop);
+        styleHeader();
         ((TextView) findViewById(R.id.title)).setText(file.getName());
         subtitle = findViewById(R.id.subtitle);
         subtitle.setText("PDF · " + Fmt.size(file.length()));
@@ -171,18 +172,55 @@ public class PdfViewActivity extends BaseActivity {
         more.setVisibility(View.VISIBLE);
         more.setOnClickListener(v -> {
             scheduleIdleHide();
-            Opener.moreMenu(this, file,
-                    new String[]{getString(R.string.rd_night) + (night ? "  ✓" : ""),
-                            getString(R.string.rd_page_jump),
-                            getString(R.string.pdf_lock_rotation) + (rotationLocked ? "  ✓" : ""),
-                            getString(R.string.px_title)},
-                    new int[]{R.drawable.ic_night, R.drawable.ic_list_play, R.drawable.ic_rotate, R.drawable.ic_file_text},
-                    new Runnable[]{this::toggleNight, this::askPage, this::toggleRotationLock, this::openExport});
+            showMenu();
         });
         night = Store.intPref(this, "pdf_night", 0) == 1;
 
         loading.setVisibility(View.VISIBLE);
         io.execute(this::openDocument);
+    }
+
+    private void styleHeader() {
+        int[] ids = {R.id.btnBack, R.id.btnAi, R.id.btnA2};
+        int accent = Ui.color(this, R.color.accent);
+        for (int id : ids) {
+            ImageButton b = findViewById(id);
+            b.setBackground(glass(true));
+            b.setImageTintList(android.content.res.ColorStateList.valueOf(accent));
+            b.setElevation(Ui.dp(this, 5));
+            Ui.press(this, b);
+        }
+        View cap = findViewById(R.id.pdfCapsule);
+        cap.setBackground(glass(false));
+        cap.setElevation(Ui.dp(this, 5));
+        topBar.setBackgroundColor(0);
+        topBar.setElevation(0f);
+    }
+
+    private GradientDrawable glass(boolean round) {
+        GradientDrawable g = new GradientDrawable();
+        if (round) g.setShape(GradientDrawable.OVAL);
+        else g.setCornerRadius(Ui.dp(this, 23));
+        g.setColor(Blur.surface(this, Ui.color(this, R.color.surface), 0xF0));
+        g.setStroke(Math.max(1, Ui.dp(this, 1) / 2), Ui.color(this, R.color.stroke));
+        return g;
+    }
+
+    private void showMenu() {
+        java.util.List<ActionSheet.Item> tiles = new java.util.ArrayList<>();
+        tiles.add(new ActionSheet.Item(R.drawable.ic_night, getString(R.string.rd_night), this::toggleNight)
+                .toggle(() -> night));
+        tiles.add(new ActionSheet.Item(R.drawable.ic_list_play, getString(R.string.rd_page_jump), this::askPage));
+        tiles.add(new ActionSheet.Item(R.drawable.ic_rotate, getString(R.string.pdf_lock_rotation), this::toggleRotationLock)
+                .toggle(() -> rotationLocked));
+        tiles.add(new ActionSheet.Item(R.drawable.ic_zoom, getString(R.string.v_zoom), this::cycleZoom));
+        java.util.List<ActionSheet.Item> rows = new java.util.ArrayList<>();
+        rows.add(new ActionSheet.Item(R.drawable.ic_file_text, getString(R.string.px_title), this::openExport));
+        rows.add(new ActionSheet.Item(R.drawable.ic_open, getString(R.string.fm_open_with), () -> Opener.external(this, file, true)));
+        rows.add(new ActionSheet.Item(R.drawable.ic_share, getString(R.string.share), () -> Opener.share(this, file)));
+        ActionSheet.show(this, file.getName(),
+                "PDF · " + (pageCount > 0 ? pageCount + " · " : "") + Fmt.size(file.length()),
+                R.drawable.ic_file_text, tiles, rows);
     }
 
     private void openDocument() {
@@ -495,12 +533,17 @@ public class PdfViewActivity extends BaseActivity {
         view.animateZoom(next, view.getWidth() / 2f, view.getHeight() / 2f);
     }
 
-    /** Hides the system navigation bar (portrait and landscape); a swipe from the edge shows it briefly. */
+    /** Hides the status bar and the navigation bar; a swipe from the edge shows them briefly. */
     private void hideNavigationBar() {
         try {
+            if (android.os.Build.VERSION.SDK_INT >= 28) {
+                WindowManager.LayoutParams lp = getWindow().getAttributes();
+                lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+                getWindow().setAttributes(lp);
+            }
             WindowInsetsControllerCompat c = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
             c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-            c.hide(WindowInsetsCompat.Type.navigationBars());
+            c.hide(WindowInsetsCompat.Type.systemBars());
         } catch (Throwable ignored) {
         }
     }

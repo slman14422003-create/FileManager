@@ -18,7 +18,10 @@ import java.io.File;
 public class OpenActivity extends Activity {
     private static final String APK_MIME = "application/vnd.android.package-archive";
 
+    private static final int REQ_WHERE = 83;
+
     private volatile boolean gone = false;
+    private java.util.ArrayList<Uri> pending = new java.util.ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,7 +61,12 @@ public class OpenActivity extends Activity {
                 finish();
                 return;
             }
-            new Thread(() -> saveShared(shared)).start();
+            pending = shared;
+            if (SaveTarget.ASK.equals(SaveTarget.mode(this))) {
+                if (savedInstanceState == null) askWhere(shared);
+            } else {
+                new Thread(() -> saveShared(shared, null)).start();
+            }
             return;
         }
         Uri data = in.getData();
@@ -160,20 +168,48 @@ public class OpenActivity extends Activity {
         return out;
     }
 
-    /** A file shared to this app is a download: it goes to the public Download folder, not to the cache. */
-    private void saveShared(java.util.ArrayList<Uri> uris) {
+    private void askWhere(java.util.ArrayList<Uri> uris) {
+        String name = uris.size() == 1 ? SaveCopy.nameOf(this, uris.get(0)) : getString(R.string.dl_many_files, uris.size());
+        Intent i = new Intent(this, FileManagerActivity.class);
+        i.putExtra("save_name", name);
+        File dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        if (dl != null && dl.isDirectory()) i.putExtra("path", dl.getAbsolutePath());
+        try {
+            startActivityForResult(i, REQ_WHERE);
+        } catch (Throwable t) {
+            new Thread(() -> saveShared(pending, null)).start();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQ_WHERE) return;
+        String dir = resultCode == RESULT_OK && data != null ? data.getStringExtra("picked_dir") : null;
+        if (dir == null) {
+            finish();
+            return;
+        }
+        final File target = new File(dir);
+        final java.util.ArrayList<Uri> uris = pending;
+        new Thread(() -> saveShared(uris, target)).start();
+    }
+
+    private void saveShared(java.util.ArrayList<Uri> uris, File dir) {
         int ok = 0;
         for (Uri u : uris) {
-            String saved = SaveCopy.uriToDownloads(this, u);
+            String saved = dir != null ? SaveCopy.uriToDirectory(this, u, dir) : SaveCopy.uriToConfigured(this, u);
             PickLog.add(this, "share saved " + u + " -> " + saved, null);
             if (saved != null) ok++;
         }
         final boolean good = ok > 0;
+        final File show = dir != null ? dir : (SaveTarget.FOLDER.equals(SaveTarget.mode(this)) && SaveTarget.tree(this) != null
+                ? null : Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
         runOnUiThread(() -> {
             if (gone) return;
             Toast.makeText(this, good ? R.string.zip_saved_copy : R.string.zip_save_failed, Toast.LENGTH_LONG).show();
-            if (good) {
-                openDir(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
+            if (good && show != null) {
+                openDir(show);
             } else {
                 finish();
             }

@@ -234,6 +234,7 @@
             android:name=".InstallActivity"
             android:exported="true"
             android:excludeFromRecents="true"
+            android:theme="@style/Theme.App.Sheet"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.INSTALL_PACKAGE" />

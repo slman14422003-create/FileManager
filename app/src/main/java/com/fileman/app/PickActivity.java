@@ -128,7 +128,7 @@ public class PickActivity extends Activity {
             }
         }
         if (uri == null && Build.VERSION.SDK_INT >= 29) {
-            uri = createInDownloads(n);
+            uri = createInDownloads(n, SaveTarget.publicSlot(dir) ? SaveTarget.relative(dir) : Environment.DIRECTORY_DOWNLOADS);
             durable = false;   // MediaStore rows are not document URIs: a persistable flag would make takePersistableUriPermission throw
         }
         if (uri == null) {
@@ -147,14 +147,14 @@ public class PickActivity extends Activity {
     }
 
     /** A new empty file in the public Download folder; needs no storage permission (Android 10+). */
-    private Uri createInDownloads(String name) {
+    private Uri createInDownloads(String name, String relative) {
         try {
             String ext = name.lastIndexOf('.') >= 0 ? name.substring(name.lastIndexOf('.') + 1).toLowerCase(java.util.Locale.ROOT) : "";
             String mime = ext.isEmpty() ? null : MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext);
             ContentValues cv = new ContentValues();
             cv.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
             cv.put(MediaStore.MediaColumns.MIME_TYPE, mime == null ? "application/octet-stream" : mime);
-            cv.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+            cv.put(MediaStore.MediaColumns.RELATIVE_PATH, relative);
             return getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
         } catch (Exception e) {
             PickLog.add(this, "picker mediastore create FAILED", e);

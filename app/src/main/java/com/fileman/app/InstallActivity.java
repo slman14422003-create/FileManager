@@ -77,7 +77,7 @@ public class InstallActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_install);
-        useGroupedBackground();
+        setupSheet();
         icon = findViewById(R.id.appIcon);
         name = findViewById(R.id.appName);
         pkgView = findViewById(R.id.appPkg);
@@ -136,6 +136,133 @@ public class InstallActivity extends BaseActivity {
             return;
         }
         load(dataUri);
+    }
+
+    private View sheet, scrim, grabBox;
+    private MaxHeightScrollView sheetScroll;
+    private boolean closing = false;
+
+    @Override
+    protected boolean constrainContent() {
+        return false;
+    }
+
+    @Override
+    protected boolean glassScreen() {
+        return false;
+    }
+
+    private boolean canClose() {
+        return !(state == S_INSTALLING && installStarted);
+    }
+
+    private void fitSheet() {
+        if (sheetScroll == null) return;
+        int h = getResources().getDisplayMetrics().heightPixels;
+        int max = Math.max(Ui.dp(this, 120), Math.min((int) (h * 0.62f), h - Ui.dp(this, 250)));
+        sheetScroll.setMaxHeight(max);
+        android.widget.FrameLayout.LayoutParams lp = (android.widget.FrameLayout.LayoutParams) sheet.getLayoutParams();
+        int w = Math.min(getResources().getDisplayMetrics().widthPixels, Ui.dp(this, 560));
+        if (lp.width != w) {
+            lp.width = w;
+            sheet.setLayoutParams(lp);
+        }
+    }
+
+    @Override
+    protected void onLayoutChanged() {
+        fitSheet();
+    }
+
+    private void setupSheet() {
+        sheet = findViewById(R.id.sheet);
+        scrim = findViewById(R.id.scrim);
+        grabBox = findViewById(R.id.grabBox);
+        sheetScroll = findViewById(R.id.sheetScroll);
+        GradientDrawable gr = new GradientDrawable();
+        gr.setColor(Ui.color(this, R.color.text_hint));
+        gr.setCornerRadius(Ui.dp(this, 3));
+        findViewById(R.id.grabber).setBackground(gr);
+        sheet.setTranslationY(getResources().getDisplayMetrics().heightPixels);
+
+        View content = findViewById(android.R.id.content);
+        content.setTag(R.id.tag_insets, Boolean.TRUE);
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(content, (v, insets) -> {
+            androidx.core.graphics.Insets b = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars()
+                    | androidx.core.view.WindowInsetsCompat.Type.displayCutout()
+                    | androidx.core.view.WindowInsetsCompat.Type.ime());
+            sheet.setPadding(0, 0, 0, b.bottom);
+            fitSheet();
+            return androidx.core.view.WindowInsetsCompat.CONSUMED;
+        });
+        fitSheet();
+
+        scrim.setOnClickListener(v -> {
+            if (canClose()) finishWithResult();
+        });
+
+        final float[] down = new float[1];
+        final android.view.VelocityTracker[] vt = new android.view.VelocityTracker[1];
+        grabBox.setOnTouchListener((v, e) -> {
+            switch (e.getActionMasked()) {
+                case android.view.MotionEvent.ACTION_DOWN:
+                    down[0] = e.getRawY();
+                    vt[0] = android.view.VelocityTracker.obtain();
+                    vt[0].addMovement(e);
+                    return true;
+                case android.view.MotionEvent.ACTION_MOVE: {
+                    if (vt[0] != null) vt[0].addMovement(e);
+                    float dy = Math.max(0f, e.getRawY() - down[0]);
+                    if (!canClose()) dy = Math.min(dy, Ui.dp(this, 24)) * 0.4f;
+                    sheet.setTranslationY(dy);
+                    scrim.setAlpha(0.5f * (1f - Math.min(1f, dy / Math.max(1f, sheet.getHeight()))));
+                    return true;
+                }
+                case android.view.MotionEvent.ACTION_UP:
+                case android.view.MotionEvent.ACTION_CANCEL: {
+                    float vy = 0f;
+                    if (vt[0] != null) {
+                        vt[0].addMovement(e);
+                        vt[0].computeCurrentVelocity(1000);
+                        vy = vt[0].getYVelocity();
+                        vt[0].recycle();
+                        vt[0] = null;
+                    }
+                    boolean close = canClose() && e.getActionMasked() == android.view.MotionEvent.ACTION_UP
+                            && (sheet.getTranslationY() > Ui.dp(this, 110) || vy > 1400f);
+                    if (close) {
+                        finishWithResult();
+                    } else {
+                        sheet.animate().translationY(0f).setDuration(220)
+                                .setInterpolator(new android.view.animation.DecelerateInterpolator(2f)).start();
+                        scrim.animate().alpha(0.5f).setDuration(220).start();
+                    }
+                    return true;
+                }
+                default:
+                    return false;
+            }
+        });
+
+        sheet.post(() -> {
+            sheet.setTranslationY(sheet.getHeight());
+            sheet.animate().translationY(0f).setDuration(380)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(2.4f)).start();
+            scrim.animate().alpha(0.5f).setDuration(300).start();
+        });
+    }
+
+    @Override
+    public void finish() {
+        if (closing || sheet == null || !sheet.isLaidOut() || isDestroyed()) {
+            super.finish();
+            return;
+        }
+        closing = true;
+        scrim.animate().alpha(0f).setDuration(240).start();
+        sheet.animate().translationY(sheet.getHeight() + Ui.dp(this, 40)).setDuration(260)
+                .setInterpolator(new android.view.animation.AccelerateInterpolator(1.6f))
+                .withEndAction(() -> InstallActivity.super.finish()).start();
     }
 
     @Override

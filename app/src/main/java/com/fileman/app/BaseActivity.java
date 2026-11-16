@@ -13,6 +13,22 @@ import androidx.core.view.WindowInsetsControllerCompat;
  * icons readable in day and night mode, and applies the layout language (see {@link Layout}).
  */
 public abstract class BaseActivity extends AppCompatActivity {
+    private float displayScale = 1f;
+
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        displayScale = DisplaySize.scale(newBase);
+        super.attachBaseContext(DisplaySize.wrap(newBase));
+    }
+
+    @Override
+    public void applyOverrideConfiguration(Configuration overrideConfiguration) {
+        if (overrideConfiguration != null && displayScale != 1f) {
+            overrideConfiguration.densityDpi = Math.round(Resources.getSystem().getConfiguration().densityDpi * displayScale);
+        }
+        super.applyOverrideConfiguration(overrideConfiguration);
+    }
+
     @Override
     protected void onApplyThemeResource(Resources.Theme theme, int resid, boolean first) {
         super.onApplyThemeResource(theme, resid, first);

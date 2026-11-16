@@ -3,6 +3,7 @@ package com.fileman.app;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -11,6 +12,20 @@ import androidx.appcompat.app.AppCompatActivity;
 /** Language, hidden files, permissions and app info. */
 public class SettingsActivity extends BaseActivity {
     private LinearLayout content;
+
+    private final androidx.activity.result.ActivityResultLauncher<Intent> treePick = registerForActivityResult(
+            new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(), r -> {
+                Intent d = r.getData();
+                android.net.Uri u = r.getResultCode() == RESULT_OK && d != null ? d.getData() : null;
+                if (u == null) return;
+                if (SaveTarget.keep(this, u)) {
+                    android.widget.Toast.makeText(this, getString(R.string.dl_picked, SaveTarget.treeLabel(u)),
+                            android.widget.Toast.LENGTH_SHORT).show();
+                } else {
+                    android.widget.Toast.makeText(this, R.string.dl_pick_failed, android.widget.Toast.LENGTH_LONG).show();
+                }
+                render();
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +69,9 @@ public class SettingsActivity extends BaseActivity {
                 getString(R.string.ic_title), getString(R.string.ic_sub), false, true),
                 v -> startActivity(new Intent(this, IconActivity.class))));
 
+        content.addView(Ui.sectionTitle(this, getString(R.string.ds_title)));
+        content.addView(displayCard());
+
         content.addView(Ui.sectionTitle(this, getString(R.string.set_general)));
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_language, false,
                 getString(R.string.set_language), languageName(), false, true), v -> pickLanguage()));
@@ -79,6 +97,10 @@ public class SettingsActivity extends BaseActivity {
         });
         content.addView(glass.view);
 
+        content.addView(Ui.sectionTitle(this, getString(R.string.dl_section)));
+        content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_download, false,
+                getString(R.string.dl_title), SaveTarget.label(this), false, true), v -> pickDownloads()));
+
         content.addView(Ui.sectionTitle(this, getString(R.string.set_access)));
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_shield, false,
                 getString(R.string.perm_title), getString(R.string.perm_subtitle), false, true),
@@ -102,6 +124,108 @@ public class SettingsActivity extends BaseActivity {
     }
 
     private View nav;
+
+    private View displayCard() {
+        final LinearLayout card = Ui.formCard(this);
+        card.setPaddingRelative(Ui.dp(this, 16), Ui.dp(this, 14), Ui.dp(this, 16), Ui.dp(this, 14));
+
+        final TextView preview = new TextView(this);
+        preview.setText(R.string.ds_preview);
+        preview.setTextColor(Ui.color(this, R.color.text_primary));
+        preview.setTextSize(15);
+        preview.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        card.addView(preview);
+
+        final TextView name = new TextView(this);
+        name.setTextColor(Ui.color(this, R.color.text_secondary));
+        name.setTextSize(12);
+        name.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        name.setPadding(0, Ui.dp(this, 2), 0, Ui.dp(this, 8));
+        card.addView(name);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        row.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+
+        TextView small = new TextView(this);
+        small.setText("A");
+        small.setTextSize(13);
+        small.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        small.setTextColor(Ui.color(this, R.color.text_secondary));
+        row.addView(small);
+
+        final android.widget.SeekBar bar = new android.widget.SeekBar(this);
+        bar.setMax(DisplaySize.LEVELS - 1);
+        bar.setProgress(DisplaySize.level(this));
+        bar.setPadding(Ui.dp(this, 14), Ui.dp(this, 10), Ui.dp(this, 14), Ui.dp(this, 10));
+        bar.setProgressTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.accent)));
+        bar.setThumbTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.accent)));
+        bar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.stroke)));
+        row.addView(bar, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView big = new TextView(this);
+        big.setText("A");
+        big.setTextSize(24);
+        big.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        big.setTextColor(Ui.color(this, R.color.text_primary));
+        row.addView(big);
+        card.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        final int[] names = {R.string.ds_l0, R.string.ds_l1, R.string.ds_l2, R.string.ds_l3, R.string.ds_l4};
+        name.setText(names[DisplaySize.level(this)]);
+        final int start = DisplaySize.level(this);
+        bar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(android.widget.SeekBar b, int p, boolean user) {
+                name.setText(names[p]);
+                preview.setTextSize(15 * (1f + 0.08f * p));
+                if (user) b.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK);
+            }
+
+            @Override
+            public void onStartTrackingTouch(android.widget.SeekBar b) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(android.widget.SeekBar b) {
+                if (b.getProgress() == DisplaySize.level(SettingsActivity.this)) return;
+                DisplaySize.setLevel(SettingsActivity.this, b.getProgress());
+                for (android.app.Activity act : App.openActivities()) act.recreate();
+            }
+        });
+        return card;
+    }
+
+    private void pickDownloads() {
+        String cur = SaveTarget.mode(this);
+        final String[] items = {
+                (SaveTarget.ASK.equals(cur) ? "● " : "○ ") + getString(R.string.dl_loc_ask),
+                (SaveTarget.PUBLIC.equals(cur) ? "● " : "○ ") + getString(R.string.dl_loc_public),
+                (SaveTarget.FOLDER.equals(cur) ? "● " : "○ ") + getString(R.string.dl_choose),
+                getString(R.string.dl_full_access)};
+        new Dlg(this).setTitle(R.string.dl_title).setMessage(R.string.dl_sub)
+                .setItems(items, new int[]{R.drawable.ic_search, R.drawable.ic_download, R.drawable.ic_folder, R.drawable.ic_shield},
+                        (d, which) -> {
+                            if (which == 0) {
+                                SaveTarget.setMode(this, SaveTarget.ASK);
+                                render();
+                            } else if (which == 1) {
+                                SaveTarget.setMode(this, SaveTarget.PUBLIC);
+                                render();
+                            } else if (which == 2) {
+                                try {
+                                    treePick.launch(SaveTarget.systemPicker(this));
+                                } catch (Exception e) {
+                                    android.widget.Toast.makeText(this, R.string.dl_pick_failed,
+                                            android.widget.Toast.LENGTH_LONG).show();
+                                }
+                            } else {
+                                Perms.requestAllFiles(this);
+                            }
+                        }).show();
+    }
 
     private void pickLanguage() {
         final String[] codes = {"system", "ar", "en"};
