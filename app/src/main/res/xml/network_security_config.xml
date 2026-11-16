@@ -2,8 +2,8 @@
 <network-security-config>
     <!--
       HTTPS only, system certificate authorities only (no user-installed CAs, so a proxy certificate
-      cannot intercept traffic). The app contacts GitHub (update check, Net.java) and Google (the Drive
-      screen, DriveHttp.java); both classes enforce their host lists in code.
+      cannot intercept traffic). The app contacts GitHub (update check, Net.java), Google (the Drive
+      screen, DriveHttp.java), and Microsoft speech (the document editor read-aloud, EdgeTtsClient); the first two enforce their host lists in code.
     -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>

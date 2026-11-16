@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="de_edit">Edit</string>
+    <string name="de_read_aloud">Read aloud</string>
+    <string name="de_kind_word">Word document</string>
+    <string name="de_kind_excel">Excel spreadsheet</string>
+    <string name="de_unsaved_short">unsaved changes</string>
+    <string name="de_unsaved_title">Unsaved changes</string>
+    <string name="de_unsaved_msg">Save your changes before leaving?</string>
+    <string name="de_overwrite_title">Save over the original</string>
+    <string name="de_overwrite_msg">The original file will be replaced by the edited version. Some advanced formatting the editor does not support may be lost. You can save a new copy instead.</string>
+    <string name="de_overwrite">Replace original</string>
+    <string name="de_save_as_copy">Save a copy</string>
+    <string name="de_saved_as">Saved as %s</string>
+    <string name="de_save_failed">Could not save the file</string>
+    <string name="de_nothing_to_read">There is no text to read</string>
+    <string name="de_para_of">Paragraph %1$d / %2$d</string>
+    <string name="de_row_of">Row %1$d / %2$d</string>
+    <string name="de_prev">Previous</string>
+    <string name="de_next">Next</string>
+    <string name="de_close">Close</string>
+</resources>
