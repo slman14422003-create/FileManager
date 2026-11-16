@@ -12,7 +12,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-/** Keeps the stack trace of every crash in the app's own external files folder (Android/data/<package>/files) (cache folder when that is not writable). */
+/** Keeps the stack trace of every crash in Download/FileManager-crash.txt (cache folder when that is not writable). */
 final class CrashLog {
     private static final String NAME = "FileManager-crash.txt";
     private static final long MAX = 200 * 1024;
@@ -39,7 +39,7 @@ final class CrashLog {
             e.printStackTrace(pw);
             pw.println("----");
             pw.flush();
-            File dir = c.getExternalFilesDir(null);   // app-private: other apps cannot read the log
+            File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
             File f = new File(dir, NAME);
             if (dir == null || !(dir.isDirectory() && dir.canWrite())) f = new File(c.getCacheDir(), NAME);
             boolean append = f.exists() && f.length() < MAX;

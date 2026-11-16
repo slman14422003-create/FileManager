@@ -34,10 +34,6 @@ public class App extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        if (Integrity.tampered(this)) {
-            Integrity.reject(this);
-            return;
-        }
         CrashLog.install(this);
         Lang.init(this);
         Appearance.applyMode(this);

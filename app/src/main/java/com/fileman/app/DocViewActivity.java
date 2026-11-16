@@ -65,6 +65,14 @@ public class DocViewActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        DocHtml.lblSlide = getString(R.string.doc_lbl_slide);
+        DocHtml.lblHidden = getString(R.string.doc_lbl_hidden);
+        DocHtml.lblNotes = getString(R.string.doc_lbl_notes);
+        DocHtml.lblChart = getString(R.string.doc_lbl_chart);
+        DocHtml.lblComments = getString(R.string.doc_lbl_comments);
+        DocHtml.lblHeader = getString(R.string.doc_lbl_header);
+        DocHtml.lblFooter = getString(R.string.doc_lbl_footer);
+        DocHtml.lblCut = getString(R.string.doc_lbl_cut);
         DocHtml.canvas = String.format("#%06X", 0xFFFFFF & Ui.color(this, R.color.bg));
         DocHtml.ring = String.format("#%06X", 0xFFFFFF & Ui.color(this, R.color.stroke));
         

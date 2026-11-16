@@ -92,35 +92,25 @@ public final class Cats {
             case T_DIR:
                 return R.drawable.ic_folder;
             case T_IMG:
-                return R.drawable.ic_ft_image;
+                return R.drawable.ic_image;
             case T_VID:
-                return R.drawable.ic_ft_video;
+                return R.drawable.ic_video;
             case T_AUD:
-                return R.drawable.ic_ft_audio;
+                return R.drawable.ic_music;
             case T_ARC:
-                return R.drawable.ic_ft_zip;
+                return R.drawable.ic_archive;
             case T_APK:
-                return R.drawable.ic_ft_apk;
+                return R.drawable.ic_package;
             case T_TXT:
-                return R.drawable.ic_ft_code;
+                return R.drawable.ic_code;
             case T_CONTACT:
                 return R.drawable.ic_contact;
             case T_PDF:
-                return R.drawable.ic_ft_pdf;
             case T_DOC:
-                return R.drawable.ic_ft_doc;
+                return R.drawable.ic_file_text;
             default:
                 return R.drawable.ic_file;
         }
-    }
-
-    /** Like {@link #iconFor(int)} but tells spreadsheets and slides apart from other office documents. */
-    public static int iconForExt(String ext, int t) {
-        if (t == T_DOC && ext != null) {
-            if (in(ext, "xls", "xlsx", "ods", "numbers", "csv")) return R.drawable.ic_ft_sheet;
-            if (in(ext, "ppt", "pptx", "odp", "key")) return R.drawable.ic_ft_slide;
-        }
-        return iconFor(t);
     }
 
     public static int colorFor(int t) {

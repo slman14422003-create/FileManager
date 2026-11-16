@@ -482,10 +482,6 @@ final class PkgInstaller {
         if (in.bundle && in.smart) {
             out.add(new Issue(LV_INFO, false, c.getString(R.string.pk_issue_smart, in.entries.size(), in.allEntries.size())));
         }
-        // Android 17: the system may verify the developer first (needs internet)
-        if (!in.installed && devVerificationActive(c)) {
-            out.add(new Issue(LV_INFO, false, c.getString(R.string.pk_issue_dv)));
-        }
         // updating this very app
         if (c.getPackageName().equals(in.pkg)) {
             out.add(new Issue(LV_INFO, false, c.getString(R.string.pk_issue_self)));
@@ -693,48 +689,7 @@ final class PkgInstaller {
         if (m.contains("DUPLICATE_PERMISSION") || m.contains("CONFLICTING_PROVIDER")) return R.string.pk_fail_perm;
         if (m.contains("INSUFFICIENT_STORAGE")) return R.string.pk_fail_storage;
         if (m.contains("TIMEOUT")) return R.string.pk_fail_timeout;
-        if (m.contains("DEVELOPER_VERIF") || m.contains("DEVELOPER VERIF")) return R.string.pk_fail_dv;
         return 0;
-    }
-
-    // ------------------------------------------------------------------ Android 17 developer verification
-
-    /**
-     * Android 17 (and 16 QPR2): the system can check who built an app before it is installed. True when a
-     * verification service is registered on this device. Read by reflection so the app still builds against API 36.
-     */
-    static boolean devVerificationActive(Context c) {
-        if (Build.VERSION.SDK_INT < 36) return false;
-        try {
-            PackageInstaller pi = c.getPackageManager().getPackageInstaller();
-            Object cn = PackageInstaller.class.getMethod("getDeveloperVerificationServiceProvider").invoke(pi);
-            return cn != null;
-        } catch (Throwable t) {
-            return false;
-        }
-    }
-
-    private static int installerInt(String field) {
-        try {
-            return PackageInstaller.class.getField(field).getInt(null);
-        } catch (Throwable t) {
-            return Integer.MIN_VALUE;
-        }
-    }
-
-    /** A plain-words message when the install result carries a developer-verification failure, else 0. */
-    static int devVerifyMessage(Intent i) {
-        if (Build.VERSION.SDK_INT < 36 || i == null) return 0;
-        try {
-            String key = (String) PackageInstaller.class.getField("EXTRA_DEVELOPER_VERIFICATION_FAILURE_REASON").get(null);
-            if (key == null || !i.hasExtra(key)) return 0;
-            int reason = i.getIntExtra(key, Integer.MIN_VALUE);
-            if (reason == installerInt("DEVELOPER_VERIFICATION_FAILED_REASON_DEVELOPER_BLOCKED")) return R.string.pk_fail_dv_blocked;
-            if (reason == installerInt("DEVELOPER_VERIFICATION_FAILED_REASON_NETWORK_UNAVAILABLE")) return R.string.pk_fail_dv_net;
-            return R.string.pk_fail_dv;
-        } catch (Throwable t) {
-            return 0;
-        }
     }
 
     /** The install could not start because the device is nearly full. */

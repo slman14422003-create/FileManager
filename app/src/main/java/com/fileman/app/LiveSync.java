@@ -19,12 +19,12 @@ import java.util.List;
 import java.util.Set;
 
 final class LiveSync {
-    private static final long QUIET_MS = 350;
-    private static final long MAX_WAIT_MS = 1600;
+    private static final long QUIET_MS = 90;
+    private static final long MAX_WAIT_MS = 450;
     /** Media database changes arrive in long bursts: wait for them to settle, and never rescan more often than this. */
-    private static final long MEDIA_QUIET_MS = 1200;
-    private static final long MEDIA_MAX_WAIT_MS = 6000;
-    private static final long MIN_FULL_GAP_MS = 4000;
+    private static final long MEDIA_QUIET_MS = 350;
+    private static final long MEDIA_MAX_WAIT_MS = 1500;
+    private static final long MIN_FULL_GAP_MS = 700;
     private static final int MASK = FileObserver.CREATE | FileObserver.DELETE | FileObserver.DELETE_SELF
             | FileObserver.MOVED_FROM | FileObserver.MOVED_TO | FileObserver.MOVE_SELF
             | FileObserver.CLOSE_WRITE | FileObserver.ATTRIB;

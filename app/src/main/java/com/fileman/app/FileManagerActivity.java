@@ -925,9 +925,25 @@ public class FileManagerActivity extends BaseActivity {
         };
     }
 
+    private final Map<String, List<Entry>> dirCache = new LinkedHashMap<String, List<Entry>>(8, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, List<Entry>> e) {
+            return size() > 8;
+        }
+    };
+
     private void load() {
         final long my = ++gen;
         final File dir = cur;
+        final String cacheKey = dir.getAbsolutePath() + "|" + showHidden;
+        if (!quiet) {
+            List<Entry> cached = dirCache.get(cacheKey);
+            if (cached != null) {
+                listDenied = false;
+                setShown(new ArrayList<>(cached));
+                quiet = true;
+            }
+        }
         final Map<String, Entry> prev = new HashMap<>();
         if (quiet && shownMode == mode) for (Entry e : shown) prev.put(e.f.getAbsolutePath(), e);
         loading(true);
@@ -948,6 +964,7 @@ public class FileManagerActivity extends BaseActivity {
             post(() -> {
                 if (my != gen) return;
                 listDenied = denied;
+                if (!denied) dirCache.put(cacheKey, new ArrayList<>(out));
                 setShown(out);
                 loading(false);
             });
@@ -1646,7 +1663,7 @@ public class FileManagerActivity extends BaseActivity {
 
             ImageView icon = h.icon;
             ImageView thumb = h.thumb;
-            icon.setImageResource(Cats.iconForExt(Cats.extOf(e.f.getName()), type));
+            icon.setImageResource(iconFor(type));
             Ui.iconChip(FileManagerActivity.this, icon,
                     Ui.color(FileManagerActivity.this, e.dir ? R.color.info : chipColorFor(type)));
             thumb.setTag(path);

@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Deque;
@@ -42,10 +43,15 @@ final class DocHtml {
     private DocHtml() {
     }
 
+    /** Texts the converters add to a page (set by the viewer from string resources; English until then). */
+    static volatile String lblSlide = "Slide", lblHidden = "Hidden", lblNotes = "Notes", lblChart = "Chart",
+            lblComments = "Comments", lblHeader = "Header", lblFooter = "Footer",
+            lblCut = "Showing only the first %1$d rows and %2$d columns.";
+
     private static final long MAX_ENTRY = 40L * 1024 * 1024;
     private static final long MAX_FILE = 60L * 1024 * 1024;
-    private static final int MAX_ROWS = 2000;
-    private static final int MAX_COLS = 50;
+    private static final int MAX_ROWS = 3000;
+    private static final int MAX_COLS = 80;
     private static final int MAX_IMAGE = 3 * 1024 * 1024;
     private static final long IMAGE_BUDGET = 16L * 1024 * 1024;
 
@@ -149,7 +155,13 @@ final class DocHtml {
             + "color:#2447c9;text-decoration:none;font-size:14px;font-weight:600}"
             + ".slide{border:1px solid #e1e4ea;border-radius:20px;padding:16px;margin:14px 0;background:#fafbfc}"
             + ".sn{color:#7a8290;font-size:12px;margin-bottom:8px;font-weight:600;letter-spacing:.3px}"
-            + ".note{color:#7a8290;font-size:13px;margin:8px 0}";
+            + ".note{color:#7a8290;font-size:13px;margin:8px 0}"
+            + ".bu{display:inline-block;min-width:1.4em}.slide h2{margin-top:0}.wide{overflow:auto;max-width:100%}"
+            + ".nt{margin-top:10px;padding:8px 12px;border-radius:12px;background:#f1f3f7;color:#46506a;font-size:14px}"
+            + ".nt summary{font-weight:600}.chart{margin:10px 0}.ct{font-weight:600;color:#46506a;font-size:14px;margin-bottom:4px}"
+            + ".tb{border:1px solid #d6d9de;border-radius:10px;padding:4px 10px;margin:6px 0}"
+            + ".hf{color:#7a8290;font-size:13px;margin:0 0 10px;padding-bottom:6px;border-bottom:1px dashed #d6d9de}"
+            + ".pbk{display:block;border-top:1px dashed #c9d0dc;margin:14px 0}.cm{color:#7a8290}";
 
     private static String page(String body) {
         return "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
@@ -200,7 +212,7 @@ final class DocHtml {
         return bo.toByteArray();
     }
 
-    private static byte[] entry(ZipFile z, String name) throws IOException {
+    static byte[] entry(ZipFile z, String name) throws IOException {
         ZipEntry e = z.getEntry(name);
         if (e == null) return null;
         if (e.getSize() > MAX_ENTRY) throw new IOException("entry too large");
@@ -209,28 +221,28 @@ final class DocHtml {
         }
     }
 
-    private static XmlPullParser parser(byte[] data) throws Exception {
+    static XmlPullParser parser(byte[] data) throws Exception {
         XmlPullParser p = Xml.newPullParser();
         p.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false);
         p.setInput(new ByteArrayInputStream(data), null);
         return p;
     }
 
-    private static String local(String name) {
+    static String local(String name) {
         if (name == null) return "";
         int i = name.indexOf(':');
         return i < 0 ? name : name.substring(i + 1);
     }
 
     /** Attribute by local name (ignores the namespace prefix). */
-    private static String attr(XmlPullParser p, String localName) {
+    static String attr(XmlPullParser p, String localName) {
         for (int i = 0; i < p.getAttributeCount(); i++) {
             if (local(p.getAttributeName(i)).equals(localName)) return p.getAttributeValue(i);
         }
         return null;
     }
 
-    private static int toInt(String s, int def) {
+    static int toInt(String s, int def) {
         if (s == null) return def;
         try {
             return Integer.parseInt(s.trim());
@@ -407,13 +419,14 @@ final class DocHtml {
 
     // ------------------------------------------------------------------ DOCX
 
-    private static boolean on(XmlPullParser p) {
+    static boolean on(XmlPullParser p) {
         String v = attr(p, "val");
         return v == null || !(v.equals("0") || v.equals("false") || v.equals("off") || v.equals("none"));
     }
 
     private static String highlight(String h) {
         if (h == null) return "#ffff00";
+        if (h.startsWith("#")) return h;
         switch (h) {
             case "green":
                 return "#00ff00";
@@ -433,7 +446,7 @@ final class DocHtml {
     }
 
     private static String span(String txt, boolean b, boolean i, boolean u, boolean s, String color, int sz,
-                               String va, String hl) {
+                               String va, String hl, String extra) {
         StringBuilder st = new StringBuilder();
         if (b) st.append("font-weight:bold;");
         if (i) st.append("font-style:italic;");
@@ -446,6 +459,7 @@ final class DocHtml {
         if (color != null && color.matches("[0-9A-Fa-f]{6}")) st.append("color:#").append(color).append(';');
         if (sz > 0) st.append("font-size:").append(Math.max(8, Math.min(48, sz / 2.0))).append("pt;");
         if (hl != null) st.append("background:").append(highlight(hl)).append(';');
+        if (extra != null) st.append(extra);
         String out = st.length() == 0 ? txt : "<span style=\"" + st + "\">" + txt + "</span>";
         if ("superscript".equals(va)) out = "<sup>" + out + "</sup>";
         else if ("subscript".equals(va)) out = "<sub>" + out + "</sub>";
@@ -489,6 +503,20 @@ final class DocHtml {
             List<String> enIds = new ArrayList<>();
             String listId = null;
             boolean inTcPr = false;
+            DocxStyles styles = DocxStyles.load(z);
+            Map<String, String> comments = notes(z, "word/comments.xml", "comment");
+            List<String> cmIds = new ArrayList<>();
+            String hdrRid = null;
+            String ftrRid = null;
+            DocxStyles.Fmt pFmt = null;
+            int indLeft = -1;
+            int spBefore = -1;
+            int spAfter = -1;
+            int outline = 0;
+            String pFill = null;
+            String rshd = null;
+            boolean caps = false;
+            boolean smallCaps = false;
 
             StringBuilder para = null;
             String pStyle = null;
@@ -519,6 +547,12 @@ final class DocHtml {
                             listed = false;
                             ilvl = 0;
                             listId = null;
+                            pFmt = null;
+                            indLeft = -1;
+                            spBefore = -1;
+                            spAfter = -1;
+                            outline = 0;
+                            pFill = null;
                             break;
                         case "pPr":
                             inPPr = true;
@@ -527,7 +561,10 @@ final class DocHtml {
                             inRPr = true;
                             break;
                         case "pStyle":
-                            if (inPPr) pStyle = attr(p, "val");
+                            if (inPPr) {
+                                pStyle = attr(p, "val");
+                                pFmt = styles.get(pStyle);
+                            }
                             break;
                         case "jc":
                             if (inPPr) jc = attr(p, "val");
@@ -565,14 +602,17 @@ final class DocHtml {
                         case "r":
                             run = new StringBuilder();
                             inRun = true;
-                            b = false;
-                            it = false;
-                            u = false;
-                            st = false;
-                            color = null;
+                            b = pFmt != null && Boolean.TRUE.equals(pFmt.b);
+                            it = pFmt != null && Boolean.TRUE.equals(pFmt.i);
+                            u = pFmt != null && Boolean.TRUE.equals(pFmt.u);
+                            st = pFmt != null && Boolean.TRUE.equals(pFmt.s);
+                            caps = pFmt != null && Boolean.TRUE.equals(pFmt.caps);
+                            smallCaps = pFmt != null && Boolean.TRUE.equals(pFmt.smallCaps);
+                            color = pFmt != null ? pFmt.color : null;
+                            sz = pFmt != null ? pFmt.sz : 0;
                             va = null;
                             hl = null;
-                            sz = 0;
+                            rshd = null;
                             break;
                         case "b":
                             if (inRun && inRPr) b = on(p);
@@ -601,6 +641,70 @@ final class DocHtml {
                                 if (h != null && !h.equals("none")) hl = h;
                             }
                             break;
+                        case "rStyle":
+                            if (inRun && inRPr) {
+                                DocxStyles.Fmt cf = styles.get(attr(p, "val"));
+                                if (cf != null) {
+                                    if (cf.b != null) b = cf.b;
+                                    if (cf.i != null) it = cf.i;
+                                    if (cf.u != null) u = cf.u;
+                                    if (cf.s != null) st = cf.s;
+                                    if (cf.caps != null) caps = cf.caps;
+                                    if (cf.smallCaps != null) smallCaps = cf.smallCaps;
+                                    if (cf.color != null) color = cf.color;
+                                    if (cf.sz > 0) sz = cf.sz;
+                                }
+                            }
+                            break;
+                        case "caps":
+                            if (inRun && inRPr) caps = on(p);
+                            break;
+                        case "smallCaps":
+                            if (inRun && inRPr) smallCaps = on(p);
+                            break;
+                        case "noBreakHyphen":
+                            if (inRun && run != null) run.append("&#8209;");
+                            break;
+                        case "commentReference": {
+                            String cid = attr(p, "id");
+                            if (inRun && run != null && cid != null && comments.containsKey(cid)) {
+                                cmIds.add(cid);
+                                run.append("<sup class=\"cm\"><a class=\"il\" href=\"#cm_").append(cid).append("\">[c")
+                                        .append(cmIds.size()).append("]</a></sup>");
+                            }
+                            break;
+                        }
+                        case "ind":
+                            if (inPPr && !inRPr) {
+                                String l = attr(p, "left");
+                                if (l == null) l = attr(p, "start");
+                                indLeft = toInt(l, -1);
+                            }
+                            break;
+                        case "spacing":
+                            if (inPPr && !inRPr) {
+                                spBefore = toInt(attr(p, "before"), -1);
+                                spAfter = toInt(attr(p, "after"), -1);
+                            }
+                            break;
+                        case "outlineLvl":
+                            if (inPPr) outline = toInt(attr(p, "val"), -1) + 1;
+                            break;
+                        case "headerReference":
+                            if ("default".equals(attr(p, "type"))) hdrRid = relId(p);
+                            break;
+                        case "footerReference":
+                            if ("default".equals(attr(p, "type"))) ftrRid = relId(p);
+                            break;
+                        case "Fallback":
+                            skipTree(p);
+                            break;
+                        case "txbxContent": {
+                            String tb = "<div class=\"tb\">" + textBox(p) + "</div>";
+                            if (run != null) run.append(tb);
+                            else out.peek().append(tb);
+                            break;
+                        }
                         case "t":
                             if (inRun && run != null) run.append(esc(p.nextText()));
                             break;
@@ -609,7 +713,9 @@ final class DocHtml {
                             break;
                         case "br":
                         case "cr":
-                            if (inRun && run != null) run.append("<br>");
+                            if (inRun && run != null) {
+                                run.append("page".equals(attr(p, "type")) ? "<span class=\"pbk\"></span>" : "<br>");
+                            }
                             break;
                         case "blip": {
                             String uri = image(z, rels.get(attr(p, "embed")), budget);
@@ -685,12 +791,18 @@ final class DocHtml {
                         case "vMerge":
                             if (inTcPr && !spans.isEmpty()) spans.peek()[1] = "restart".equals(attr(p, "val")) ? 1 : 2;
                             break;
-                        case "shd":
+                        case "shd": {
+                            String fill = attr(p, "fill");
+                            boolean okFill = fill != null && fill.matches("[0-9A-Fa-f]{6}");
                             if (inTcPr && !spans.isEmpty()) {
-                                String fill = attr(p, "fill");
-                                if (fill != null && fill.matches("[0-9A-Fa-f]{6}")) spans.peek()[2] = Integer.parseInt(fill, 16) + 1;
+                                if (okFill) spans.peek()[2] = Integer.parseInt(fill, 16) + 1;
+                            } else if (inRPr && inRun) {
+                                if (okFill) rshd = fill;
+                            } else if (inPPr && okFill) {
+                                pFill = fill;
                             }
                             break;
+                        }
                         default:
                             break;
                     }
@@ -708,7 +820,11 @@ final class DocHtml {
                             break;
                         case "r":
                             if (run != null && para != null && run.length() > 0) {
-                                para.append(span(run.toString(), b, it, u, st, color, sz, va, hl));
+                                StringBuilder extra = new StringBuilder();
+                                if (caps) extra.append("text-transform:uppercase;");
+                                if (smallCaps) extra.append("font-variant:small-caps;");
+                                para.append(span(run.toString(), b, it, u, st, color, sz, va,
+                                        hl != null ? hl : (rshd != null ? "#" + rshd : null), extra.toString()));
                             }
                             run = null;
                             inRun = false;
@@ -720,16 +836,33 @@ final class DocHtml {
                                     para = null;
                                     break;
                                 }
-                                int lvl = headingLevel(pStyle);
+                                if (!listed && pFmt != null && pFmt.numId != null && !pFmt.numId.equals("0")) {
+                                    listed = true;
+                                    listId = pFmt.numId;
+                                    ilvl = pFmt.numLvl;
+                                }
+                                int lvl = headingLevel(pFmt != null && pFmt.name != null ? pFmt.name : pStyle);
+                                if (lvl == 0 && pStyle != null) lvl = headingLevel(pStyle);
+                                int ol = outline > 0 ? outline : (pFmt != null ? pFmt.outline : 0);
+                                if (lvl == 0 && ol >= 1 && ol <= 6) lvl = ol;
                                 String tag = lvl > 0 ? "h" + lvl : "p";
+                                String jcEff = jc != null ? jc : (pFmt != null ? pFmt.jc : null);
+                                boolean rtlEff = bidi || (pFmt != null && pFmt.bidi);
+                                int indEff = indLeft >= 0 ? indLeft : (pFmt != null ? pFmt.left : -1);
+                                int sbEff = spBefore >= 0 ? spBefore : (pFmt != null ? pFmt.before : -1);
+                                int saEff = spAfter >= 0 ? spAfter : (pFmt != null ? pFmt.after : -1);
                                 StringBuilder attrs = new StringBuilder();
-                                attrs.append(" dir=\"").append(bidi ? "rtl" : "auto").append('"');
+                                attrs.append(" dir=\"").append(rtlEff ? "rtl" : "auto").append('"');
                                 StringBuilder style = new StringBuilder();
-                                if ("center".equals(jc)) style.append("text-align:center;");
-                                else if ("both".equals(jc) || "distribute".equals(jc)) style.append("text-align:justify;");
-                                else if ("right".equals(jc) || "end".equals(jc)) style.append("text-align:end;");
-                                else if ("left".equals(jc) || "start".equals(jc)) style.append("text-align:start;");
+                                if ("center".equals(jcEff)) style.append("text-align:center;");
+                                else if ("both".equals(jcEff) || "distribute".equals(jcEff)) style.append("text-align:justify;");
+                                else if ("right".equals(jcEff) || "end".equals(jcEff)) style.append("text-align:end;");
+                                else if ("left".equals(jcEff) || "start".equals(jcEff)) style.append("text-align:start;");
                                 if (listed) style.append("margin-inline-start:").append((ilvl + 1) * 24).append("px;");
+                                else if (indEff > 0) style.append("margin-inline-start:").append(Math.min(320, indEff / 15)).append("px;");
+                                if (sbEff >= 0) style.append("margin-top:").append(Math.min(60, sbEff / 15)).append("px;");
+                                if (saEff >= 0) style.append("margin-bottom:").append(Math.min(60, saEff / 15)).append("px;");
+                                if (pFill != null) style.append("background:#").append(pFill).append(";padding:2px 6px;");
                                 if (style.length() > 0) attrs.append(" style=\"").append(style).append('"');
                                 String body = para.length() == 0 ? "<br>" : para.toString();
                                 if (listed) body = listMarker(numFmts, counters, listId, ilvl) + body;
@@ -811,11 +944,87 @@ final class DocHtml {
                 }
                 body = body + nb;
             }
+            if (!cmIds.isEmpty()) {
+                StringBuilder cb = new StringBuilder("<hr><p class=\"note\"><b>").append(esc(lblComments)).append("</b></p>");
+                for (int i = 0; i < cmIds.size(); i++) {
+                    cb.append("<p class=\"note\"><a id=\"cm_").append(cmIds.get(i)).append("\"></a>[c").append(i + 1)
+                            .append("] ").append(comments.get(cmIds.get(i))).append("</p>");
+                }
+                body = body + cb;
+            }
+            String hdr = hdrRid == null ? "" : partText(z, rels.get(hdrRid));
+            String ftr = ftrRid == null ? "" : partText(z, rels.get(ftrRid));
+            if (!hdr.isEmpty()) body = "<div class=\"hf\"><b>" + esc(lblHeader) + "</b> " + hdr + "</div>" + body;
+            if (!ftr.isEmpty()) body = body + "<div class=\"hf\"><b>" + esc(lblFooter) + "</b> " + ftr + "</div>";
             return page(body.isEmpty() ? "<p class=\"note\">—</p>" : body);
         }
     }
 
     // ------------------------------------------------------------------ DOCX helpers: tables, lists, notes
+
+    /** Content of a text box (w:txbxContent): the parser is on its start tag; returns the paragraphs as HTML. */
+    private static String textBox(XmlPullParser p) throws Exception {
+        StringBuilder out = new StringBuilder();
+        StringBuilder para = null;
+        int depth = 1;
+        while (depth > 0) {
+            int ev = p.next();
+            if (ev == XmlPullParser.END_DOCUMENT) break;
+            if (ev == XmlPullParser.START_TAG) {
+                depth++;
+                String n = local(p.getName());
+                if (n.equals("p")) {
+                    para = new StringBuilder();
+                } else if (n.equals("t") && para != null) {
+                    para.append(esc(p.nextText()));
+                    depth--;
+                } else if ((n.equals("br") || n.equals("cr")) && para != null) {
+                    para.append("<br>");
+                } else if (n.equals("tab") && para != null) {
+                    para.append("&emsp;");
+                }
+            } else if (ev == XmlPullParser.END_TAG) {
+                depth--;
+                if (local(p.getName()).equals("p") && para != null) {
+                    if (para.length() > 0) out.append("<p dir=\"auto\">").append(para).append("</p>");
+                    para = null;
+                }
+            }
+        }
+        return out.toString();
+    }
+
+    /** Plain text of a header or footer part (paragraphs separated by line breaks), already escaped. */
+    private static String partText(ZipFile z, String part) {
+        try {
+            byte[] d = part == null ? null : entry(z, part);
+            if (d == null) return "";
+            XmlPullParser p = parser(d);
+            StringBuilder out = new StringBuilder();
+            StringBuilder para = null;
+            int ev = p.getEventType();
+            while (ev != XmlPullParser.END_DOCUMENT) {
+                if (ev == XmlPullParser.START_TAG) {
+                    String n = local(p.getName());
+                    if (n.equals("p")) para = new StringBuilder();
+                    else if (n.equals("t") && para != null) para.append(esc(p.nextText()));
+                    else if (n.equals("tab") && para != null) para.append("&emsp;");
+                } else if (ev == XmlPullParser.END_TAG && local(p.getName()).equals("p") && para != null) {
+                    String t = para.toString().trim();
+                    if (!t.isEmpty()) {
+                        if (out.length() > 0) out.append("<br>");
+                        out.append(t);
+                    }
+                    para = null;
+                }
+                ev = p.next();
+            }
+            return out.toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
 
     /** Row/column position and open vertical merges of one table while it is read. */
     private static final class TblState {
@@ -1016,55 +1225,6 @@ final class DocHtml {
         return out;
     }
 
-    private static boolean isDateFormat(int id, String code) {
-        if ((id >= 14 && id <= 22) || (id >= 27 && id <= 36) || (id >= 45 && id <= 47) || (id >= 50 && id <= 58)) {
-            return true;
-        }
-        if (code == null) return false;
-        String c = code.replaceAll("\\[[^\\]]*\\]", "").replaceAll("\"[^\"]*\"", "").replaceAll("\\\\.", "")
-                .toLowerCase(Locale.ROOT);
-        return c.matches(".*[ymdhs].*") && !c.contains("general");
-    }
-
-    /** Per cell-format kind: 0 = plain number, 1 = date / time, 2 = percent, 3 = percent with decimals. */
-    private static int[] cellKinds(ZipFile z) {
-        List<Integer> kinds = new ArrayList<>();
-        try {
-            byte[] d = entry(z, "xl/styles.xml");
-            if (d == null) return new int[0];
-            Map<Integer, String> codes = new HashMap<>();
-            XmlPullParser p = parser(d);
-            boolean inXfs = false;
-            int ev = p.getEventType();
-            while (ev != XmlPullParser.END_DOCUMENT) {
-                if (ev == XmlPullParser.START_TAG) {
-                    String n = local(p.getName());
-                    if (n.equals("numFmt")) {
-                        codes.put(toInt(attr(p, "numFmtId"), -1), attr(p, "formatCode"));
-                    } else if (n.equals("cellXfs")) {
-                        inXfs = true;
-                    } else if (n.equals("xf") && inXfs) {
-                        int id = toInt(attr(p, "numFmtId"), 0);
-                        String code = codes.get(id);
-                        int kind = 0;
-                        if (id == 9) kind = 2;
-                        else if (id == 10) kind = 3;
-                        else if (code != null && code.contains("%")) kind = code.contains(".0") ? 3 : 2;
-                        else if (isDateFormat(id, code)) kind = 1;
-                        kinds.add(kind);
-                    }
-                } else if (ev == XmlPullParser.END_TAG && local(p.getName()).equals("cellXfs")) {
-                    inXfs = false;
-                }
-                ev = p.next();
-            }
-        } catch (Exception ignored) {
-        }
-        int[] out = new int[kinds.size()];
-        for (int i = 0; i < out.length; i++) out[i] = kinds.get(i);
-        return out;
-    }
-
     private static String number(String raw) {
         try {
             return new BigDecimal(raw).round(new MathContext(12)).stripTrailingZeros().toPlainString();
@@ -1073,21 +1233,35 @@ final class DocHtml {
         }
     }
 
-    private static String excelDate(double serial) {
-        try {
-            long ms = Math.round((serial - 25569.0) * 86400000.0);
-            SimpleDateFormat f;
-            if (serial < 1) f = new SimpleDateFormat("HH:mm:ss", Locale.US);
-            else if (serial == Math.rint(serial)) f = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-            else f = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
-            f.setTimeZone(TimeZone.getTimeZone("UTC"));
-            return f.format(new Date(ms));
-        } catch (Exception e) {
-            return String.valueOf(serial);
+    private static final int MAX_CELLS = 150000;
+
+    private static final class XCell {
+        final String text;
+        final int xf;
+        final char kind;       // n number, t text, b boolean or error
+
+        XCell(String text, int xf, char kind) {
+            this.text = text;
+            this.xf = xf;
+            this.kind = kind;
         }
     }
 
-    private static String display(String type, String val, int xf, List<String> shared, int[] kinds) {
+    private static final class XSheet {
+        final List<List<XCell>> rows = new ArrayList<>();
+        final java.util.Set<Integer> hiddenRows = new java.util.HashSet<>();
+        final java.util.Set<Integer> hiddenCols = new java.util.HashSet<>();
+        final Map<Integer, Double> widths = new HashMap<>();
+        final List<int[]> merges = new ArrayList<>();      // first row, first col, last row, last col
+        boolean truncated;
+        boolean colsCut;
+    }
+
+    private static boolean truthy(String v) {
+        return "1".equals(v) || "true".equalsIgnoreCase(v);
+    }
+
+    private static String cellText(String type, String val, int xf, List<String> shared, XlsxStyles st) {
         if (val == null) return "";
         if ("s".equals(type)) {
             int i = toInt(val, -1);
@@ -1095,18 +1269,14 @@ final class DocHtml {
         }
         if ("b".equals(type)) return "1".equals(val) ? "TRUE" : "FALSE";
         if ("str".equals(type) || "inlineStr".equals(type) || "e".equals(type) || "d".equals(type)) return val;
-        int kind = xf >= 0 && xf < kinds.length ? kinds[xf] : 0;
         try {
             double d = Double.parseDouble(val);
-            if (kind == 1) return excelDate(d);
-            if (kind == 2) return number(String.valueOf(new BigDecimal(val).multiply(new BigDecimal(100)))) + "%";
-            if (kind == 3) {
-                return new BigDecimal(val).multiply(new BigDecimal(100)).setScale(2, java.math.RoundingMode.HALF_UP)
-                        .toPlainString() + "%";
-            }
-        } catch (Exception ignored) {
+            NumFmt.Compiled c = st.fmt(xf);
+            if (c.general) return number(val);
+            return c.format(d, st.date1904);
+        } catch (Exception e) {
+            return val;
         }
-        return number(val);
     }
 
     static String xlsx(File f) throws Exception {
@@ -1114,20 +1284,29 @@ final class DocHtml {
             byte[] wb = entry(z, "xl/workbook.xml");
             if (wb == null) throw new IOException("not an xlsx");
             List<String> shared = sharedStrings(z);
-            int[] kinds = cellKinds(z);
             Map<String, String> rels = rels(z, "xl/_rels/workbook.xml.rels", "xl/");
 
             List<String> names = new ArrayList<>();
             List<String> parts = new ArrayList<>();
+            boolean d1904 = false;
             XmlPullParser p = parser(wb);
             int ev = p.getEventType();
             while (ev != XmlPullParser.END_DOCUMENT) {
-                if (ev == XmlPullParser.START_TAG && local(p.getName()).equals("sheet")) {
-                    names.add(attr(p, "name") == null ? "Sheet" + (names.size() + 1) : attr(p, "name"));
-                    parts.add(rels.get(attr(p, "id")));
+                if (ev == XmlPullParser.START_TAG) {
+                    String n = local(p.getName());
+                    if (n.equals("workbookPr")) {
+                        d1904 = truthy(attr(p, "date1904"));
+                    } else if (n.equals("sheet")) {
+                        String state = attr(p, "state");
+                        if (state == null || state.equals("visible")) {
+                            names.add(attr(p, "name") == null ? "Sheet" + (names.size() + 1) : attr(p, "name"));
+                            parts.add(rels.get(attr(p, "id")));
+                        }
+                    }
                 }
                 ev = p.next();
             }
+            XlsxStyles st = XlsxStyles.load(z, d1904);
             StringBuilder html = new StringBuilder();
             if (names.size() > 1) {
                 html.append("<div class=\"nav\">");
@@ -1143,19 +1322,17 @@ final class DocHtml {
                     html.append("<p class=\"note\">—</p>");
                     continue;
                 }
-                sheetHtml(data, shared, kinds, html);
+                emitXSheet(readSheet(data, shared, st), st, html);
             }
             return page(html.toString());
         }
     }
 
-    private static void sheetHtml(byte[] data, List<String> shared, int[] kinds, StringBuilder html) throws Exception {
-        List<List<String>> rows = new ArrayList<>();
-        boolean truncated = false;
-        boolean colsCut = false;
+    private static XSheet readSheet(byte[] data, List<String> shared, XlsxStyles st) throws Exception {
+        XSheet sh = new XSheet();
         XmlPullParser p = parser(data);
         int rowIdx = -1;
-        List<String> curRow = null;
+        List<XCell> curRow = null;
         String type = null;
         int xf = -1;
         int col = -1;
@@ -1163,22 +1340,40 @@ final class DocHtml {
         String val = null;
         boolean inIs = false;
         StringBuilder isb = null;
+        int cells = 0;
         int ev = p.getEventType();
-        outer:
         while (ev != XmlPullParser.END_DOCUMENT) {
             if (ev == XmlPullParser.START_TAG) {
                 String n = local(p.getName());
                 switch (n) {
+                    case "col": {
+                        int min = toInt(attr(p, "min"), 1) - 1;
+                        int max = Math.min(toInt(attr(p, "max"), min + 1) - 1, MAX_COLS - 1);
+                        String w = attr(p, "width");
+                        boolean hid = truthy(attr(p, "hidden"));
+                        for (int c = Math.max(0, min); c <= max; c++) {
+                            if (hid) sh.hiddenCols.add(c);
+                            if (w != null) {
+                                try {
+                                    sh.widths.put(c, Double.parseDouble(w));
+                                } catch (NumberFormatException ignored) {
+                                }
+                            }
+                        }
+                        break;
+                    }
                     case "row": {
                         String r = attr(p, "r");
                         rowIdx = r != null ? toInt(r, rowIdx + 2) - 1 : rowIdx + 1;
-                        if (rowIdx >= MAX_ROWS) {
-                            truncated = true;
-                            break outer;
+                        if (rowIdx >= MAX_ROWS || cells > MAX_CELLS) {
+                            sh.truncated = true;
+                            curRow = null;
+                            break;
                         }
-                        while (rows.size() <= rowIdx) rows.add(new ArrayList<String>());
-                        curRow = rows.get(rowIdx);
+                        while (sh.rows.size() <= rowIdx) sh.rows.add(new ArrayList<XCell>());
+                        curRow = sh.rows.get(rowIdx);
                         nextCol = 0;
+                        if (truthy(attr(p, "hidden"))) sh.hiddenRows.add(rowIdx);
                         break;
                     }
                     case "c": {
@@ -1200,6 +1395,20 @@ final class DocHtml {
                     case "t":
                         if (inIs && isb != null) isb.append(p.nextText());
                         break;
+                    case "mergeCell": {
+                        String ref = attr(p, "ref");
+                        if (ref != null && ref.indexOf(':') > 0) {
+                            String[] ab = ref.split(":");
+                            int c1 = colIndex(ab[0]);
+                            int c2 = colIndex(ab[1]);
+                            int r1 = toInt(ab[0].replaceAll("[^0-9]", ""), 0) - 1;
+                            int r2 = toInt(ab[1].replaceAll("[^0-9]", ""), 0) - 1;
+                            if (c1 >= 0 && c2 >= c1 && r1 >= 0 && r2 >= r1 && (r2 > r1 || c2 > c1)) {
+                                sh.merges.add(new int[]{r1, c1, r2, c2});
+                            }
+                        }
+                        break;
+                    }
                     default:
                         break;
                 }
@@ -1210,29 +1419,116 @@ final class DocHtml {
                     if (isb != null) val = isb.toString();
                 } else if (n.equals("c") && curRow != null) {
                     if (col >= MAX_COLS) {
-                        colsCut = true;
+                        sh.colsCut = true;
                     } else {
-                        String text = display(type, val, xf, shared, kinds);
-                        while (curRow.size() <= col) curRow.add("");
-                        curRow.set(col, text);
+                        String text = cellText(type, val, xf, shared, st);
+                        if (!text.isEmpty() || st.hasBg(xf)) {
+                            char kind;
+                            if ("b".equals(type) || "e".equals(type)) kind = 'b';
+                            else if ("s".equals(type) || "str".equals(type) || "inlineStr".equals(type) || "d".equals(type)
+                                    || st.fmt(xf).textOnly()) kind = 't';
+                            else kind = 'n';
+                            while (curRow.size() <= col) curRow.add(null);
+                            curRow.set(col, new XCell(text, xf, kind));
+                            cells++;
+                        }
                     }
                 }
             }
             ev = p.next();
         }
-        // drop trailing empty rows
-        while (!rows.isEmpty()) {
-            boolean empty = true;
-            for (String s : rows.get(rows.size() - 1)) {
-                if (!s.isEmpty()) {
-                    empty = false;
-                    break;
+        return sh;
+    }
+
+    private static boolean emptyRow(List<XCell> row) {
+        for (XCell c : row) if (c != null && !c.text.isEmpty()) return false;
+        return true;
+    }
+
+    private static long cellKey(int r, int c) {
+        return r * 4096L + c;
+    }
+
+    /** One sheet as a table: column letters and row numbers kept in view, merged cells, fills, fonts, widths. */
+    private static void emitXSheet(XSheet sh, XlsxStyles st, StringBuilder html) {
+        List<List<XCell>> rows = sh.rows;
+        int last = rows.size() - 1;
+        while (last >= 0 && emptyRow(rows.get(last))) last--;
+        int nRows = last + 1;
+        int cols = 0;
+        for (int r = 0; r < nRows; r++) cols = Math.max(cols, rows.get(r).size());
+        if (nRows == 0 || cols == 0) {
+            html.append("<p class=\"note\">—</p>");
+            return;
+        }
+        Map<Long, int[]> anchors = new HashMap<>();
+        java.util.Set<Long> covered = new java.util.HashSet<>();
+        for (int[] m : sh.merges) {
+            if (m[0] >= nRows || m[1] >= cols) continue;
+            int r2 = Math.min(m[2], nRows - 1);
+            int c2 = Math.min(m[3], cols - 1);
+            int rs = 0;
+            int cs = 0;
+            for (int r = m[0]; r <= r2; r++) if (!sh.hiddenRows.contains(r)) rs++;
+            for (int c = m[1]; c <= c2; c++) if (!sh.hiddenCols.contains(c)) cs++;
+            anchors.put(cellKey(m[0], m[1]), new int[]{Math.max(1, rs), Math.max(1, cs)});
+            for (int r = m[0]; r <= r2; r++) {
+                for (int c = m[1]; c <= c2; c++) {
+                    if (r != m[0] || c != m[1]) covered.add(cellKey(r, c));
                 }
             }
-            if (!empty) break;
-            rows.remove(rows.size() - 1);
         }
-        emitSheet(rows, truncated, colsCut, html);
+        html.append("<div class=\"sheet\"><table>");
+        if (!sh.widths.isEmpty()) {
+            html.append("<colgroup><col style=\"width:38px\">");
+            for (int c = 0; c < cols; c++) {
+                if (sh.hiddenCols.contains(c)) continue;
+                Double w = sh.widths.get(c);
+                int px = w == null ? 64 : (int) Math.max(24, Math.min(360, Math.round(w * 7 + 5)));
+                html.append("<col style=\"width:").append(px).append("px\">");
+            }
+            html.append("</colgroup>");
+        }
+        html.append("<tr><th class=\"rh\"></th>");
+        for (int c = 0; c < cols; c++) {
+            if (!sh.hiddenCols.contains(c)) html.append("<th class=\"rh\">").append(colName(c)).append("</th>");
+        }
+        html.append("</tr>");
+        for (int r = 0; r < nRows; r++) {
+            if (sh.hiddenRows.contains(r)) continue;
+            List<XCell> row = rows.get(r);
+            html.append("<tr><th class=\"rh\">").append(r + 1).append("</th>");
+            for (int c = 0; c < cols; c++) {
+                if (sh.hiddenCols.contains(c)) continue;
+                long key = cellKey(r, c);
+                if (covered.contains(key)) continue;
+                XCell cell = c < row.size() ? row.get(c) : null;
+                html.append("<td dir=\"auto\"");
+                int[] span = anchors.get(key);
+                if (span != null) {
+                    if (span[1] > 1) html.append(" colspan=\"").append(span[1]).append('"');
+                    if (span[0] > 1) html.append(" rowspan=\"").append(span[0]).append('"');
+                }
+                if (cell != null) {
+                    StringBuilder style = new StringBuilder(st.css(cell.xf));
+                    if (!st.hasAlign(cell.xf)) {
+                        if (cell.kind == 'n') style.append("text-align:right;");
+                        else if (cell.kind == 'b') style.append("text-align:center;");
+                    }
+                    if (style.length() > 0) html.append(" style=\"").append(style).append('"');
+                    html.append('>').append(esc(cell.text));
+                } else {
+                    html.append('>');
+                }
+                html.append("</td>");
+            }
+            html.append("</tr>");
+        }
+        html.append("</table></div>");
+        if (sh.truncated || sh.colsCut) {
+            html.append("<p class=\"note\">")
+                    .append(esc(String.format(Locale.ROOT, lblCut, MAX_ROWS, MAX_COLS))).append("</p>");
+        }
     }
 
     /** The table of one sheet: column letters on top, row numbers on the left, both kept in view while scrolling. */
@@ -1326,78 +1622,563 @@ final class DocHtml {
         return m.matches() ? Integer.parseInt(m.group(1)) : -1;
     }
 
+    /** Value of the namespaced r:id style attribute (a plain id attribute is something else). */
+    private static String relId(XmlPullParser p) {
+        for (int i = 0; i < p.getAttributeCount(); i++) {
+            String n = p.getAttributeName(i);
+            if (n.indexOf(':') > 0 && local(n).equals("id")) return p.getAttributeValue(i);
+        }
+        return null;
+    }
+
+    /** Skips the element the parser is on (used for the Fallback copy of alternate content). */
+    private static void skipTree(XmlPullParser p) throws Exception {
+        int depth = 1;
+        while (depth > 0) {
+            int ev = p.next();
+            if (ev == XmlPullParser.START_TAG) depth++;
+            else if (ev == XmlPullParser.END_TAG) depth--;
+            else if (ev == XmlPullParser.END_DOCUMENT) break;
+        }
+    }
+
+    /** Text that would vanish on the white page (white or almost white). */
+    private static boolean nearWhite(String hex) {
+        if (hex == null || !hex.matches("[0-9A-Fa-f]{6}")) return false;
+        int v = Integer.parseInt(hex, 16);
+        return (0.299 * ((v >> 16) & 255) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255)) > 235;
+    }
+
+    private static String pptSpan(String txt, boolean b, boolean i, boolean u, boolean s, int baseline,
+                                  String color, String link) {
+        StringBuilder st = new StringBuilder();
+        if (b) st.append("font-weight:bold;");
+        if (i) st.append("font-style:italic;");
+        if (u || s) {
+            st.append("text-decoration:");
+            if (u) st.append("underline ");
+            if (s) st.append("line-through");
+            st.append(';');
+        }
+        if (color != null && color.matches("[0-9A-Fa-f]{6}") && !nearWhite(color)) st.append("color:#").append(color).append(';');
+        String out = st.length() == 0 ? txt : "<span style=\"" + st + "\">" + txt + "</span>";
+        if (baseline > 0) out = "<sup>" + out + "</sup>";
+        else if (baseline < 0) out = "<sub>" + out + "</sub>";
+        if (link != null) out = "<a class=\"lk\" href=\"" + esc(link) + "\">" + out + "</a>";
+        return out;
+    }
+
+    /** One top-level shape of a slide, kept with its position so the slide reads top to bottom, left to right. */
+    private static final class Chunk {
+        final StringBuilder sb = new StringBuilder();
+        long x, y;
+        boolean has;
+        boolean title;
+        boolean skip;
+        int seq;
+    }
+
+    private static void setAt(List<String> l, int idx, String v) {
+        if (idx < 0 || idx > 5000) return;
+        while (l.size() <= idx) l.add("");
+        l.set(idx, v);
+    }
+
+    /** Series of a chart part as a small table: categories down the side, one column per series. */
+    private static String chartHtml(ZipFile z, String part) {
+        try {
+            byte[] d = part == null ? null : entry(z, part);
+            if (d == null) return "";
+            XmlPullParser p = parser(d);
+            String title = "";
+            String kind = "";
+            boolean inTitle = false;
+            boolean inSer = false;
+            String sec = null;
+            int pt = -1;
+            StringBuilder serName = null;
+            List<String> curCat = null;
+            List<String> curVal = null;
+            List<String> names = new ArrayList<>();
+            List<List<String>> cats = new ArrayList<>();
+            List<List<String>> vals = new ArrayList<>();
+            int ev = p.getEventType();
+            while (ev != XmlPullParser.END_DOCUMENT) {
+                if (ev == XmlPullParser.START_TAG) {
+                    String n = local(p.getName());
+                    if (n.endsWith("Chart") && kind.isEmpty()) {
+                        kind = n.substring(0, n.length() - 5);
+                    } else if (n.equals("title") && !inSer && title.isEmpty()) {
+                        inTitle = true;
+                    } else if (n.equals("ser")) {
+                        inSer = true;
+                        curCat = new ArrayList<>();
+                        curVal = new ArrayList<>();
+                        serName = new StringBuilder();
+                    } else if (n.equals("tx") && inSer && sec == null) {
+                        sec = "tx";
+                    } else if (n.equals("cat") || n.equals("xVal")) {
+                        sec = "cat";
+                    } else if (n.equals("val") || n.equals("yVal")) {
+                        sec = "val";
+                    } else if (n.equals("pt")) {
+                        pt = toInt(attr(p, "idx"), -1);
+                    } else if (n.equals("v") && inSer && sec != null) {
+                        String v = p.nextText();
+                        if (sec.equals("tx")) serName.append(v);
+                        else if (sec.equals("cat")) setAt(curCat, pt, v);
+                        else setAt(curVal, pt, number(v));
+                    } else if (n.equals("t") && inTitle) {
+                        title += p.nextText();
+                    }
+                } else if (ev == XmlPullParser.END_TAG) {
+                    String n = local(p.getName());
+                    if (n.equals("title")) {
+                        inTitle = false;
+                    } else if (n.equals("tx") && "tx".equals(sec)) {
+                        sec = null;
+                    } else if (n.equals("cat") || n.equals("xVal") || n.equals("val") || n.equals("yVal")) {
+                        sec = null;
+                    } else if (n.equals("ser") && inSer) {
+                        names.add(serName.toString());
+                        cats.add(curCat);
+                        vals.add(curVal);
+                        inSer = false;
+                    }
+                }
+                ev = p.next();
+            }
+            StringBuilder h = new StringBuilder("<div class=\"chart\"><div class=\"ct\">").append(esc(lblChart));
+            if (!kind.isEmpty()) h.append(" · ").append(esc(kind));
+            if (!title.trim().isEmpty()) h.append(" · ").append(esc(title.trim()));
+            h.append("</div>");
+            int rows = 0;
+            for (List<String> v : vals) rows = Math.max(rows, v.size());
+            for (List<String> c : cats) rows = Math.max(rows, c.size());
+            if (names.isEmpty() || rows == 0) return h.append("</div>").toString();
+            h.append("<div class=\"wide\"><table><thead><tr><th></th>");
+            for (String nm : names) h.append("<th>").append(esc(nm)).append("</th>");
+            h.append("</tr></thead>");
+            for (int r = 0; r < Math.min(rows, 60); r++) {
+                h.append("<tr><td dir=\"auto\">");
+                List<String> c0 = cats.get(0);
+                h.append(esc(r < c0.size() ? c0.get(r) : String.valueOf(r + 1))).append("</td>");
+                for (List<String> v : vals) h.append("<td>").append(esc(r < v.size() ? v.get(r) : "")).append("</td>");
+                h.append("</tr>");
+            }
+            h.append("</table></div></div>");
+            return h.toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /** Speaker notes of a slide (already escaped, paragraphs separated by line breaks); empty when none. */
+    private static String slideNotes(ZipFile z, String part) {
+        try {
+            byte[] d = part == null ? null : entry(z, part);
+            if (d == null) return "";
+            XmlPullParser p = parser(d);
+            StringBuilder out = new StringBuilder();
+            StringBuilder para = null;
+            boolean body = false;
+            int ev = p.getEventType();
+            while (ev != XmlPullParser.END_DOCUMENT) {
+                if (ev == XmlPullParser.START_TAG) {
+                    String n = local(p.getName());
+                    if (n.equals("sp")) body = false;
+                    else if (n.equals("ph")) body = "body".equals(attr(p, "type"));
+                    else if (n.equals("p") && body) para = new StringBuilder();
+                    else if (n.equals("t") && body && para != null) para.append(esc(p.nextText()));
+                    else if (n.equals("br") && body && para != null) para.append("<br>");
+                } else if (ev == XmlPullParser.END_TAG) {
+                    String n = local(p.getName());
+                    if (n.equals("p") && para != null) {
+                        if (para.length() > 0) out.append(para).append("<br>");
+                        para = null;
+                    } else if (n.equals("sp")) {
+                        body = false;
+                    }
+                }
+                ev = p.next();
+            }
+            String r = out.toString();
+            return r.endsWith("<br>") ? r.substring(0, r.length() - 4) : r;
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private static String autoLabel(String type, int n) {
+        String t = type == null ? "" : type;
+        String fmt = t.startsWith("alphaLc") ? "lowerLetter" : t.startsWith("alphaUc") ? "upperLetter"
+                : t.startsWith("romanLc") ? "lowerRoman" : t.startsWith("romanUc") ? "upperRoman" : "decimal";
+        return numText(fmt, n) + (t.endsWith("ParenR") || t.endsWith("ParenBoth") ? ")" : ".");
+    }
+
+    private static final class SlideOut {
+        String html = "";
+        String title = "";
+        boolean hidden;
+    }
+
+    private static SlideOut slide(ZipFile z, byte[] data, Map<String, String> rels, Map<String, String> ext,
+                                  Budget budget) throws Exception {
+        SlideOut so = new SlideOut();
+        List<Chunk> chunks = new ArrayList<>();
+        Chunk cur = null;
+        int shapeDepth = 0;
+        int picDepth = 0;
+        boolean hasPh = false;
+        String phType = null;
+        StringBuilder para = null;
+        StringBuilder plain = null;
+        boolean rtl = false;
+        String algn = null;
+        int lvl = 0;
+        int bullet = 0;
+        String buAuto = null;
+        boolean inRPr = false;
+        boolean inSolid = false;
+        boolean inLn = false;
+        boolean inTcPr = false;
+        boolean b = false, it = false, u = false, st = false;
+        int baseline = 0;
+        String color = null;
+        String link = null;
+        int[] num = new int[10];
+        StringBuilder tbl = null;
+        StringBuilder cell = null;
+        int cSpan = 1, rSpan = 1;
+        boolean merged = false;
+        String cellFill = null;
+        XmlPullParser p = parser(data);
+        int ev = p.getEventType();
+        while (ev != XmlPullParser.END_DOCUMENT) {
+            if (ev == XmlPullParser.START_TAG) {
+                String n = local(p.getName());
+                switch (n) {
+                    case "Fallback":
+                        skipTree(p);
+                        break;
+                    case "sld":
+                        so.hidden = "0".equals(attr(p, "show"));
+                        break;
+                    case "sp":
+                    case "pic":
+                    case "graphicFrame":
+                    case "grpSp":
+                    case "cxnSp":
+                        if (shapeDepth == 0) {
+                            cur = new Chunk();
+                            cur.seq = chunks.size();
+                            hasPh = false;
+                            phType = null;
+                            Arrays.fill(num, 0);
+                        }
+                        shapeDepth++;
+                        if (n.equals("pic")) picDepth++;
+                        break;
+                    case "ph":
+                        if (cur != null) {
+                            hasPh = true;
+                            phType = attr(p, "type");
+                            if ("title".equals(phType) || "ctrTitle".equals(phType)) cur.title = true;
+                            if ("dt".equals(phType) || "ftr".equals(phType) || "sldNum".equals(phType)) cur.skip = true;
+                        }
+                        break;
+                    case "off":
+                        if (cur != null && !cur.has) {
+                            try {
+                                cur.x = Long.parseLong(attr(p, "x"));
+                                cur.y = Long.parseLong(attr(p, "y"));
+                                cur.has = true;
+                            } catch (Exception ignored) {
+                            }
+                        }
+                        break;
+                    case "p":
+                        para = new StringBuilder();
+                        plain = new StringBuilder();
+                        rtl = false;
+                        algn = null;
+                        lvl = 0;
+                        bullet = 0;
+                        buAuto = null;
+                        break;
+                    case "pPr":
+                        rtl = "1".equals(attr(p, "rtl"));
+                        algn = attr(p, "algn");
+                        lvl = Math.max(0, Math.min(8, toInt(attr(p, "lvl"), 0)));
+                        break;
+                    case "buChar":
+                        bullet = 1;
+                        break;
+                    case "buAutoNum":
+                        bullet = 2;
+                        buAuto = attr(p, "type");
+                        break;
+                    case "buNone":
+                        bullet = 3;
+                        break;
+                    case "r":
+                    case "fld":
+                        b = false;
+                        it = false;
+                        u = false;
+                        st = false;
+                        baseline = 0;
+                        color = null;
+                        link = null;
+                        break;
+                    case "rPr":
+                        inRPr = true;
+                        b = truthy(attr(p, "b"));
+                        it = truthy(attr(p, "i"));
+                        String us = attr(p, "u");
+                        u = us != null && !us.equals("none");
+                        String ss = attr(p, "strike");
+                        st = ss != null && !ss.equals("noStrike");
+                        baseline = toInt(attr(p, "baseline"), 0);
+                        break;
+                    case "solidFill":
+                        inSolid = true;
+                        break;
+                    case "srgbClr": {
+                        String v = attr(p, "val");
+                        if (inSolid && !inLn) {
+                            if (inRPr && color == null) color = v;
+                            else if (inTcPr && cell != null && cellFill == null) cellFill = v;
+                        }
+                        break;
+                    }
+                    case "hlinkClick":
+                        if (inRPr) link = safeUrl(ext.get(relId(p)));
+                        break;
+                    case "t":
+                        if (para != null) {
+                            String raw = p.nextText();
+                            plain.append(raw);
+                            para.append(pptSpan(esc(raw), b, it, u, st, baseline, color, link));
+                        }
+                        break;
+                    case "br":
+                        if (para != null) para.append("<br>");
+                        break;
+                    case "tbl":
+                        tbl = new StringBuilder("<div class=\"wide\"><table>");
+                        break;
+                    case "tr":
+                        if (tbl != null) tbl.append("<tr>");
+                        break;
+                    case "tc":
+                        cell = new StringBuilder();
+                        cSpan = Math.max(1, toInt(attr(p, "gridSpan"), 1));
+                        rSpan = Math.max(1, toInt(attr(p, "rowSpan"), 1));
+                        merged = truthy(attr(p, "hMerge")) || truthy(attr(p, "vMerge"));
+                        cellFill = null;
+                        break;
+                    case "tcPr":
+                        inTcPr = true;
+                        break;
+                    case "blip":
+                        if (picDepth > 0 && cur != null) {
+                            String uri = image(z, rels.get(attr(p, "embed")), budget);
+                            if (uri != null) cur.sb.append("<img src=\"").append(uri).append("\">");
+                        }
+                        break;
+                    case "chart": {
+                        String rid = relId(p);
+                        if (rid != null && cur != null) cur.sb.append(chartHtml(z, rels.get(rid)));
+                        break;
+                    }
+                    default:
+                        if (n.startsWith("ln")) inLn = true;
+                        break;
+                }
+            } else if (ev == XmlPullParser.END_TAG) {
+                String n = local(p.getName());
+                switch (n) {
+                    case "sp":
+                    case "pic":
+                    case "graphicFrame":
+                    case "grpSp":
+                    case "cxnSp":
+                        if (n.equals("pic") && picDepth > 0) picDepth--;
+                        if (shapeDepth > 0) shapeDepth--;
+                        if (shapeDepth == 0 && cur != null) {
+                            if (!cur.skip) chunks.add(cur);
+                            cur = null;
+                        }
+                        break;
+                    case "rPr":
+                        inRPr = false;
+                        break;
+                    case "solidFill":
+                        inSolid = false;
+                        break;
+                    case "tcPr":
+                        inTcPr = false;
+                        break;
+                    case "tc":
+                        if (tbl != null && cell != null && !merged) {
+                            tbl.append("<td dir=\"auto\"");
+                            if (cSpan > 1) tbl.append(" colspan=\"").append(cSpan).append('"');
+                            if (rSpan > 1) tbl.append(" rowspan=\"").append(rSpan).append('"');
+                            if (cellFill != null && cellFill.matches("[0-9A-Fa-f]{6}")) {
+                                tbl.append(" style=\"background:#").append(cellFill).append('"');
+                            }
+                            tbl.append('>').append(cell).append("</td>");
+                        }
+                        cell = null;
+                        break;
+                    case "tr":
+                        if (tbl != null) tbl.append("</tr>");
+                        break;
+                    case "tbl":
+                        if (tbl != null && cur != null) cur.sb.append(tbl).append("</table></div>");
+                        tbl = null;
+                        break;
+                    case "p":
+                        if (para != null) {
+                            String body = para.toString();
+                            if (cell != null) {
+                                if (cell.length() > 0 && !body.isEmpty()) cell.append("<br>");
+                                cell.append(body);
+                            } else if (!body.isEmpty() && cur != null) {
+                                boolean title = cur.title;
+                                boolean bodyPh = hasPh && (phType == null || "body".equals(phType) || "obj".equals(phType));
+                                boolean bulleted = bullet == 1 || bullet == 2 || (bullet == 0 && bodyPh && !title);
+                                StringBuilder style = new StringBuilder();
+                                if ("ctr".equals(algn)) style.append("text-align:center;");
+                                else if ("r".equals(algn)) style.append("text-align:end;");
+                                else if ("just".equals(algn)) style.append("text-align:justify;");
+                                if (bulleted && lvl > 0) style.append("margin-inline-start:").append(lvl * 22).append("px;");
+                                String tag = title ? "h2" : "p";
+                                cur.sb.append('<').append(tag).append(" dir=\"").append(rtl ? "rtl" : "auto").append('"');
+                                if (style.length() > 0) cur.sb.append(" style=\"").append(style).append('"');
+                                cur.sb.append('>');
+                                if (bulleted) {
+                                    String mark;
+                                    if (bullet == 2) {
+                                        num[lvl]++;
+                                        for (int k = lvl + 1; k < num.length; k++) num[k] = 0;
+                                        mark = autoLabel(buAuto, num[lvl]);
+                                    } else {
+                                        mark = lvl % 2 == 0 ? "•" : "–";
+                                    }
+                                    cur.sb.append("<span class=\"bu\">").append(mark).append("</span>");
+                                } else {
+                                    Arrays.fill(num, 0);
+                                }
+                                cur.sb.append(body).append("</").append(tag).append('>');
+                                if (title && so.title.isEmpty()) so.title = plain.toString().trim();
+                            }
+                            para = null;
+                        }
+                        break;
+                    default:
+                        if (n.startsWith("ln")) inLn = false;
+                        break;
+                }
+            }
+            ev = p.next();
+        }
+        // reading order: titles first, then top to bottom in half-inch bands, then left to right
+        long lastX = 0;
+        long lastY = 0;
+        for (Chunk c : chunks) {
+            if (c.has) {
+                lastX = c.x;
+                lastY = c.y;
+            } else {
+                c.x = lastX;
+                c.y = lastY;
+            }
+        }
+        Collections.sort(chunks, (c1, c2) -> {
+            if (c1.title != c2.title) return c1.title ? -1 : 1;
+            int by = Long.compare(c1.y / 457200L, c2.y / 457200L);
+            if (by != 0) return by;
+            int bx = Long.compare(c1.x, c2.x);
+            return bx != 0 ? bx : Integer.compare(c1.seq, c2.seq);
+        });
+        StringBuilder h = new StringBuilder();
+        for (Chunk c : chunks) h.append(c.sb);
+        so.html = h.toString();
+        return so;
+    }
+
     static String pptx(File f) throws Exception {
         try (ZipFile z = new ZipFile(f)) {
             List<String> slides = new ArrayList<>();
-            Enumeration<? extends ZipEntry> en = z.entries();
-            while (en.hasMoreElements()) {
-                String n = en.nextElement().getName();
-                if (slideNo(n) >= 0) slides.add(n);
+            byte[] pres = entry(z, "ppt/presentation.xml");
+            if (pres != null) {
+                Map<String, String> prels = rels(z, "ppt/_rels/presentation.xml.rels", "ppt/");
+                XmlPullParser pp = parser(pres);
+                int e = pp.getEventType();
+                while (e != XmlPullParser.END_DOCUMENT) {
+                    if (e == XmlPullParser.START_TAG && local(pp.getName()).equals("sldId")) {
+                        String part = prels.get(relId(pp));
+                        if (part != null && z.getEntry(part) != null && !slides.contains(part)) slides.add(part);
+                    }
+                    e = pp.next();
+                }
+            }
+            if (slides.isEmpty()) {
+                Enumeration<? extends ZipEntry> en = z.entries();
+                while (en.hasMoreElements()) {
+                    String n = en.nextElement().getName();
+                    if (slideNo(n) >= 0) slides.add(n);
+                }
+                Collections.sort(slides, (a, b) -> Integer.compare(slideNo(a), slideNo(b)));
             }
             if (slides.isEmpty()) throw new IOException("not a pptx");
-            Collections.sort(slides, (a, b) -> Integer.compare(slideNo(a), slideNo(b)));
             Budget budget = new Budget();
-            StringBuilder html = new StringBuilder();
+            StringBuilder body = new StringBuilder();
+            List<String> titles = new ArrayList<>();
+            int total = slides.size();
             int num = 0;
             for (String name : slides) {
                 num++;
-                String relName = name.replace("ppt/slides/", "ppt/slides/_rels/") + ".rels";
-                Map<String, String> rels = rels(z, relName, "ppt/slides/");
+                int cut = name.lastIndexOf('/') + 1;
+                String relName = name.substring(0, cut) + "_rels/" + name.substring(cut) + ".rels";
+                Map<String, String> rels = rels(z, relName, name.substring(0, cut));
+                Map<String, String> ext = externalRels(z, relName);
                 byte[] d = entry(z, name);
-                if (d == null) continue;
-                html.append("<div class=\"slide\"><div class=\"sn\">")
-                        .append(Lang.isAr() ? "شريحة " : "Slide ").append(num).append("</div>");
-                XmlPullParser p = parser(d);
-                StringBuilder para = null;
-                boolean title = false;
-                boolean rtl = false;
-                int ev = p.getEventType();
-                while (ev != XmlPullParser.END_DOCUMENT) {
-                    if (ev == XmlPullParser.START_TAG) {
-                        String n = local(p.getName());
-                        switch (n) {
-                            case "sp":
-                                title = false;
-                                break;
-                            case "ph": {
-                                String t = attr(p, "type");
-                                if ("title".equals(t) || "ctrTitle".equals(t)) title = true;
-                                break;
-                            }
-                            case "p":
-                                para = new StringBuilder();
-                                rtl = false;
-                                break;
-                            case "pPr":
-                                rtl = "1".equals(attr(p, "rtl"));
-                                break;
-                            case "t":
-                                if (para != null) para.append(esc(p.nextText()));
-                                break;
-                            case "br":
-                                if (para != null) para.append("<br>");
-                                break;
-                            case "blip": {
-                                String uri = image(z, rels.get(attr(p, "embed")), budget);
-                                if (uri != null) html.append("<img src=\"").append(uri).append("\">");
-                                break;
-                            }
-                            default:
-                                break;
-                        }
-                    } else if (ev == XmlPullParser.END_TAG && local(p.getName()).equals("p") && para != null) {
-                        if (para.length() > 0) {
-                            String tag = title ? "h2" : "p";
-                            html.append('<').append(tag).append(" dir=\"").append(rtl ? "rtl" : "auto").append("\">")
-                                    .append(para).append("</").append(tag).append('>');
-                        }
-                        para = null;
-                    }
-                    ev = p.next();
+                if (d == null) {
+                    titles.add("");
+                    continue;
+                }
+                SlideOut so = slide(z, d, rels, ext, budget);
+                titles.add(so.title);
+                body.append("<div class=\"slide\" id=\"sl").append(num).append("\"><div class=\"sn\">")
+                        .append(esc(lblSlide)).append(' ').append(num).append(" / ").append(total);
+                if (so.hidden) body.append(" · ").append(esc(lblHidden));
+                body.append("</div>").append(so.html);
+                String notesPart = null;
+                for (String v : rels.values()) {
+                    if (v != null && v.contains("notesSlides/")) notesPart = v;
+                }
+                String notes = slideNotes(z, notesPart);
+                if (!notes.isEmpty()) {
+                    body.append("<details class=\"nt\"><summary>").append(esc(lblNotes)).append("</summary>")
+                            .append(notes).append("</details>");
+                }
+                body.append("</div>");
+            }
+            StringBuilder html = new StringBuilder();
+            if (total > 1) {
+                html.append("<div class=\"nav\">");
+                for (int i = 0; i < titles.size(); i++) {
+                    String t = titles.get(i);
+                    if (t.length() > 22) t = t.substring(0, 21) + "…";
+                    html.append("<a href=\"#sl").append(i + 1).append("\">").append(i + 1)
+                            .append(t.isEmpty() ? "" : " · " + esc(t)).append("</a>");
                 }
                 html.append("</div>");
             }
-            return page(html.toString());
+            return page(html.append(body).toString());
         }
     }
 
