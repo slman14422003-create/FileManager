@@ -252,13 +252,19 @@ public class DocViewActivity extends BaseActivity {
     /** Room at the end of the page so the floating bar never hides the last lines. */
     private static final String EXTRA_CSS = "<style>body{padding-bottom:96px !important}</style>";
 
-    private static final String NIGHT_CSS = "<style>html{filter:invert(1) hue-rotate(180deg);background:#fff}"
+    // The page is inverted as a whole, so every colour written here is the inverse of what should be seen:
+    // #EDEDED becomes the dark window colour (121212), the white paper becomes black and the ring a soft dark line.
+    private static final String NIGHT_CSS = "<style>html{filter:invert(1) hue-rotate(180deg);background:#EDEDED !important}"
+            + "body{background:#EDEDED !important}.paper{box-shadow:0 0 0 1px #d8d8d8 !important}"
             + "img,svg{filter:invert(1) hue-rotate(180deg)}</style>";
 
     /** Loads the converted document, with the night-mode stylesheet in front when it is on. */
     private void render() {
         if (baseHtml == null) return;
-        String h = EXTRA_CSS + (night ? NIGHT_CSS : "") + baseHtml;
+        String css = EXTRA_CSS + (night ? NIGHT_CSS : "");
+        // put the stylesheet after the document's own one so it wins over the canvas colour
+        int head = baseHtml.indexOf("</head>");
+        String h = head >= 0 ? baseHtml.substring(0, head) + css + baseHtml.substring(head) : css + baseHtml;
         web.setBackgroundColor(night ? 0xFF121212 : Ui.color(this, R.color.bg));
         web.loadDataWithBaseURL(BASE, h, "text/html", "utf-8", null);
     }
