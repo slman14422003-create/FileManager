@@ -19,7 +19,7 @@ final class BusyBox {
     BusyBox(Context c, CharSequence initial) {
         view = new LinearLayout(c);
         view.setOrientation(LinearLayout.VERTICAL);
-        view.setPaddingRelative(Ui.dp(c, 24), Ui.dp(c, 10), Ui.dp(c, 24), Ui.dp(c, 12));
+        view.setPaddingRelative(Ui.dp(c, 22), Ui.dp(c, 6), Ui.dp(c, 22), Ui.dp(c, 8));
 
         LinearLayout top = new LinearLayout(c);
         top.setOrientation(LinearLayout.HORIZONTAL);
@@ -31,8 +31,8 @@ final class BusyBox {
         text.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
         text.setTextColor(Ui.color(c, R.color.text_secondary));
         text.setTextSize(14);
-        text.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
-        text.setGravity(Gravity.CENTER);
+        text.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        text.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
         top.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         percent = new TextView(c);
