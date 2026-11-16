@@ -226,15 +226,43 @@ final class PptxLive {
             Node sz = pr.c("sldSz");
             double w = (sz == null ? 9144000 : sz.d("cx", 9144000)) / PX;
             double h = (sz == null ? 6858000 : sz.d("cy", 6858000)) / PX;
-            if (w < 50 || h < 50) return null;
+            if (w < 50 || h < 50) {
+                w = 9144000 / PX;
+                h = 5143500 / PX;
+            }
             Map<String, String> prels = DocHtml.rels(z, "ppt/_rels/presentation.xml.rels", "ppt/");
             List<String> slides = new ArrayList<>();
             Node lst = pr.c("sldIdLst");
             if (lst != null) {
                 for (Node s : lst.cs("sldId")) {
                     String part = prels.get(s.a("r:id"));
+                    if (part == null) {
+                        for (Map.Entry<String, String> at : s.at.entrySet()) {
+                            if (at.getKey().endsWith(":id") && prels.get(at.getValue()) != null) {
+                                part = prels.get(at.getValue());
+                                break;
+                            }
+                        }
+                    }
                     if (part != null && z.getEntry(part) != null && !slides.contains(part)) slides.add(part);
                 }
+            }
+            if (slides.isEmpty()) {
+                // no usable slide list: take the slide parts in numeric order
+                final java.util.regex.Pattern sp = java.util.regex.Pattern.compile("ppt/slides/slide(\\d+)\\.xml");
+                List<String> found = new ArrayList<>();
+                java.util.Enumeration<? extends java.util.zip.ZipEntry> en = z.entries();
+                while (en.hasMoreElements()) {
+                    String n = en.nextElement().getName();
+                    if (sp.matcher(n).matches()) found.add(n);
+                }
+                java.util.Collections.sort(found, (a, b) -> {
+                    java.util.regex.Matcher ma = sp.matcher(a), mb = sp.matcher(b);
+                    ma.matches();
+                    mb.matches();
+                    return Integer.compare(Integer.parseInt(ma.group(1)), Integer.parseInt(mb.group(1)));
+                });
+                slides.addAll(found);
             }
             if (slides.isEmpty()) return null;
 
@@ -247,11 +275,21 @@ final class PptxLive {
             int count = 0;
             for (String name : slides) {
                 if (++count > MAX_SLIDES) break;
+                int mark = body.length();
                 try {
                     slideHtml(z, name, pr, w, h, cx, partCache, masters, body);
-                } catch (Exception e) {
+                } catch (Throwable e) {
+                    if (e instanceof OutOfMemoryError) throw (OutOfMemoryError) e;
+                    // drop the half written slide and show its text on a plain slide instead of a blank one
+                    body.setLength(mark);
                     body.append("<div class=\"sl\" style=\"width:").append(f(w)).append("px;height:").append(f(h))
-                            .append("px\"></div>");
+                            .append("px;padding:24px;color:#111\">");
+                    try {
+                        byte[] raw = DocHtml.entry(z, name);
+                        if (raw != null) plain(parse(raw), body);
+                    } catch (Throwable ignored) {
+                    }
+                    body.append("</div>");
                 }
             }
             double vw = w + 2 * PAD;
@@ -259,6 +297,22 @@ final class PptxLive {
                     + "<meta name=\"viewport\" content=\"width=" + (int) Math.ceil(vw) + "\">"
                     + "<style>" + css() + "</style></head><body>" + body + "</body></html>";
         }
+    }
+
+    /** Every text paragraph of a slide as plain lines (used when a slide cannot be drawn). */
+    private static void plain(Node n, StringBuilder out) {
+        if (n == null) return;
+        if (n.name.equals("p")) {
+            StringBuilder t = new StringBuilder();
+            for (Node k : n.kids) {
+                if ((k.name.equals("r") || k.name.equals("fld")) && k.c("t") != null) t.append(k.c("t").text);
+            }
+            if (t.length() > 0) out.append("<p style=\"margin:0 0 8px;font:20px sans-serif\"")
+                    .append(hasArabic(t.toString()) ? " dir=\"rtl\"" : "").append(">")
+                    .append(DocHtml.esc(t.toString())).append("</p>");
+            return;
+        }
+        for (Node k : n.kids) plain(k, out);
     }
 
     private static String css() {
@@ -1234,7 +1288,7 @@ final class PptxLive {
                 firstColor = rs.color != null ? rs.color : defColor;
                 inner.append("<span style=\"font-size:").append(f(psz)).append("px\">\u200B</span>");
             }
-            boolean rtl = t.rtl == 1;
+            boolean rtl = t.rtl == 1 || (t.rtl < 0 && hasArabic(all.toString()));
             String algn = t.algn;
             String ta = "left";
             if (algn == null) ta = rtl ? "right" : "left";

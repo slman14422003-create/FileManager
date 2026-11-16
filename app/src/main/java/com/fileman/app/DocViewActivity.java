@@ -258,10 +258,15 @@ public class DocViewActivity extends BaseActivity {
             + "body{background:#EDEDED !important}.paper{box-shadow:0 0 0 1px #d8d8d8 !important}"
             + "img,svg{filter:invert(1) hue-rotate(180deg)}</style>";
 
+    private static final String NIGHT_SLIDES_CSS = "<style>html,body{background:#121212 !important}</style>";
+
     /** Loads the converted document, with the night-mode stylesheet in front when it is on. */
     private void render() {
         if (baseHtml == null) return;
-        String css = EXTRA_CSS + (night ? NIGHT_CSS : "");
+        // slides are drawn at their real size with their own colours: no inverting and no text zoom on them
+        boolean slides = baseHtml.contains("<div class=\"sl\" ");
+        web.getSettings().setTextZoom(slides ? 100 : zoom);
+        String css = EXTRA_CSS + (night ? (slides ? NIGHT_SLIDES_CSS : NIGHT_CSS) : "");
         // put the stylesheet after the document's own one so it wins over the canvas colour
         int head = baseHtml.indexOf("</head>");
         String h = head >= 0 ? baseHtml.substring(0, head) + css + baseHtml.substring(head) : css + baseHtml;
@@ -316,7 +321,7 @@ public class DocViewActivity extends BaseActivity {
     private void changeZoom(int delta) {
         zoom = Math.max(60, Math.min(260, zoom + delta));
         Store.setIntPref(this, "doc_zoom", zoom);
-        web.getSettings().setTextZoom(zoom);
+        if (baseHtml == null || !baseHtml.contains("<div class=\"sl\" ")) web.getSettings().setTextZoom(zoom);
         Toast.makeText(this, zoom + "%", Toast.LENGTH_SHORT).show();
     }
 

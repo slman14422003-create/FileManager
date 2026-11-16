@@ -310,21 +310,107 @@ public class Dlg extends AlertDialog.Builder {
         MaxHeightScroll scroll = new MaxHeightScroll(c, (int) (c.getResources().getDisplayMetrics().heightPixels * SHEET_MAX_HEIGHT));
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        LinearLayout rows = new LinearLayout(c);
-        rows.setOrientation(LinearLayout.VERTICAL);
+        boolean allIcons = itemIcons != null && itemIcons.length >= itemLabels.length;
+        int longest = 0;
         for (int k = 0; k < itemLabels.length; k++) {
-            final int pos = k;
-            int res = itemIcons != null && k < itemIcons.length ? itemIcons[k] : 0;
-            View row = choiceRow(c, itemLabels[k], res, anyIcon, null);
-            row.setPaddingRelative(Ui.dp(c, 8), Ui.dp(c, 6), Ui.dp(c, 8), Ui.dp(c, 6));
-            row.setMinimumHeight(Ui.dp(c, 52));
-            row.setOnClickListener(v -> {
-                v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
-                if (ref[0] != null) ref[0].dismiss();
-                if (itemListener != null) itemListener.onClick(ref[0], pos);
-            });
-            rows.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            if (allIcons && itemIcons[k] == 0) allIcons = false;
+            longest = Math.max(longest, itemLabels[k] == null ? 0 : itemLabels[k].length());
+        }
+        final boolean grid = allIcons && itemLabels.length >= 2 && itemLabels.length <= 5 && longest <= 14;
+        LinearLayout rows = new LinearLayout(c);
+        if (grid) {
+            rows.setOrientation(LinearLayout.HORIZONTAL);
+            rows.setPadding(0, Ui.dp(c, 4), 0, 0);
+            for (int k = 0; k < itemLabels.length; k++) {
+                final int pos = k;
+                boolean danger = destructive(c, itemLabels[k]);
+                LinearLayout col = new LinearLayout(c);
+                col.setOrientation(LinearLayout.VERTICAL);
+                col.setGravity(Gravity.CENTER_HORIZONTAL);
+                col.setClickable(true);
+                col.setContentDescription(itemLabels[k]);
+                ImageView iv = new ImageView(c);
+                iv.setImageResource(itemIcons[k]);
+                iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                iv.setPadding(Ui.dp(c, 11), Ui.dp(c, 11), Ui.dp(c, 11), Ui.dp(c, 11));
+                iv.setImageTintList(ColorStateList.valueOf(Ui.color(c, danger ? R.color.bad : R.color.text_primary)));
+                iv.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+                GradientDrawable circle = new GradientDrawable();
+                circle.setShape(GradientDrawable.OVAL);
+                circle.setColor(Ui.color(c, R.color.field));
+                iv.setBackground(circle);
+                col.addView(iv, new LinearLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 40)));
+                TextView t = new TextView(c);
+                t.setText(itemLabels[k]);
+                t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+                t.setMaxLines(2);
+                t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                t.setGravity(Gravity.CENTER);
+                t.setTextColor(Ui.color(c, danger ? R.color.bad : R.color.text_secondary));
+                LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT);
+                tp.topMargin = Ui.dp(c, 4);
+                col.addView(t, tp);
+                Ui.press(c, col);
+                col.setOnClickListener(v -> {
+                    v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
+                    if (ref[0] != null) ref[0].dismiss();
+                    if (itemListener != null) itemListener.onClick(ref[0], pos);
+                });
+                rows.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            }
+        } else {
+            rows.setOrientation(LinearLayout.VERTICAL);
+            GradientDrawable lb = new GradientDrawable();
+            lb.setColor(Ui.color(c, R.color.field));
+            lb.setCornerRadius(Ui.dp(c, 18));
+            rows.setBackground(lb);
+            for (int k = 0; k < itemLabels.length; k++) {
+                final int pos = k;
+                int res = itemIcons != null && k < itemIcons.length ? itemIcons[k] : 0;
+                boolean danger = destructive(c, itemLabels[k]);
+                LinearLayout r = new LinearLayout(c);
+                r.setOrientation(LinearLayout.HORIZONTAL);
+                r.setGravity(Gravity.CENTER_VERTICAL);
+                r.setClickable(true);
+                r.setMinimumHeight(Ui.dp(c, 52));
+                r.setPaddingRelative(Ui.dp(c, 16), Ui.dp(c, 6), Ui.dp(c, 16), Ui.dp(c, 6));
+                if (res != 0 || anyIcon) {
+                    ImageView ic = new ImageView(c);
+                    if (res != 0) {
+                        ic.setImageResource(res);
+                        ic.setImageTintList(ColorStateList.valueOf(Ui.color(c, danger ? R.color.bad : R.color.accent_text)));
+                    }
+                    ic.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+                    r.addView(ic, new LinearLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22)));
+                }
+                TextView tx = new TextView(c);
+                tx.setText(itemLabels[k]);
+                tx.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+                tx.setMaxLines(2);
+                tx.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                tx.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+                tx.setTextColor(Ui.color(c, danger ? R.color.bad : R.color.text_primary));
+                LinearLayout.LayoutParams xp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                if (res != 0 || anyIcon) xp.setMarginStart(Ui.dp(c, 14));
+                r.addView(tx, xp);
+                Ui.press(c, r);
+                r.setOnClickListener(v -> {
+                    v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
+                    if (ref[0] != null) ref[0].dismiss();
+                    if (itemListener != null) itemListener.onClick(ref[0], pos);
+                });
+                rows.addView(r, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT));
+                if (k < itemLabels.length - 1) {
+                    View line = new View(c);
+                    line.setBackgroundColor(Ui.color(c, R.color.stroke));
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                            hairline(c));
+                    lp.setMarginStart(Ui.dp(c, (res != 0 || anyIcon) ? 52 : 16));
+                    rows.addView(line, lp);
+                }
+            }
         }
         scroll.addView(rows, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));

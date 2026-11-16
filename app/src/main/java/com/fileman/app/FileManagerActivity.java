@@ -322,12 +322,18 @@ public class FileManagerActivity extends BaseActivity {
         listView.setScrollingCacheEnabled(false);
         if (loadingBar instanceof ProgressBar) Ui.tint(this, (ProgressBar) loadingBar);
 
+        View listHeader = findViewById(R.id.listHeader);
+        if (listHeader.getParent() instanceof ViewGroup) ((ViewGroup) listHeader.getParent()).removeView(listHeader);
+        listView.setItemsCanFocus(true);
+        listView.addHeaderView(listHeader, null, false);
         adapter = new FileAdapter();
         listView.setAdapter(adapter);
-        listView.setOnItemClickListener((p, v, pos, id) -> onItemClick(pos));
+        listView.setOnItemClickListener((p, v, pos, id) -> onItemClick(pos - listView.getHeaderViewsCount()));
         listView.setOnItemLongClickListener((p, v, pos, id) -> {
+            int at = pos - listView.getHeaderViewsCount();
+            if (at < 0) return false;
             v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
-            toggleSelect(pos);
+            toggleSelect(at);
             return true;
         });
 
@@ -806,6 +812,7 @@ public class FileManagerActivity extends BaseActivity {
     private void setSearchOpen(boolean open, boolean focus) {
         searchOpen = open;
         searchView.setVisibility(open && selected.isEmpty() ? View.VISIBLE : View.GONE);
+        if (open) listView.setSelection(0);
         android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager)
                 getSystemService(Context.INPUT_METHOD_SERVICE);
         if (open && focus) {
@@ -1943,11 +1950,17 @@ public class FileManagerActivity extends BaseActivity {
         String[] names = {getString(R.string.fm_sort_name), getString(R.string.fm_sort_date),
                 getString(R.string.fm_sort_size), getString(R.string.fm_sort_type)};
         List<String> items = new ArrayList<>();
-        for (int i = 0; i < names.length; i++) items.add((i == sortMode ? "● " : "○ ") + names[i]);
+        int[] sortIcons = new int[names.length + 2];
+        for (int i = 0; i < names.length; i++) {
+            items.add(names[i]);
+            sortIcons[i] = i == sortMode ? R.drawable.ic_check : 0;
+        }
         items.add(getString(sortDesc ? R.string.fm_order_desc : R.string.fm_order_asc));
+        sortIcons[names.length] = R.drawable.ic_sort;
         items.add(getString(showHidden ? R.string.fm_hide_hidden : R.string.fm_show_hidden));
+        sortIcons[names.length + 1] = R.drawable.ic_file;
         new Dlg(this).setTitle(R.string.fm_sort)
-                .setItems(items.toArray(new String[0]), (d, which) -> {
+                .setItems(items.toArray(new String[0]), sortIcons, (d, which) -> {
                     if (which < 4) {
                         sortMode = which;
                     } else if (which == 4) {
