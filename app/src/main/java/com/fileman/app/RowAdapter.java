@@ -70,9 +70,7 @@ public class RowAdapter extends BaseAdapter {
         Ui.press(ctx, v.findViewById(R.id.card));
         ImageView icon = v.findViewById(R.id.icon);
         icon.setImageResource(r.icon);
-        boolean colored = r.iconColor != 0;
-        int tint = colored ? r.iconColor : Ui.color(ctx, R.color.accent_text);
-        Ui.outlineIcon(ctx, icon, 8);
+        Ui.iconChip(ctx, icon, r.iconColor != 0 ? r.iconColor : Ui.color(ctx, R.color.info));
 
         ((TextView) v.findViewById(R.id.title)).setText(r.title);
 

@@ -388,7 +388,7 @@ public class DriveActivity extends BaseActivity {
         double pct = limit > 0 && used >= 0 ? used * 100.0 / limit : 0;
         ring.setUsage(UsageView.RING, pct, Ui.color(this, pct > 90 ? R.color.bad : R.color.accent), 0x33FFFFFF);
         ring.setCenterIcon(R.drawable.ic_drive, Ui.color(this, R.color.accent_text));
-        row.addView(ring, new LinearLayout.LayoutParams(Ui.dp(this, 64), Ui.dp(this, 64)));
+        row.addView(ring, new LinearLayout.LayoutParams(Ui.dp(this, 76), Ui.dp(this, 76)));
         LinearLayout tx = new LinearLayout(this);
         tx.setOrientation(LinearLayout.VERTICAL);
         tx.setPadding(Ui.dp(this, 16), 0, 0, 0);
@@ -410,24 +410,15 @@ public class DriveActivity extends BaseActivity {
 
         // categories
         dashContent.addView(Ui.sectionTitle(this, getString(R.string.drive_manage)));
-        List<View> tiles = new ArrayList<>();
-        tiles.add(tile(R.drawable.ic_image, R.color.ok, R.string.drive_cat_photos, C_PHOTOS));
-        tiles.add(tile(R.drawable.ic_video, R.color.bad, R.string.drive_cat_videos, C_VIDEOS));
-        tiles.add(tile(R.drawable.ic_folder, R.color.accent_text, R.string.drive_cat_files, C_FILES));
-        tiles.add(tile(R.drawable.ic_archive, R.color.warn, R.string.drive_cat_backups, C_BACKUPS));
-        tiles.add(tile(R.drawable.ic_delete, R.color.text_secondary, R.string.drive_cat_trash, C_TRASH));
-        final int cols = Layout.columns(this, 3, 6);
-        int side = Math.max(Ui.dp(this, 10), Layout.gutter(this) - Ui.dp(this, 4));
-        for (int i = 0; i < tiles.size(); i += cols) {
-            LinearLayout r = new LinearLayout(this);
-            r.setOrientation(LinearLayout.HORIZONTAL);
-            r.setPadding(side, 0, side, 0);
-            for (int k = 0; k < cols; k++) {
-                View cell = i + k < tiles.size() ? tiles.get(i + k) : new View(this);
-                r.addView(cell, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            }
-            dashContent.addView(r);
-        }
+        LinearLayout cats = new LinearLayout(this);
+        cats.setOrientation(LinearLayout.VERTICAL);
+        cats.addView(catRow(cats, R.drawable.ic_image, R.color.ok, R.string.drive_cat_photos, C_PHOTOS));
+        cats.addView(catRow(cats, R.drawable.ic_video, R.color.bad, R.string.drive_cat_videos, C_VIDEOS));
+        cats.addView(catRow(cats, R.drawable.ic_folder, R.color.info, R.string.drive_cat_files, C_FILES));
+        cats.addView(catRow(cats, R.drawable.ic_archive, R.color.warn, R.string.drive_cat_backups, C_BACKUPS));
+        cats.addView(catRow(cats, R.drawable.ic_delete, R.color.text_hint, R.string.drive_cat_trash, C_TRASH));
+        Ui.group(this, cats);
+        dashContent.addView(cats);
 
         // actions
         LinearLayout acts = card();
@@ -445,6 +436,11 @@ public class DriveActivity extends BaseActivity {
         lp2.topMargin = Ui.dp(this, 10);
         acts.addView(out, lp2);
         dashContent.addView(acts);
+    }
+
+    private View catRow(ViewGroup parent, int icon, int colorRes, int titleRes, final String category) {
+        return Ui.rowView(this, parent, new Row(icon, false, getString(titleRes), null, false, true)
+                .tint(Ui.color(this, colorRes)), x -> openCat(category));
     }
 
     private View tile(int icon, int colorRes, int titleRes, final String category) {

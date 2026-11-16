@@ -1,11 +1,14 @@
 # skills — FileManager
 
 ## آخر مهمة
-- حفظ الملفات المشاركة في التنزيلات بدل الكاش (التفاصيل في قسم المهمة الأخير).
-- إصلاح فشل البناء: ثوابت Motion الناقصة (التفاصيل في آخر قسم مهمة).
-- إصلاح فشل البناء (assembleRelease) في ApkDeepScan.java السطر 302.
-- السبب: الكلاس ProviderInfo لا يحتوي الحقل permission (موجود فقط في ServiceInfo وActivityInfo).
-- الحل: استخدام readPermission وwritePermission فقط للـ providers.
+- إعادة تصميم بصرية بنمط iOS (بلا تغيير وظيفي): ألوان Light/Dark الجديدة (colors وvalues-night)، ووضع جديد Dark elevated (Appearance.ELEVATED وستايل ElevatedMode وسلسلة theme_elevated)، والوضع الافتراضي للـ palette لم يتغير.
+- بطاقات radius 12 بلا stroke، أزرار radius 14 بارتفاع 46، شريط بحث بيضاوي (bg_search)، chips أيقونات 28dp بألوان النظام (Ui.iconChip) تُستعمل في RowAdapter وصفوف الملفات والمفاتيح، فاصل الصفوف 0.5dp بإزاحة 50dp (60dp لصفوف الملفات ذات المصغّرات) في Ui.shapeRow.
+- Home: بطاقة تخزين بشريط مقسّم (SegBarView)، 4 بلاطات 2x2 (Images, Videos, Documents, Downloads)، قائمة مجمّعة (Drive وUSB) ثم قائمة للفئات الباقية (Audio, APK, Archives, Recent, Favorites) والأدوات حتى لا تضيع وظيفة. LiveSync وstatsSig كما هي.
+- Files: نص المسار السابق (backCrumb)، عنوان 28sp، صفوف item_file بإزاحة جديدة وعلامة 20dp.
+- ورقة التحديد: SelectionSheet (بطاقة زجاجية عائمة) تفتح من selMore بدل قائمة moreMenu، والقائمة القديمة صارت moreActions وتُفتح من رابط "المزيد" داخل البطاقة. Dlg.attachDrag صار package-private.
+- Details: نافذة جديدة (أيقونة 72dp، قائمة معلومات، ثلاثة أزرار). Editor: تلوين الشيفرة CodeColors من ألوان النظام. Drive: حلقة 76dp وفئات كقائمة مجمّعة.
+- الملفات: Appearance, Ui, RowAdapter, ThemePreview, HomeActivity, FileManagerActivity, DriveActivity, ZipBrowseActivity, FileEditActivity, Dlg, SelectionSheet, SegBarView, CodeColors، وres: colors (+night) وpalettes وthemes وstrings_ios وdrawables bg_*/btn_* وlayouts (home, files, zip, drive, editor, install, item_row/file/toggle, view_header).
+- التحقق المطلوب على GitHub Actions: نجاح assembleRelease، ثم فحص يدوي للأوضاع الأربعة وRTL/LTR وخط كبير وإيقاف مفتاح الزجاج. لم يُشغَّل البناء محليًا.
 
 ## مهمة: زجاج البلور والمساعد الذكي وتسريع العمليات
 - وحدة blurview (مكتبة BlurView 3) مضمّنة في المشروع. Blur.java يغلّف عمود كل شاشة بـ BlurTarget ويحوّل الترويسة إلى BlurView علوي، والأشرطة السفلية (الكبسولة وشريط التحديد واللصق) واللوحة الجانبية إلى BlurView، ويضيف حشوة للقوائم كي تمر تحت الزجاج. الشاشات التي ترجع false من glassScreen() (القارئات والكاميرا) لا تتغير.

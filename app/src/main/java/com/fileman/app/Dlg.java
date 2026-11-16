@@ -328,7 +328,7 @@ public class Dlg extends AlertDialog.Builder {
         if (d != null && d.getWindow() != null) d.getWindow().setDimAmount(amount);
     }
 
-    private static void attachDrag(View grip, final View target, final AlertDialog[] ref, final float base) {
+    static void attachDrag(View grip, final View target, final AlertDialog[] ref, final float base) {
         final float limit = Ui.dp(grip.getContext(), 90);
         final float[] down = new float[1];
         final VelocityTracker[] tracker = new VelocityTracker[1];

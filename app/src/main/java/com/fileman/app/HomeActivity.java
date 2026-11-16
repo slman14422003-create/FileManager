@@ -302,23 +302,21 @@ public class HomeActivity extends BaseActivity {
 
     private android.content.BroadcastReceiver volWatch;
 
-    /** Top-corner button: shown while a USB drive / SD card is attached, opens its screen. */
+    /** The old top-corner button stays hidden: attached USB drives and SD cards are a row in the list now. */
     private void updateUsb() {
         View b = findViewById(R.id.btnUsb);
-        if (b == null) return;
-        final List<Volumes.Vol> vols = new ArrayList<>();
-        for (Volumes.Vol v : Volumes.removable(this)) if (v.mounted) vols.add(v);
-        b.setVisibility(vols.isEmpty() ? View.GONE : View.VISIBLE);
-        b.setOnClickListener(v -> {
-            if (vols.size() == 1) {
-                UsbPrompt.open(this, vols.get(0).root);
-                return;
-            }
-            String[] names = new String[vols.size()];
-            for (int i = 0; i < names.length; i++) names[i] = vols.get(i).label;
-            new Dlg(this).setTitle(R.string.usb_pick)
-                    .setItems(names, (d, i) -> UsbPrompt.open(this, vols.get(i).root)).show();
-        });
+        if (b != null) b.setVisibility(View.GONE);
+    }
+
+    private void openUsb(final List<Volumes.Vol> vols) {
+        if (vols.size() == 1) {
+            UsbPrompt.open(this, vols.get(0).root);
+            return;
+        }
+        String[] names = new String[vols.size()];
+        for (int i = 0; i < names.length; i++) names[i] = vols.get(i).label;
+        new Dlg(this).setTitle(R.string.usb_pick)
+                .setItems(names, (d, i) -> UsbPrompt.open(this, vols.get(i).root)).show();
     }
 
     private void render() {
@@ -335,34 +333,39 @@ public class HomeActivity extends BaseActivity {
         File internal = Environment.getExternalStorageDirectory();
         final File dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
 
-        // 1) one storage card: ring, used / total, analysis and biggest files, extra volumes as bars
         content.addView(storageCard(internal));
+        content.addView(smartGrid(dl));
 
-        // 2) quick access as a swipeable row of chips
-        content.addView(chipRow(
-                chip(R.drawable.ic_download, R.color.ok, getString(R.string.fm_downloads), v -> openFolder(dl)),
-                chip(R.drawable.ic_clock, R.color.info, getString(Cats.titleOf(Cats.RECENT)), v -> openCategory(Cats.RECENT)),
-                chip(R.drawable.ic_star, R.color.warn, getString(Cats.titleOf(Cats.FAV)), v -> openCategory(Cats.FAV))));
+        LinearLayout cloud = rowGroup();
+        cloud.addView(Ui.rowView(this, cloud, new Row(R.drawable.ic_drive, false, getString(R.string.drive_title),
+                driveSub(), false, true).tint(Ui.color(this, R.color.info)),
+                v -> startActivity(new Intent(this, DriveActivity.class))));
+        final List<Volumes.Vol> vols = new ArrayList<>();
+        for (Volumes.Vol v : Volumes.removable(this)) if (v.mounted) vols.add(v);
+        if (!vols.isEmpty()) {
+            cloud.addView(Ui.rowView(this, cloud, new Row(R.drawable.ic_drive, false, getString(R.string.usb_btn),
+                    null, false, true).tint(Ui.color(this, R.color.ok)), v -> openUsb(vols)));
+        }
+        Ui.group(this, cloud);
+        content.addView(cloud);
 
-        // 3) categories: 3 x 2 grid
-        List<View> cats = new ArrayList<>();
-        cats.add(catTile(Cats.IMG));
-        cats.add(catTile(Cats.VID));
-        cats.add(catTile(Cats.AUD));
-        cats.add(catTile(Cats.DOC));
-        cats.add(catTile(Cats.APK));
-        cats.add(catTile(Cats.ARC));
-        addSection(getString(R.string.home_sec_categories), cats);
+        content.addView(Ui.sectionTitle(this, getString(R.string.home_sec_categories)));
+        LinearLayout cats = rowGroup();
+        String[] more = {Cats.AUD, Cats.APK, Cats.ARC, Cats.RECENT, Cats.FAV};
+        for (String k : more) cats.addView(catRow(cats, k));
+        Ui.group(this, cats);
+        content.addView(cats);
 
-        // 4) tools: one small row
-        List<View> tools = new ArrayList<>();
-        tools.add(homeTile(R.drawable.ic_package, R.color.lime, getString(R.string.home_installer),
-                getString(R.string.pk_beta), v -> startActivity(new Intent(this, InstallerActivity.class))));
-        tools.add(homeTile(R.drawable.ic_wifi, R.color.info, getString(R.string.sh_title),
-                getString(R.string.sh_sub), v -> startActivity(new Intent(this, ShareActivity.class))));
-        tools.add(homeTile(R.drawable.ic_drive, R.color.accent_text, getString(R.string.drive_title),
-                "", v -> startActivity(new Intent(this, DriveActivity.class)), false));
-        addSection(getString(R.string.home_tools), tools);
+        content.addView(Ui.sectionTitle(this, getString(R.string.home_tools)));
+        LinearLayout tools = rowGroup();
+        tools.addView(Ui.rowView(this, tools, new Row(R.drawable.ic_package, false, getString(R.string.home_installer),
+                getString(R.string.pk_beta), false, true).tint(Ui.color(this, R.color.lime)),
+                v -> startActivity(new Intent(this, InstallerActivity.class))));
+        tools.addView(Ui.rowView(this, tools, new Row(R.drawable.ic_wifi, false, getString(R.string.sh_title),
+                getString(R.string.sh_sub), false, true).tint(Ui.color(this, R.color.info)),
+                v -> startActivity(new Intent(this, ShareActivity.class))));
+        Ui.group(this, tools);
+        content.addView(tools);
 
         if (keepY > 0) scroller.post(() -> scroller.scrollTo(0, keepY));
         if (!entered) {   // soft staggered entrance the first time the screen is drawn
@@ -371,17 +374,164 @@ public class HomeActivity extends BaseActivity {
         }
     }
 
+    private LinearLayout rowGroup() {
+        LinearLayout g = new LinearLayout(this);
+        g.setOrientation(LinearLayout.VERTICAL);
+        g.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        g.setPadding(0, Ui.dp(this, 14), 0, 0);
+        return g;
+    }
+
+    private String driveSub() {
+        boolean in = DriveStore.signedIn(this);
+        long used = DriveStore.used(this);
+        long limit = DriveStore.limit(this);
+        return !in ? getString(R.string.drive_home_connect)
+                : used < 0 ? getString(R.string.drive_sub_in)
+                : limit > 0 ? getString(R.string.drive_home_used, Fmt.size(used), Fmt.size(limit))
+                : getString(R.string.drive_home_unlimited, Fmt.size(used));
+    }
+
+    /** One row of the grouped list for a category: system-colour chip, name, "count . size" and a chevron. */
+    private View catRow(ViewGroup parent, final String cat) {
+        int icon;
+        int color;
+        switch (cat) {
+            case Cats.AUD:
+                icon = R.drawable.ic_music;
+                color = R.color.violet;
+                break;
+            case Cats.APK:
+                icon = R.drawable.ic_package;
+                color = R.color.lime;
+                break;
+            case Cats.RECENT:
+                icon = R.drawable.ic_clock;
+                color = R.color.info;
+                break;
+            case Cats.FAV:
+                icon = R.drawable.ic_star;
+                color = R.color.warn;
+                break;
+            default:
+                icon = R.drawable.ic_archive;
+                color = R.color.warn;
+                break;
+        }
+        String sub = "";
+        if (Cats.RECENT.equals(cat)) {
+            if (stats != null) sub = getString(R.string.home_tile_sub, stats.newCount, Fmt.size(stats.newSize));
+        } else if (Cats.FAV.equals(cat)) {
+            sub = getString(R.string.fm_items_n, existingFavorites().size());
+        } else if (stats != null) {
+            sub = getString(R.string.home_tile_sub, Cats.countOf(stats, cat), Fmt.size(Cats.sizeOf(stats, cat)));
+        } else if (Perms.hasAllFiles(this)) {
+            sub = "\u2026";
+        }
+        return Ui.rowView(this, parent, new Row(icon, false, getString(Cats.titleOf(cat)), sub, false, true)
+                .tint(Ui.color(this, color)), v -> openCategory(cat));
+    }
+
+    /** The four smart tiles (Images, Videos, Documents, Downloads) in a 2 x 2 grid; wide windows use more columns. */
+    private View smartGrid(final File dl) {
+        List<View> tiles = new ArrayList<>();
+        tiles.add(smartTile(R.drawable.ic_image, R.color.ok, getString(Cats.titleOf(Cats.IMG)),
+                catCount(Cats.IMG), catSize(Cats.IMG), v -> openCategory(Cats.IMG)));
+        tiles.add(smartTile(R.drawable.ic_video, R.color.bad, getString(Cats.titleOf(Cats.VID)),
+                catCount(Cats.VID), catSize(Cats.VID), v -> openCategory(Cats.VID)));
+        tiles.add(smartTile(R.drawable.ic_file_text, R.color.info, getString(Cats.titleOf(Cats.DOC)),
+                catCount(Cats.DOC), catSize(Cats.DOC), v -> openCategory(Cats.DOC)));
+        boolean haveDl = dlCount >= 0;
+        tiles.add(smartTile(R.drawable.ic_download, R.color.warn, getString(R.string.fm_downloads),
+                haveDl ? String.valueOf(dlCount) : (Perms.hasAllFiles(this) ? "\u2026" : ""),
+                haveDl ? Fmt.size(dlSize) : "", v -> openFolder(dl)));
+        final int cols = Layout.isWide(this) ? Layout.columns(this, 2, 4) : 2;
+        LinearLayout grid = new LinearLayout(this);
+        grid.setOrientation(LinearLayout.VERTICAL);
+        int edge = Math.max(0, Layout.gutter(this) - Ui.dp(this, 6));
+        grid.setPadding(edge, Ui.dp(this, 8), edge, 0);
+        for (int i = 0; i < tiles.size(); i += cols) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            for (int k = 0; k < cols; k++) {
+                View cell = i + k < tiles.size() ? tiles.get(i + k) : new View(this);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                lp.setMargins(Ui.dp(this, 6), Ui.dp(this, 6), Ui.dp(this, 6), Ui.dp(this, 6));
+                row.addView(cell, lp);
+            }
+            grid.addView(row);
+        }
+        return grid;
+    }
+
+    private String catCount(String cat) {
+        if (stats != null) return String.valueOf(Cats.countOf(stats, cat));
+        return Perms.hasAllFiles(this) ? "\u2026" : "";
+    }
+
+    private String catSize(String cat) {
+        return stats != null ? Fmt.size(Cats.sizeOf(stats, cat)) : "";
+    }
+
+    private View smartTile(int icon, int colorRes, String title, String count, String size, View.OnClickListener click) {
+        LinearLayout tile = new LinearLayout(this);
+        tile.setOrientation(LinearLayout.VERTICAL);
+        tile.setBackgroundResource(R.drawable.bg_tile);
+        tile.setPadding(Ui.dp(this, 14), Ui.dp(this, 14), Ui.dp(this, 14), Ui.dp(this, 14));
+        tile.setMinimumHeight(Ui.dp(this, 96));
+
+        ImageView chip = new ImageView(this);
+        chip.setImageResource(icon);
+        chip.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        Ui.iconChip(this, chip, Ui.color(this, colorRes));
+        tile.addView(chip, new LinearLayout.LayoutParams(Ui.dp(this, 28), Ui.dp(this, 28)));
+
+        TextView c = new TextView(this);
+        c.setText(count);
+        c.setTextSize(24);
+        c.setTypeface(Typeface.DEFAULT_BOLD);
+        c.setSingleLine(true);
+        c.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        c.setTextColor(Ui.color(this, R.color.text_primary));
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        cp.topMargin = Ui.dp(this, 10);
+        tile.addView(c, cp);
+
+        TextView t = new TextView(this);
+        t.setText(title);
+        t.setTextSize(13.5f);
+        t.setSingleLine(true);
+        t.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        t.setTextColor(Ui.color(this, R.color.text_primary));
+        tile.addView(t);
+
+        TextView s = new TextView(this);
+        s.setText(size);
+        s.setTextSize(11);
+        s.setSingleLine(true);
+        s.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        s.setTextColor(Ui.color(this, R.color.text_secondary));
+        tile.addView(s);
+
+        tile.setContentDescription(title);
+        Ui.press(this, tile);
+        tile.setOnClickListener(click);
+        return tile;
+    }
+
     private int sideMargin() {
         return Math.max(Ui.dp(this, 10), Layout.gutter(this) - Ui.dp(this, 4));
     }
 
-    /** Storage summary: ring + used / total for the main volume, shortcuts, and one thin bar per extra volume. */
+    /** Storage card: used / total, a segmented bar by kind of file, two shortcuts and one thin bar per extra volume. */
     private View storageCard(final File internal) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackgroundResource(R.drawable.bg_card);
         int p = Ui.dp(this, 16);
-        card.setPadding(p, p, p, p - Ui.dp(this, 4));
+        card.setPadding(p, p, p, p - Ui.dp(this, 2));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.setMargins(sideMargin(), Ui.dp(this, 12), sideMargin(), Ui.dp(this, 6));
@@ -389,47 +539,42 @@ public class HomeActivity extends BaseActivity {
 
         LinearLayout top = new LinearLayout(this);
         top.setOrientation(LinearLayout.HORIZONTAL);
-        top.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        final UsageView ring = new UsageView(this);
-        top.addView(ring, new LinearLayout.LayoutParams(Ui.dp(this, 64), Ui.dp(this, 64)));
-        LinearLayout tx = new LinearLayout(this);
-        tx.setOrientation(LinearLayout.VERTICAL);
-        tx.setPadding(Ui.dp(this, 16), 0, 0, 0);
+        top.setGravity(Gravity.CENTER_VERTICAL);
         TextView t = new TextView(this);
         t.setText(R.string.fm_internal);
-        t.setTextSize(17);
+        t.setTextSize(15);
         t.setTypeface(Typeface.DEFAULT_BOLD);
+        t.setSingleLine(true);
         t.setTextColor(Ui.color(this, R.color.text_primary));
         t.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        top.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        final TextView pctView = new TextView(this);
+        pctView.setTextSize(12);
+        pctView.setSingleLine(true);
+        pctView.setTextColor(Ui.color(this, R.color.text_secondary));
+        top.addView(pctView);
+        card.addView(top);
+
         final TextView sub = new TextView(this);
-        sub.setTextSize(13);
+        sub.setTextSize(11);
         sub.setTextColor(Ui.color(this, R.color.text_secondary));
         sub.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-        tx.addView(t);
-        tx.addView(sub);
-        top.addView(tx, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        card.addView(top);
+        card.addView(sub);
+
+        final SegBarView bar = new SegBarView(this);
+        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                Ui.dp(this, 10));
+        bp.topMargin = Ui.dp(this, 12);
+        card.addView(bar, bp);
         try {
             StatFs st = new StatFs(internal.getAbsolutePath());
             long total = st.getTotalBytes();
             long used = Math.max(0, total - st.getAvailableBytes());
             if (total <= 0) throw new IllegalStateException();
-            final double pct = used * 100.0 / total;
-            final int fg = Ui.color(this, pct > 90 ? R.color.bad : R.color.accent);
-            final int track = Ui.color(this, R.color.neutral_soft);
+            double pct = used * 100.0 / total;
             sub.setText(getString(R.string.home_used_of, Fmt.size(used), Fmt.size(total)));
-            ring.setCenterIcon(R.drawable.ic_drive, Ui.color(this, R.color.accent_text));
-            if (!entered) {
-                ring.setUsage(UsageView.RING, 0, fg, track);
-                android.animation.ValueAnimator va = android.animation.ValueAnimator.ofFloat(0f, 1f);
-                va.setDuration(700);
-                va.setStartDelay(120);
-                va.setInterpolator(Motion.OUT);
-                va.addUpdateListener(a -> ring.setUsage(UsageView.RING, pct * (float) a.getAnimatedValue(), fg, track));
-                va.start();
-            } else {
-                ring.setUsage(UsageView.RING, pct, fg, track);
-            }
+            pctView.setText(getString(R.string.home_used_pct, Math.round(pct)));
+            fillBar(bar, total, used);
         } catch (Exception e) {
             sub.setText(R.string.fm_unreadable);
         }
@@ -441,11 +586,11 @@ public class HomeActivity extends BaseActivity {
         ap.topMargin = Ui.dp(this, 14);
         card.addView(acts, ap);
         acts.addView(cardButton(R.string.home_analysis, v -> startActivity(new Intent(this, StorageActivity.class))),
-                new LinearLayout.LayoutParams(0, Ui.dp(this, 42), 1f));
+                new LinearLayout.LayoutParams(0, Ui.dp(this, 44), 1f));
         View gap = new View(this);
         acts.addView(gap, new LinearLayout.LayoutParams(Ui.dp(this, 8), 1));
         acts.addView(cardButton(Cats.titleOf(Cats.LARGE), v -> openCategory(Cats.LARGE)),
-                new LinearLayout.LayoutParams(0, Ui.dp(this, 42), 1f));
+                new LinearLayout.LayoutParams(0, Ui.dp(this, 44), 1f));
 
         for (File sd : sdRoots()) {
             try {
@@ -455,7 +600,7 @@ public class HomeActivity extends BaseActivity {
                 if (total <= 0) continue;
                 TextView l = new TextView(this);
                 l.setText(Volumes.labelOf(this, sd) + "  \u00b7  " + getString(R.string.home_used_of, Fmt.size(used), Fmt.size(total)));
-                l.setTextSize(13);
+                l.setTextSize(12);
                 l.setTextColor(Ui.color(this, R.color.text_secondary));
                 l.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
                 LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -472,6 +617,34 @@ public class HomeActivity extends BaseActivity {
         Ui.press(this, card);
         card.setOnClickListener(v -> openFolder(internal));
         return card;
+    }
+
+    /** Colours the bar per kind of file (iOS system colours); before the first scan it shows plain used space. */
+    private void fillBar(SegBarView bar, long total, long used) {
+        final int[] colorRes = {R.color.ok, R.color.bad, R.color.violet, R.color.info, R.color.lime, R.color.warn};
+        final String[] cats = {Cats.IMG, Cats.VID, Cats.AUD, Cats.DOC, Cats.APK, Cats.ARC};
+        float[] frac = new float[cats.length + 1];
+        int[] cols = new int[cats.length + 1];
+        long[] sz = new long[cats.length];
+        long sum = 0;
+        if (stats != null) {
+            for (int i = 0; i < cats.length; i++) {
+                sz[i] = Math.max(0, Cats.sizeOf(stats, cats[i]));
+                sum += sz[i];
+            }
+        }
+        double scale = sum > used && sum > 0 ? (double) used / sum : 1.0;
+        long acc = 0;
+        for (int i = 0; i < cats.length; i++) {
+            long v = (long) (sz[i] * scale);
+            frac[i] = total > 0 ? (float) v / total : 0f;
+            cols[i] = Ui.color(this, colorRes[i]);
+            acc += v;
+        }
+        long other = Math.max(0, used - acc);
+        frac[cats.length] = total > 0 ? (float) other / total : 0f;
+        cols[cats.length] = Ui.color(this, stats != null ? R.color.text_hint : R.color.accent);
+        bar.setData(frac, cols, Ui.color(this, R.color.neutral_soft));
     }
 
     private View cardButton(int textRes, View.OnClickListener click) {
@@ -596,15 +769,15 @@ public class HomeActivity extends BaseActivity {
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        bar.setBackgroundResource(R.drawable.bg_input);
-        bar.setPaddingRelative(Ui.dp(this, 16), 0, Ui.dp(this, 16), 0);
+        bar.setBackgroundResource(R.drawable.bg_search);
+        bar.setPaddingRelative(Ui.dp(this, 14), 0, Ui.dp(this, 14), 0);
         ImageView ic = new ImageView(this);
         ic.setImageResource(R.drawable.ic_search);
         ic.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.text_secondary)));
         bar.addView(ic, new LinearLayout.LayoutParams(Ui.dp(this, 20), Ui.dp(this, 20)));
         TextView t = new TextView(this);
         t.setText(R.string.home_search_hint);
-        t.setTextSize(15);
+        t.setTextSize(14);
         t.setTextColor(Ui.color(this, R.color.text_hint));
         t.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
@@ -619,7 +792,7 @@ public class HomeActivity extends BaseActivity {
         });
         int side = Math.max(Ui.dp(this, 16), Layout.gutter(this));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 46));
+                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 44));
         lp.setMargins(side, Ui.dp(this, 4), side, 0);
         bar.setLayoutParams(lp);
         return bar;

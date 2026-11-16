@@ -113,10 +113,10 @@ final class ThemePreview extends View {
         float rowH = h * 0.12f;
         for (int i = 0; i < 2; i++) {
             float top = h * 0.51f + i * (rowH + 5 * dp);
-            round(c, w * 0.10f, top, w * 0.90f, top + rowH, 8 * dp, k.surface, k.stroke);
+            round(c, w * 0.10f, top, w * 0.90f, top + rowH, 6 * dp, k.surface, 0);
             float cy = top + rowH / 2f;
             float rad = Math.min(rowH * 0.28f, 9 * dp);
-            round(c, w * 0.10f + 8 * dp, cy - rad, w * 0.10f + 8 * dp + rad * 2, cy + rad, rad * 0.6f, k.soft, 0);
+            round(c, w * 0.10f + 8 * dp, cy - rad, w * 0.10f + 8 * dp + rad * 2, cy + rad, rad * 0.5f, k.accent, 0);
             round(c, w * 0.10f + 8 * dp + rad * 2 + 7 * dp, cy - 3 * dp, w * 0.62f, cy, 2 * dp, k.text, 0);
             round(c, w * 0.10f + 8 * dp + rad * 2 + 7 * dp, cy + 3 * dp, w * 0.52f, cy + 5.5f * dp, 1.5f * dp, k.hint, 0);
         }
@@ -126,7 +126,7 @@ final class ThemePreview extends View {
         p.setColor(k.surface);
         c.drawRect(0, by, w, h, p);
         p.setColor(k.stroke);
-        c.drawRect(0, by, w, by + dp, p);
+        c.drawRect(0, by, w, by + 0.5f * dp, p);
         float cy = (by + h) / 2f;
         round(c, w * 0.14f, cy - 5 * dp, w * 0.14f + 22 * dp, cy + 5 * dp, 5 * dp, k.accent, 0);
         p.setColor(k.hint);

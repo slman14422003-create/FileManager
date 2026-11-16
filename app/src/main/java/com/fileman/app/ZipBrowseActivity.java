@@ -117,7 +117,7 @@ public class ZipBrowseActivity extends BaseActivity {
         selInfo = findViewById(R.id.selInfo);
         android.graphics.drawable.GradientDrawable cardBg = new android.graphics.drawable.GradientDrawable();
         cardBg.setColor(Ui.color(this, R.color.surface));
-        cardBg.setCornerRadius(Ui.dp(this, 14));
+        cardBg.setCornerRadius(Ui.dp(this, 12));
         statCard.setBackground(cardBg);
         findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
         findViewById(R.id.btnRefresh).setVisibility(View.GONE);

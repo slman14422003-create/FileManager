@@ -103,6 +103,23 @@ public final class Ui {
         iv.setBackground(outlineBox(c, dp(c, cornerDp)));
     }
 
+    /** iOS Settings style icon chip: 28dp rounded square (7dp radius) in a system colour with a white 16dp glyph. */
+    public static void iconChip(Context c, ImageView iv, final int argb) {
+        iv.setImageTintList(ColorStateList.valueOf(0xFFFFFFFF));
+        iv.setBackground(chipBox(c, argb));
+        int pad = dp(c, 6);
+        iv.setPadding(pad, pad, pad, pad);
+    }
+
+    private static android.graphics.drawable.Drawable chipBox(final Context c, final int argb) {
+        return cachedShape(c, (1L << 60) | (argb & 0xFFFFFFFFL), () -> {
+            GradientDrawable g = new GradientDrawable();
+            g.setCornerRadius(dpf(c, 7));
+            g.setColor(argb);
+            return g;
+        });
+    }
+
     public static float dpf(Context c, float v) {
         return v * c.getResources().getDisplayMetrics().density;
     }
@@ -359,11 +376,10 @@ public final class Ui {
         TextView t = new TextView(c);
         t.setText(text);
         t.setTextColor(color(c, R.color.text_secondary));
-        t.setTextSize(13);
-        t.setTypeface(t.getTypeface(), Typeface.BOLD);
+        t.setTextSize(12);
         t.setAllCaps(false);
         t.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-        t.setPaddingRelative(dp(c, 32), dp(c, 24), dp(c, 32), dp(c, 8));
+        t.setPaddingRelative(dp(c, 32), dp(c, 22), dp(c, 32), dp(c, 6));
         return t;
     }
 
@@ -443,7 +459,7 @@ public final class Ui {
         final Integer shapeKey = fillRes * 4 + (first ? 1 : 0) + (last ? 2 : 0);
         if (shapeKey.equals(card.getTag(R.id.tag_shape))) return;
         card.setTag(R.id.tag_shape, shapeKey);
-        float big = dp(c, 20);   // inset-grouped list: rounded outer corners, square inside
+        float big = dp(c, 12);   // inset-grouped list: rounded outer corners, square inside
         float small = 0f;
         float top = first ? big : small;
         float bottom = last ? big : small;
@@ -463,9 +479,9 @@ public final class Ui {
             ld.setLayerGravity(1, Gravity.BOTTOM | Gravity.FILL_HORIZONTAL);
             ld.setLayerHeight(1, Math.max(1, Math.round(c.getResources().getDisplayMetrics().density * 0.5f)));
             View ic = card.findViewById(R.id.icon);
-            int inset = 16;
-            if (card.findViewById(R.id.thumb) != null) inset = 68;
-            else if (ic != null && ic.getVisibility() == View.VISIBLE) inset = 58;
+            int inset = 14;
+            if (card.findViewById(R.id.thumb) != null) inset = 60;
+            else if (ic != null && ic.getVisibility() == View.VISIBLE) inset = 50;
             ld.setLayerInsetStart(1, dp(c, inset));
             base = ld;
         }
@@ -589,7 +605,7 @@ public final class Ui {
             ImageView icon = view.findViewById(R.id.icon);
             if (icon != null) {
                 icon.setImageResource(iconRes);
-                outlineIcon(view.getContext(), icon, 8);
+                iconChip(view.getContext(), icon, color(view.getContext(), R.color.info));
                 icon.setVisibility(View.VISIBLE);
             }
             return this;
@@ -645,7 +661,7 @@ public final class Ui {
         ImageView icon = t.view.findViewById(R.id.icon);
         if (icon != null) {
             icon.setImageResource(iconRes);
-            outlineIcon(c, icon, 8);
+            iconChip(c, icon, color(c, R.color.info));
             icon.setVisibility(View.VISIBLE);
         }
         return t;

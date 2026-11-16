@@ -124,13 +124,27 @@
         <item name="cGroupBg">@color/gray_bg</item>
         <item name="cSurface">@color/gray_surface</item>
         <item name="cSurfaceHigh">@color/gray_surface_high</item>
-        <item name="cField">@color/gray_surface</item>
+        <item name="cField">@color/gray_field</item>
         <item name="cStroke">@color/gray_stroke</item>
         <item name="cStrokeSoft">@color/gray_surface_high</item>
         <item name="cTextPrimary">@color/gray_text_primary</item>
         <item name="cTextSecondary">@color/gray_text_secondary</item>
         <item name="cTextHint">@color/gray_text_hint</item>
         <item name="cNeutralSoft">@color/gray_surface_high</item>
+    </style>
+
+    <style name="ElevatedMode">
+        <item name="cBg">@color/elevated_bg</item>
+        <item name="cGroupBg">@color/elevated_group</item>
+        <item name="cSurface">@color/elevated_surface</item>
+        <item name="cSurfaceHigh">@color/elevated_surface_high</item>
+        <item name="cField">@color/elevated_field</item>
+        <item name="cStroke">@color/elevated_stroke</item>
+        <item name="cStrokeSoft">@color/elevated_stroke_soft</item>
+        <item name="cTextPrimary">@color/elevated_text_primary</item>
+        <item name="cTextSecondary">@color/elevated_text_secondary</item>
+        <item name="cTextHint">@color/elevated_text_hint</item>
+        <item name="cNeutralSoft">@color/elevated_neutral_soft</item>
     </style>
 
     <style name="AmoledMode">

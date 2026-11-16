@@ -10,9 +10,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
-        android:minHeight="76dp"
+        android:minHeight="64dp"
         android:orientation="horizontal"
-        android:paddingStart="22dp"
+        android:paddingStart="@dimen/gutter"
         android:paddingTop="10dp"
         android:paddingEnd="8dp"
         android:paddingBottom="6dp">
@@ -43,7 +43,7 @@
                 android:text="@string/app_name"
                 android:textAlignment="viewStart"
                 android:textColor="?attr/cTextPrimary"
-                android:textSize="32sp"
+                android:textSize="28sp"
                 android:textStyle="bold" />
 
             <TextView

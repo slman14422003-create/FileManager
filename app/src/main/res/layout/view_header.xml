@@ -46,9 +46,9 @@
             android:maxLines="1"
             android:textAlignment="viewStart"
             android:textColor="?attr/cTextPrimary"
-            android:textSize="30sp"
+            android:textSize="28sp"
             android:textStyle="bold"
-            app:autoSizeMaxTextSize="30sp"
+            app:autoSizeMaxTextSize="28sp"
             app:autoSizeMinTextSize="16sp"
             app:autoSizeStepGranularity="1sp"
             app:autoSizeTextType="uniform" />
@@ -62,7 +62,7 @@
             android:maxLines="2"
             android:textAlignment="viewStart"
             android:textColor="?attr/cTextSecondary"
-            android:textSize="13sp" />
+            android:textSize="12sp" />
     </LinearLayout>
 
     <ImageButton

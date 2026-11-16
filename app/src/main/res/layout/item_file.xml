@@ -2,8 +2,8 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp">
+    android:paddingStart="@dimen/gutter"
+    android:paddingEnd="@dimen/gutter">
 
     <LinearLayout
         android:id="@+id/card"
@@ -12,37 +12,38 @@
         android:background="@drawable/bg_card_ripple"
         android:duplicateParentState="true"
         android:gravity="center_vertical"
-        android:minHeight="68dp"
+        android:minHeight="52dp"
         android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingTop="12dp"
+        android:paddingStart="14dp"
+        android:paddingTop="8dp"
         android:paddingEnd="14dp"
-        android:paddingBottom="12dp">
+        android:paddingBottom="8dp">
 
         <FrameLayout
-            android:layout_width="40dp"
-            android:layout_height="40dp">
+            android:layout_width="36dp"
+            android:layout_height="36dp">
 
             <ImageView
                 android:id="@+id/thumb"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:importantForAccessibility="no"
                 android:scaleType="centerCrop"
                 android:visibility="gone" />
 
             <ImageView
                 android:id="@+id/icon"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
                 android:importantForAccessibility="no"
-                android:padding="9dp" />
+                android:padding="6dp" />
         </FrameLayout>
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
+            android:layout_marginStart="10dp"
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
             android:orientation="vertical">
@@ -57,7 +58,7 @@
                 android:textAlignment="viewStart"
                 android:textColor="?attr/cTextPrimary"
                 android:textDirection="locale"
-                android:textSize="16sp" />
+                android:textSize="13.5sp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -74,7 +75,7 @@
                     android:singleLine="true"
                     android:textAlignment="viewStart"
                     android:textColor="?attr/cTextSecondary"
-                    android:textSize="13sp" />
+                    android:textSize="11sp" />
 
                 <TextView
                     android:id="@+id/date"
@@ -83,7 +84,7 @@
                     android:layout_marginStart="10dp"
                     android:singleLine="true"
                     android:textColor="?attr/cTextSecondary"
-                    android:textSize="12sp" />
+                    android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>
 
@@ -109,8 +110,8 @@
 
         <ImageView
             android:id="@+id/check"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:importantForAccessibility="no"
             android:src="@drawable/ic_check_circle"
             android:tint="?attr/cAccentText"

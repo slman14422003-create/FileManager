@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- DAY palette: iOS system colours (white, grouped grey #F2F2F7, iOS blue). Night counterpart: values-night/colors.xml (pure AMOLED black). -->
-    <color name="bg">#FFFFFF</color>
+    <color name="bg">#F2F2F7</color>
     <color name="bg_group">#F2F2F7</color>
     <color name="surface">#FFFFFF</color>
-    <color name="surface_high">#EEEEF2</color>
-    <color name="field">#F2F2F7</color>
-    <color name="stroke">#4D3C3C43</color>
-    <color name="stroke_soft">#EBEBF0</color>
+    <color name="surface_high">#E5E5EA</color>
+    <color name="field">#1F767680</color>
+    <color name="stroke">#D1D1D6</color>
+    <color name="stroke_soft">#E5E5EA</color>
     <color name="text_primary">#000000</color>
     <color name="text_secondary">#6C6C70</color>
     <color name="text_hint">#AEAEB2</color>
@@ -41,6 +41,19 @@
     <color name="gray_text_primary">#F5F5F7</color>
     <color name="gray_text_secondary">#C0C0C8</color>
     <color name="gray_text_hint">#8F8F99</color>
+    <color name="gray_field">#3D767680</color>
+
+    <color name="elevated_bg">#1C1C1E</color>
+    <color name="elevated_group">#1C1C1E</color>
+    <color name="elevated_surface">#2C2C2E</color>
+    <color name="elevated_surface_high">#3A3A3C</color>
+    <color name="elevated_field">#3D767680</color>
+    <color name="elevated_stroke">#48484A</color>
+    <color name="elevated_stroke_soft">#3A3A3C</color>
+    <color name="elevated_text_primary">#FFFFFF</color>
+    <color name="elevated_text_secondary">#98989F</color>
+    <color name="elevated_text_hint">#6C6C70</color>
+    <color name="elevated_neutral_soft">#3A3A3C</color>
 
     <color name="amoled_bg">#000000</color>
     <color name="amoled_group">#000000</color>

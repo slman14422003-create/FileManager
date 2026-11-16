@@ -12,10 +12,10 @@ public final class Appearance {
     private Appearance() {
     }
 
-    public static final String LIGHT = "light", SAND = "sand", DARK = "dark", AMOLED = "amoled",
-            MIDNIGHT = "midnight", GRAY = "gray", AUTO = "auto";
+    public static final String LIGHT = "light", SAND = "sand", DARK = "dark", ELEVATED = "elevated",
+            AMOLED = "amoled", MIDNIGHT = "midnight", GRAY = "gray", AUTO = "auto";
 
-    public static final String[] MODES = {LIGHT, SAND, DARK, AMOLED, MIDNIGHT, GRAY, AUTO};
+    public static final String[] MODES = {LIGHT, SAND, DARK, ELEVATED, AMOLED, MIDNIGHT, GRAY, AUTO};
 
     public static final String DEFAULT_PALETTE = "mono";
 
@@ -63,6 +63,7 @@ public final class Appearance {
 
     public static int overlayStyle(String mode) {
         if (GRAY.equals(mode)) return R.style.GrayMode;
+        if (ELEVATED.equals(mode)) return R.style.ElevatedMode;
         if (AMOLED.equals(mode)) return R.style.AmoledMode;
         if (MIDNIGHT.equals(mode)) return R.style.MidnightMode;
         if (SAND.equals(mode)) return R.style.SandMode;
@@ -87,6 +88,7 @@ public final class Appearance {
     public static int modeName(String mode) {
         if (SAND.equals(mode)) return R.string.theme_sand;
         if (DARK.equals(mode)) return R.string.theme_dark;
+        if (ELEVATED.equals(mode)) return R.string.theme_elevated;
         if (AMOLED.equals(mode)) return R.string.theme_amoled;
         if (MIDNIGHT.equals(mode)) return R.string.theme_midnight;
         if (GRAY.equals(mode)) return R.string.theme_gray;
@@ -95,7 +97,8 @@ public final class Appearance {
     }
 
     public static boolean nightFor(String mode) {
-        if (DARK.equals(mode) || AMOLED.equals(mode) || MIDNIGHT.equals(mode) || GRAY.equals(mode)) return true;
+        if (DARK.equals(mode) || ELEVATED.equals(mode) || AMOLED.equals(mode) || MIDNIGHT.equals(mode)
+                || GRAY.equals(mode)) return true;
         if (AUTO.equals(mode)) {
             return (Resources.getSystem().getConfiguration().uiMode
                     & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;

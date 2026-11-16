@@ -249,6 +249,7 @@ public class FileManagerActivity extends BaseActivity {
     private TextView titleView, subtitleView, statusView, emptyView, selCount, pasteText, usedPill;
     private ImageButton btnA1, btnA2, btnRefresh, btnSearch;
     private View loadingBar, selBar, pasteBar, permBanner, crumbScroll;
+    private TextView backCrumb;
     private EditText searchView;
     private LinearLayout crumbRow;
     private boolean searchOpen;
@@ -313,6 +314,7 @@ public class FileManagerActivity extends BaseActivity {
         pasteBar = findViewById(R.id.pasteBar);
         permBanner = findViewById(R.id.permBanner);
         crumbScroll = findViewById(R.id.crumbScroll);
+        backCrumb = findViewById(R.id.backCrumb);
         searchView = findViewById(R.id.search);
         crumbRow = findViewById(R.id.crumbRow);
         listView = findViewById(R.id.list);
@@ -1223,6 +1225,17 @@ public class FileManagerActivity extends BaseActivity {
                 break;
         }
         boolean dirMode = mode == M_DIR;
+        if (backCrumb != null) {
+            File up = dirMode && cur != null && !isVolumeRoot(cur) ? cur.getParentFile() : null;
+            if (up != null && up.canRead()) {
+                final File target = up;
+                backCrumb.setText(folderLabel(up));
+                backCrumb.setOnClickListener(v -> navigate(target));
+                backCrumb.setVisibility(View.VISIBLE);
+            } else {
+                backCrumb.setVisibility(View.GONE);
+            }
+        }
         crumbScroll.setVisibility(dirMode ? View.VISIBLE : View.GONE);
         usedPill.setVisibility(dirMode ? View.VISIBLE : View.GONE);
         if (dirMode) {
@@ -1546,6 +1559,12 @@ public class FileManagerActivity extends BaseActivity {
         return Cats.colorFor(t);
     }
 
+    /** Chip fill for a file type: always one of the iOS system colours (never the user's accent palette). */
+    private static int chipColorFor(int t) {
+        int c = Cats.colorFor(t);
+        return c == R.color.accent_text ? R.color.info : c == R.color.text_secondary ? R.color.text_hint : c;
+    }
+
     private static String mimeOf(File f) {
         return Cats.mimeOf(f);
     }
@@ -1613,7 +1632,7 @@ public class FileManagerActivity extends BaseActivity {
                 h.pin = v.findViewById(R.id.pin);
                 h.fav = v.findViewById(R.id.fav);
                 h.check = v.findViewById(R.id.check);
-                h.thumb.setBackground(Ui.outlineBox(FileManagerActivity.this, Ui.dp(FileManagerActivity.this, 10)));
+                h.thumb.setBackground(Ui.outlineBox(FileManagerActivity.this, Ui.dp(FileManagerActivity.this, 8)));
                 h.thumb.setClipToOutline(true);
                 v.setTag(R.id.tag_holder, h);
             } else {
@@ -1628,13 +1647,8 @@ public class FileManagerActivity extends BaseActivity {
             ImageView icon = h.icon;
             ImageView thumb = h.thumb;
             icon.setImageResource(iconFor(type));
-            if (e.dir) {
-                Ui.outlineIcon(FileManagerActivity.this, icon, 10);
-            } else {
-                icon.setImageTintList(tint(color));
-                icon.setBackground(Ui.colorTile(FileManagerActivity.this, Ui.dp(FileManagerActivity.this, 40),
-                        colorFor(type), false));
-            }
+            Ui.iconChip(FileManagerActivity.this, icon,
+                    Ui.color(FileManagerActivity.this, e.dir ? R.color.info : chipColorFor(type)));
             thumb.setTag(path);
             Bitmap cached = (type == T_IMG || type == T_APK || type == T_VID) ? thumbs.get(path + "|" + e.mod) : null;
             if (cached != null) {
@@ -2031,6 +2045,52 @@ public class FileManagerActivity extends BaseActivity {
     }
 
     private void moreMenu() {
+        if (selectedFiles().isEmpty()) return;
+        SelectionSheet.show(this, new SelectionSheet.Host() {
+            @Override
+            public List<File> files() {
+                return selectedFiles();
+            }
+
+            @Override
+            public void onShare() {
+                FileManagerActivity.this.share(selectedFiles());
+            }
+
+            @Override
+            public void onCopy() {
+                FileManagerActivity.this.toClipboard(false);
+            }
+
+            @Override
+            public void onMove() {
+                FileManagerActivity.this.toClipboard(true);
+            }
+
+            @Override
+            public void onCompress() {
+                FileManagerActivity.this.compress(selectedFiles());
+            }
+
+            @Override
+            public void onDelete() {
+                FileManagerActivity.this.deleteSelected();
+            }
+
+            @Override
+            public void onSelectAll() {
+                FileManagerActivity.this.selectAll();
+            }
+
+            @Override
+            public void onMore() {
+                FileManagerActivity.this.moreActions();
+            }
+        });
+    }
+
+    /** The full list of per-selection actions (open with, rename, details, extract, pin, favourite, copy path...). */
+    private void moreActions() {
         final List<File> files = selectedFiles();
         if (files.isEmpty()) return;
         final boolean single = files.size() == 1;
@@ -2856,38 +2916,141 @@ public class FileManagerActivity extends BaseActivity {
             if (files.size() == 1 && files.get(0).isFile() && files.get(0).length() <= 200L * 1024 * 1024) {
                 hash = sha256(files.get(0));
             }
-            final StringBuilder sb = new StringBuilder();
+            final List<String[]> info = new ArrayList<>();
             if (files.size() == 1) {
                 File f = files.get(0);
-                sb.append(getString(R.string.fm_d_path)).append(":\n").append(f.getAbsolutePath()).append("\n\n");
-                sb.append(getString(R.string.fm_d_type)).append(": ")
-                        .append(f.isDirectory() ? getString(R.string.fm_folder) : mimeOf(f)).append('\n');
-                sb.append(getString(R.string.fm_d_modified)).append(": ")
-                        .append(dateFmt.format(new Date(f.lastModified()))).append('\n');
-                sb.append(getString(R.string.fm_d_access)).append(": ")
-                        .append(f.canRead() ? "r" : "-").append(f.canWrite() ? "w" : "-")
-                        .append(f.canExecute() ? "x" : "-").append('\n');
+                info.add(new String[]{getString(R.string.fm_d_path), f.getAbsolutePath()});
+                info.add(new String[]{getString(R.string.fm_d_type),
+                        f.isDirectory() ? getString(R.string.fm_folder) : mimeOf(f)});
+                info.add(new String[]{getString(R.string.fm_d_modified), dateFmt.format(new Date(f.lastModified()))});
+                info.add(new String[]{getString(R.string.fm_d_access), (f.canRead() ? "r" : "-")
+                        + (f.canWrite() ? "w" : "-") + (f.canExecute() ? "x" : "-")});
             } else {
-                sb.append(getString(R.string.fm_selected_n, files.size())).append('\n');
+                info.add(new String[]{getString(R.string.fm_details), getString(R.string.fm_selected_n, files.size())});
             }
-            sb.append(getString(R.string.fm_d_size)).append(": ").append(Fmt.size(tot[0]))
-                    .append(" (").append(String.format(Locale.US, "%,d", tot[0])).append(" B)\n");
+            info.add(new String[]{getString(R.string.fm_d_size), Fmt.size(tot[0]) + " ("
+                    + String.format(Locale.US, "%,d", tot[0]) + " B)"});
             if (files.size() > 1 || files.get(0).isDirectory()) {
-                sb.append(getString(R.string.fm_d_contents)).append(": ")
-                        .append(getString(R.string.fm_d_contents_v, tot[1], tot[2])).append('\n');
+                info.add(new String[]{getString(R.string.fm_d_contents), getString(R.string.fm_d_contents_v, tot[1], tot[2])});
             }
-            if (hash != null) sb.append("\nSHA-256:\n").append(hash);
+            if (hash != null) info.add(new String[]{"SHA-256", hash});
             final String title = files.size() == 1 ? files.get(0).getName() : getString(R.string.fm_details);
             final String copy = files.size() == 1 ? files.get(0).getAbsolutePath() : null;
+            final int typeForIcon = files.size() == 1 ? typeOf(new Entry(files.get(0))) : T_DIR;
             post(() -> {
                 hideBusy();
                 opDone(null);
-                AlertDialog.Builder b = new Dlg(this).setTitle(title)
-                        .setMessage(sb.toString()).setPositiveButton(android.R.string.ok, null);
-                if (copy != null) b.setNeutralButton(R.string.fm_copy_path, (d, w) -> copyText(copy));
-                b.show();
+                final AlertDialog[] ref = new AlertDialog[1];
+                LinearLayout box = new LinearLayout(this);
+                box.setOrientation(LinearLayout.VERTICAL);
+                box.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
+                box.setPadding(Ui.dp(this, 16), Ui.dp(this, 20), Ui.dp(this, 16), Ui.dp(this, 12));
+                ImageView big = new ImageView(this);
+                big.setImageResource(iconFor(typeForIcon));
+                int bp = Ui.dp(this, 20);
+                big.setImageTintList(ColorStateList.valueOf(0xFFFFFFFF));
+                GradientDrawable bgc = new GradientDrawable();
+                bgc.setCornerRadius(Ui.dp(this, 17));
+                bgc.setColor(Ui.color(this, files.size() == 1 && !files.get(0).isDirectory()
+                        ? chipColorFor(typeForIcon) : R.color.info));
+                big.setBackground(bgc);
+                big.setPadding(bp, bp, bp, bp);
+                box.addView(big, new LinearLayout.LayoutParams(Ui.dp(this, 72), Ui.dp(this, 72)));
+                TextView tt = new TextView(this);
+                tt.setText(title);
+                tt.setTextSize(17);
+                tt.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+                tt.setGravity(android.view.Gravity.CENTER);
+                tt.setMaxLines(2);
+                tt.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+                tt.setTextColor(Ui.color(this, R.color.text_primary));
+                LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT);
+                tlp.topMargin = Ui.dp(this, 10);
+                box.addView(tt, tlp);
+                LinearLayout list = new LinearLayout(this);
+                list.setOrientation(LinearLayout.VERTICAL);
+                GradientDrawable lbg = new GradientDrawable();
+                lbg.setColor(Ui.color(this, R.color.field));
+                lbg.setCornerRadius(Ui.dp(this, 12));
+                list.setBackground(lbg);
+                for (int k = 0; k < info.size(); k++) {
+                    LinearLayout r = new LinearLayout(this);
+                    r.setOrientation(LinearLayout.VERTICAL);
+                    r.setPadding(Ui.dp(this, 14), Ui.dp(this, 8), Ui.dp(this, 14), Ui.dp(this, 8));
+                    TextView l = new TextView(this);
+                    l.setText(info.get(k)[0]);
+                    l.setTextSize(11);
+                    l.setTextColor(Ui.color(this, R.color.text_secondary));
+                    l.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+                    TextView v = new TextView(this);
+                    v.setText(info.get(k)[1]);
+                    v.setTextSize(13.5f);
+                    v.setTextIsSelectable(true);
+                    v.setTextColor(Ui.color(this, R.color.text_primary));
+                    v.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+                    r.addView(l);
+                    r.addView(v);
+                    list.addView(r);
+                    if (k < info.size() - 1) {
+                        View line = new View(this);
+                        line.setBackgroundColor(Ui.color(this, R.color.stroke));
+                        LinearLayout.LayoutParams ll = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                                Math.max(1, Ui.dp(this, 1) / 2));
+                        ll.setMarginStart(Ui.dp(this, 14));
+                        list.addView(line, ll);
+                    }
+                }
+                android.widget.ScrollView sv = new android.widget.ScrollView(this);
+                sv.setVerticalScrollBarEnabled(false);
+                sv.addView(list);
+                LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+                slp.topMargin = Ui.dp(this, 14);
+                box.addView(sv, slp);
+                LinearLayout btns = new LinearLayout(this);
+                btns.setOrientation(LinearLayout.HORIZONTAL);
+                btns.addView(detailButton(getString(R.string.fm_copy_path), false, copy == null ? null : x -> {
+                    if (ref[0] != null) ref[0].dismiss();
+                    copyText(copy);
+                }), new LinearLayout.LayoutParams(0, Ui.dp(this, 46), 1f));
+                btns.addView(detailButton(getString(R.string.share), false, x -> {
+                    if (ref[0] != null) ref[0].dismiss();
+                    share(files);
+                }), detailLp());
+                btns.addView(detailButton(getString(android.R.string.ok), true, x -> {
+                    if (ref[0] != null) ref[0].dismiss();
+                }), detailLp());
+                LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT);
+                blp.topMargin = Ui.dp(this, 14);
+                box.addView(btns, blp);
+                ref[0] = new Dlg(this).setView(box).show();
             });
         });
+    }
+
+    private LinearLayout.LayoutParams detailLp() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Ui.dp(this, 46), 1f);
+        lp.setMarginStart(Ui.dp(this, 8));
+        return lp;
+    }
+
+    private TextView detailButton(String text, boolean primary, View.OnClickListener click) {
+        TextView b = new TextView(this);
+        b.setText(text);
+        b.setTextSize(14);
+        b.setSingleLine(true);
+        b.setGravity(android.view.Gravity.CENTER);
+        b.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        b.setBackgroundResource(primary ? R.drawable.btn_primary : R.drawable.btn_secondary);
+        b.setTextColor(Ui.color(this, primary ? R.color.on_accent : R.color.text_primary));
+        if (click == null) {
+            b.setAlpha(0.4f);
+        } else {
+            Ui.press(this, b);
+            b.setOnClickListener(click);
+        }
+        return b;
     }
 
     private void sizeOf(File f, long[] tot) {

@@ -240,7 +240,7 @@ public class FileEditActivity extends BaseActivity {
                 num.setLayoutParams(lp);
             }
             num.setText(r.no > 0 ? Integer.toString(r.no) : "");
-            code.setText(r.t.isEmpty() ? " " : r.t);   // an empty line keeps its height
+            code.setText(r.t.isEmpty() ? " " : CodeColors.tint(FileEditActivity.this, r.t));   // an empty line keeps its height
             row.setBackgroundColor(pos == hilite ? Ui.color(FileEditActivity.this, R.color.accent_soft) : 0);
             return row;
         }
