@@ -239,3 +239,15 @@
 - Choice lists (Extract to, More, ...): bold title with a small message, icon rows, Cancel pill, drag the grip to dismiss.
 - Alerts, progress (Downloading, Extracting via BusyBox) and input dialogs: start-aligned title and message, pill buttons (filled accent for the main action, soft accent for the others, red for destructive).
 - Build not run locally; verify on GitHub Actions.
+
+## مهمة: عرض كامل الشاشة، سبلاش يتبع الأيقونة، انميشن عام، تخفيف اللاج
+- Immersive (جديد): apply وhide وkeep. يخفي شريط الحالة وشريط التنقل بكل الإصدارات (compat يترجم لأعلام النظام تحت API 30 ولـ WindowInsetsController فوقها)، يجعل المحتوى تحت القطع (ALWAYS من API 30 وSHORT_EDGES قبلها)، والسحب من الحافة يظهر الأشرطة مؤقتًا. مستخدم في ImageViewActivity (setSystemBars صار يخفي دائمًا ولو ظهرت الأشرطة العائمة) وMediaActivity (للفيديو فقط) وPdfViewActivity، مع إعادة الإخفاء عند onWindowFocusChanged وonResume. ShareScanActivity لم تُغيَّر لأن ترويستها بحشوة ثابتة.
+- السبلاش: ثيم Theme.App.Starting صار بأيقونة شفافة (splash_empty) ومدة 1، والرسم الفعلي في SplashOverlay (طبقة فوق decor في HomeActivity عند البدء البارد فقط، savedInstanceState == null ومرة لكل عملية). يعرض أيقونة الإطلاق التي اختارها المستخدم (IconActivity.currentIconRes من الـ alias المفعّل)، فيتبع اللون تلقائيًا في أول تشغيل بعد التغيير. السبب: activity-alias لا يقبل ثيمًا خاصًا فلا يمكن تغيير سبلاش النظام لكل أيقونة. anim_splash وic_splash_folder لم يعودا مستخدمين.
+- الانميشن: Motion.pageIn (انزلاق وتلاشي قائمة الملفات عند فتح مجلد أو الرجوع، معكوس في RTL، والرجوع وكل مسارات الفتات navigate(dir, false))، Motion.enterScreen (دخول متدرج لأول 8 عناصر في R.id.content لكل شاشة عدا Home من BaseActivity)، وتبديل تبويبات NavBar صار cross-fade (res/anim/tab_in وtab_out) بدل NO_ANIMATION مع extra اسمه Motion.EXTRA_FADE حتى لا يفرض Motion.install انتقال الانزلاق على أندرويد 14 فأحدث.
+- اللاج:
+  - Blur: التأثير الزجاجي الحي صار مغلقًا افتراضيًا (مفتاح الإعدادات يفعّله) لأنه يعيد رسم وتغبيش الشاشة مع كل تمرير. يشمل أيضًا تغبيش نوافذ الحوارات لأن المفتاح واحد.
+  - HomeActivity: onResume لم يعد يعيد بناء الشاشة كل مرة، renderSignature تقارن بصمة (الإذن، الإحصاءات، التنزيلات، المساحة الحرة، سطر Drive، الوسائط الخارجية، المفضلة، الإعدادات) وتبني عند التغير فقط.
+  - Ui.clearCaches(theme): كان Appearance.applyTo يمسح كاش الألوان والأشكال لكل الشاشات عند فتح أي شاشة، صار يمسح كاش ثيم هذه الشاشة فقط.
+  - FileManagerActivity: تحديث أعداد المجلدات (kidsNotify) ينتظر توقف التمرير (scrolling) وبفاصل 200ms بدل 120.
+- لم يُشغَّل البناء محليًا (لا gradle هنا)، يجب التحقق من نجاحه على GitHub Actions ثم تجربة: صورة وفيديو وPDF بوضع أفقي وعمودي وجهاز بقطع، وتغيير الأيقونة ثم إغلاق التطبيق من الأخيرة وفتحه لرؤية السبلاش الجديد.
+- للمتابعة إن بقي اللاج: أحتاج ملف الانهيار/logcat أو معرفة أي شاشة بالتحديد (القائمة الرئيسية، الملفات، الإعدادات) وعلى أي جهاز وإصدار أندرويد، لقياس السبب الفعلي بدل التخمين.
