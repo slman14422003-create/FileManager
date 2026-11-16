@@ -138,7 +138,7 @@ public class InstallActivity extends BaseActivity {
         load(dataUri);
     }
 
-    private View sheet, scrim, grabBox;
+    private View panel, scrim, grabBox;
     private MaxHeightScrollView sheetScroll;
     private boolean closing = false;
 
@@ -161,11 +161,11 @@ public class InstallActivity extends BaseActivity {
         int h = getResources().getDisplayMetrics().heightPixels;
         int max = Math.max(Ui.dp(this, 120), Math.min((int) (h * 0.62f), h - Ui.dp(this, 250)));
         sheetScroll.setMaxHeight(max);
-        android.widget.FrameLayout.LayoutParams lp = (android.widget.FrameLayout.LayoutParams) sheet.getLayoutParams();
+        android.widget.FrameLayout.LayoutParams lp = (android.widget.FrameLayout.LayoutParams) panel.getLayoutParams();
         int w = Math.min(getResources().getDisplayMetrics().widthPixels, Ui.dp(this, 560));
         if (lp.width != w) {
             lp.width = w;
-            sheet.setLayoutParams(lp);
+            panel.setLayoutParams(lp);
         }
     }
 
@@ -175,7 +175,7 @@ public class InstallActivity extends BaseActivity {
     }
 
     private void setupSheet() {
-        sheet = findViewById(R.id.sheet);
+        panel = findViewById(R.id.sheet);
         scrim = findViewById(R.id.scrim);
         grabBox = findViewById(R.id.grabBox);
         sheetScroll = findViewById(R.id.sheetScroll);
@@ -183,7 +183,7 @@ public class InstallActivity extends BaseActivity {
         gr.setColor(Ui.color(this, R.color.text_hint));
         gr.setCornerRadius(Ui.dp(this, 3));
         findViewById(R.id.grabber).setBackground(gr);
-        sheet.setTranslationY(getResources().getDisplayMetrics().heightPixels);
+        panel.setTranslationY(getResources().getDisplayMetrics().heightPixels);
 
         View content = findViewById(android.R.id.content);
         content.setTag(R.id.tag_insets, Boolean.TRUE);
@@ -191,7 +191,7 @@ public class InstallActivity extends BaseActivity {
             androidx.core.graphics.Insets b = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars()
                     | androidx.core.view.WindowInsetsCompat.Type.displayCutout()
                     | androidx.core.view.WindowInsetsCompat.Type.ime());
-            sheet.setPadding(0, 0, 0, b.bottom);
+            panel.setPadding(0, 0, 0, b.bottom);
             fitSheet();
             return androidx.core.view.WindowInsetsCompat.CONSUMED;
         });
@@ -214,8 +214,8 @@ public class InstallActivity extends BaseActivity {
                     if (vt[0] != null) vt[0].addMovement(e);
                     float dy = Math.max(0f, e.getRawY() - down[0]);
                     if (!canClose()) dy = Math.min(dy, Ui.dp(this, 24)) * 0.4f;
-                    sheet.setTranslationY(dy);
-                    scrim.setAlpha(0.5f * (1f - Math.min(1f, dy / Math.max(1f, sheet.getHeight()))));
+                    panel.setTranslationY(dy);
+                    scrim.setAlpha(0.5f * (1f - Math.min(1f, dy / Math.max(1f, panel.getHeight()))));
                     return true;
                 }
                 case android.view.MotionEvent.ACTION_UP:
@@ -229,11 +229,11 @@ public class InstallActivity extends BaseActivity {
                         vt[0] = null;
                     }
                     boolean close = canClose() && e.getActionMasked() == android.view.MotionEvent.ACTION_UP
-                            && (sheet.getTranslationY() > Ui.dp(this, 110) || vy > 1400f);
+                            && (panel.getTranslationY() > Ui.dp(this, 110) || vy > 1400f);
                     if (close) {
                         finishWithResult();
                     } else {
-                        sheet.animate().translationY(0f).setDuration(220)
+                        panel.animate().translationY(0f).setDuration(220)
                                 .setInterpolator(new android.view.animation.DecelerateInterpolator(2f)).start();
                         scrim.animate().alpha(0.5f).setDuration(220).start();
                     }
@@ -244,9 +244,9 @@ public class InstallActivity extends BaseActivity {
             }
         });
 
-        sheet.post(() -> {
-            sheet.setTranslationY(sheet.getHeight());
-            sheet.animate().translationY(0f).setDuration(380)
+        panel.post(() -> {
+            panel.setTranslationY(panel.getHeight());
+            panel.animate().translationY(0f).setDuration(380)
                     .setInterpolator(new android.view.animation.DecelerateInterpolator(2.4f)).start();
             scrim.animate().alpha(0.5f).setDuration(300).start();
         });
@@ -254,13 +254,13 @@ public class InstallActivity extends BaseActivity {
 
     @Override
     public void finish() {
-        if (closing || sheet == null || !sheet.isLaidOut() || isDestroyed()) {
+        if (closing || panel == null || !panel.isLaidOut() || isDestroyed()) {
             super.finish();
             return;
         }
         closing = true;
         scrim.animate().alpha(0f).setDuration(240).start();
-        sheet.animate().translationY(sheet.getHeight() + Ui.dp(this, 40)).setDuration(260)
+        panel.animate().translationY(panel.getHeight() + Ui.dp(this, 40)).setDuration(260)
                 .setInterpolator(new android.view.animation.AccelerateInterpolator(1.6f))
                 .withEndAction(() -> InstallActivity.super.finish()).start();
     }

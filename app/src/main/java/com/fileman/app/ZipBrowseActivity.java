@@ -141,6 +141,7 @@ public class ZipBrowseActivity extends BaseActivity {
             return true;
         });
         extractBtn.setOnClickListener(v -> chooseDestination());
+        styleExtract();
 
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
             @Override
@@ -302,6 +303,30 @@ public class ZipBrowseActivity extends BaseActivity {
         refreshChrome();
     }
 
+    private void styleExtract() {
+        int blue = Ui.color(this, R.color.info);
+        android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+        g.setColor(blue);
+        g.setCornerRadius(Ui.dp(this, 27));
+        android.graphics.drawable.GradientDrawable m = new android.graphics.drawable.GradientDrawable();
+        m.setColor(0x33FFFFFF);
+        m.setCornerRadius(Ui.dp(this, 27));
+        android.graphics.drawable.StateListDrawable st = new android.graphics.drawable.StateListDrawable();
+        st.setExitFadeDuration(200);
+        st.addState(new int[]{android.R.attr.state_pressed}, new android.graphics.drawable.LayerDrawable(
+                new android.graphics.drawable.Drawable[]{g, m}));
+        st.addState(new int[]{}, g);
+        extractBtn.setBackground(st);
+        extractBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_download, 0, 0, 0);
+        extractBtn.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
+        extractBtn.setCompoundDrawablePadding(Ui.dp(this, 10));
+        extractBtn.setPaddingRelative(Ui.dp(this, 24), 0, Ui.dp(this, 24), 0);
+        android.graphics.drawable.GradientDrawable pill = new android.graphics.drawable.GradientDrawable();
+        pill.setColor(Ui.color(this, R.color.surface));
+        pill.setCornerRadius(Ui.dp(this, 16));
+        selInfo.setBackground(pill);
+    }
+
     private void refreshChrome() {
         subtitle.setText(query.isEmpty() ? (arc == null ? "" : arc.format + " · ") + Fmt.size(zip.length())
                 : getString(R.string.zip_search_n, shown.size(), query));
@@ -314,9 +339,8 @@ public class ZipBrowseActivity extends BaseActivity {
         statFiles.setText(String.valueOf(fileCount));
         statSize.setText(Fmt.size(totalSize));
         statPacked.setText(Fmt.size(totalPacked > 0 ? totalPacked : zip.length()));
-        selInfo.setVisibility(any ? View.VISIBLE : View.GONE);
-        selInfo.setText(selected.isEmpty() ? getString(R.string.zip_sel_hint)
-                : getString(R.string.zip_sel_n, selected.size()));
+        selInfo.setVisibility(any && !selected.isEmpty() ? View.VISIBLE : View.GONE);
+        selInfo.setText(getString(R.string.zip_sel_n, selected.size()));
         extractBtn.setVisibility(any ? View.VISIBLE : View.GONE);
         extractBtn.setText(selected.isEmpty() ? getString(R.string.zip_extract_all)
                 : getString(R.string.zip_extract_sel, selected.size()));
