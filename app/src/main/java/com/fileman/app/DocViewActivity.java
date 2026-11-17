@@ -61,6 +61,7 @@ public class DocViewActivity extends BaseActivity {
     private String baseHtml;
     private int restoreY = 0;
     private boolean liteShown;
+    private ReaderChrome chrome;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -218,8 +219,28 @@ public class DocViewActivity extends BaseActivity {
             return true;
         });
 
+        // reading mode: bars hidden, one tap on the page shows or hides them
+        chrome = ReaderChrome.attach(this, bar);
+        final android.view.GestureDetector taps = new android.view.GestureDetector(this,
+                new android.view.GestureDetector.SimpleOnGestureListener() {
+                    @Override
+                    public boolean onSingleTapUp(android.view.MotionEvent e) {
+                        if (chrome != null) chrome.toggle();
+                        return false;
+                    }
+                });
+        web.setOnTouchListener((v, e) -> {
+            taps.onTouchEvent(e);
+            return false;
+        });
         loading.setVisibility(View.VISIBLE);
         loadDoc(ext, null, false);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) Immersive.keep(this);
     }
 
     private void loadDoc(final String ext, final String password, final boolean retry) {

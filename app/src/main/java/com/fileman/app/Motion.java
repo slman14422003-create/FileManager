@@ -42,8 +42,8 @@ final class Motion {
             View c = a.findViewById(R.id.content);
             if (!(c instanceof ViewGroup)) return;
             ViewGroup g = (ViewGroup) c;
-            int n = Math.min(g.getChildCount(), 8);
-            for (int i = 0; i < n; i++) Ui.enter(g.getChildAt(i), i);
+            // the activity transition already animates the whole screen; extra per-child motion only adds lag
+            if (g == null) return;
         } catch (Throwable ignored) {
         }
     }

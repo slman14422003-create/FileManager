@@ -96,6 +96,7 @@ public class FileEditActivity extends BaseActivity {
     private ImageButton modeBtn;
     private LinearLayout bar;
     private LinearLayout editBar;
+    private ReaderChrome chrome;
     private CodeAdapter adapter;
     private OnBackPressedCallback editBack;
 
@@ -207,6 +208,8 @@ public class FileEditActivity extends BaseActivity {
                 new int[]{R.string.code_undo, R.string.code_redo},
                 new View.OnClickListener[]{v -> doUndo(), v -> doRedo()});
         editBar.setVisibility(View.GONE);
+        chrome = ReaderChrome.attach(this, bar, status);
+        codeList.setOnItemClickListener((p, v, pos, id) -> chrome.toggle());
 
         editor.addTextChangedListener(new TextWatcher() {
             @Override
@@ -398,7 +401,7 @@ public class FileEditActivity extends BaseActivity {
         ensureNumWidth((int) Math.min(9999999L, win.length() / 24));
         win.setListener(this::postRefresh);
         adapter.notifyDataSetChanged();
-        status.setVisibility(View.VISIBLE);
+        if (chrome != null && chrome.shown()) status.setVisibility(View.VISIBLE);
     }
 
     private void postTick(final int my, final TextWindow w) {
@@ -419,7 +422,7 @@ public class FileEditActivity extends BaseActivity {
         ensureNumWidth(w.lines());
         adapter.notifyDataSetChanged();
         status.setText(getString(R.string.code_status, w.lines(), Fmt.size(w.length())));
-        status.setVisibility(View.VISIBLE);
+        if (chrome != null && chrome.shown()) status.setVisibility(View.VISIBLE);
         canEdit = file.canWrite() && !w.inMemory() && file.length() <= EDIT_MAX_BYTES;
         modeBtn.setVisibility(canEdit ? View.VISIBLE : View.GONE);
         if (!canEdit && file.canWrite()) Toast.makeText(this, R.string.code_view_only, Toast.LENGTH_SHORT).show();
@@ -573,6 +576,7 @@ public class FileEditActivity extends BaseActivity {
     }
 
     private void startEdit(String text, long ws, long we, boolean whole, long len, long mod) {
+        chrome.show();   // the header and the editing buttons are needed while editing
         suppress = true;
         editor.setText(text);
         editor.setSelection(0);
@@ -877,6 +881,12 @@ public class FileEditActivity extends BaseActivity {
         ui.removeCallbacks(listHlRun);
         ui.removeCallbacks(editHlRun);
         if (editMode && dirty && !conflict) saveNow(false, true, null);   // never lose typing when the screen goes away
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) Immersive.keep(this);
     }
 
     @Override

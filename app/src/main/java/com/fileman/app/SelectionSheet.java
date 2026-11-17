@@ -39,6 +39,8 @@ final class SelectionSheet {
 
         void onDelete();
 
+        void onDetails();
+
         void onSelectAll();
 
         void onMore();
@@ -122,12 +124,13 @@ final class SelectionSheet {
         LinearLayout actions = new LinearLayout(c);
         actions.setOrientation(LinearLayout.HORIZONTAL);
         int[] icons = {R.drawable.ic_share, R.drawable.ic_copy, R.drawable.ic_scissors, R.drawable.ic_archive,
-                R.drawable.ic_delete};
-        int[] labels = {R.string.share, R.string.fm_copy, R.string.fm_move, R.string.fm_compress, R.string.delete};
-        final View[] cols = new View[5];
-        for (int i = 0; i < 5; i++) {
+                R.drawable.ic_info, R.drawable.ic_delete};
+        int[] labels = {R.string.share, R.string.fm_copy, R.string.fm_move, R.string.fm_compress, R.string.fm_details,
+                R.string.delete};
+        final View[] cols = new View[6];
+        for (int i = 0; i < 6; i++) {
             final int idx = i;
-            boolean danger = i == 4;
+            boolean danger = i == 5;
             LinearLayout col = new LinearLayout(c);
             col.setOrientation(LinearLayout.VERTICAL);
             col.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -175,6 +178,9 @@ final class SelectionSheet {
                         break;
                     case 3:
                         h.onCompress();
+                        break;
+                    case 4:
+                        h.onDetails();
                         break;
                     default:
                         h.onDelete();

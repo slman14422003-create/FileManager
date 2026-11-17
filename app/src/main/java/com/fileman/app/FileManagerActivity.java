@@ -571,8 +571,11 @@ public class FileManagerActivity extends BaseActivity {
     protected void onResume() {
         super.onResume();
         ui.postDelayed(SharedOpen::clear, 700);
-        if (mode == M_DIR) AutoOrganize.sortDownloadsIfDue(this);
-        if (volWatch == null) volWatch = Volumes.watch(this, () -> ui.postDelayed(this::volumesChanged, 700));
+        ui.postDelayed(() -> {   // not needed for the first frame: keep the screen change smooth
+            if (isFinishing() || isDestroyed()) return;
+            if (mode == M_DIR) AutoOrganize.sortDownloadsIfDue(this);
+            if (volWatch == null) volWatch = Volumes.watch(this, () -> ui.postDelayed(this::volumesChanged, 700));
+        }, 450);
         scheduleTip(25000);
         boolean g = Perms.hasAllFiles(this);
         if (g != lastGranted) {
@@ -2187,6 +2190,11 @@ public class FileManagerActivity extends BaseActivity {
             @Override
             public void onCopy() {
                 FileManagerActivity.this.toClipboard(false);
+            }
+
+            @Override
+            public void onDetails() {
+                showDetails(selectedFiles());
             }
 
             @Override
