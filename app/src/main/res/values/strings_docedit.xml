@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="de_edit">تحرير</string>
+    <string name="de_kind_word">مستند Word</string>
+    <string name="de_kind_excel">جدول Excel</string>
+    <string name="de_unsaved_short">تعديلات غير محفوظة</string>
+    <string name="de_unsaved_title">تعديلات غير محفوظة</string>
+    <string name="de_unsaved_msg">هل تريد حفظ التعديلات قبل الخروج؟</string>
+    <string name="de_overwrite_title">الحفظ فوق الملف الأصلي</string>
+    <string name="de_overwrite_msg">سيُستبدل الملف الأصلي بالنسخة المعدّلة. قد تُفقد بعض التنسيقات المتقدمة غير المدعومة في المحرر. يمكنك حفظ نسخة جديدة بدلاً من ذلك.</string>
+    <string name="de_overwrite">استبدال الأصل</string>
+    <string name="de_save_as_copy">حفظ نسخة</string>
+    <string name="de_saved_as">تم الحفظ باسم %s</string>
+    <string name="de_save_failed">تعذّر حفظ الملف</string>
+</resources>

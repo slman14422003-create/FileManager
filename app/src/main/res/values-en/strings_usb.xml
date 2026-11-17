@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="usb_found_title">External storage detected</string>
+    <string name="usb_found_msg">%1$s\n%2$s</string>
+    <string name="usb_browse">Browse</string>
+    <string name="usb_exit">Close</string>
+    <string name="usb_pick">Choose a drive</string>
+    <string name="usb_btn">External storage</string>
+    <string name="usb_free">%1$s free</string>
+    <string name="usb_badge_ro">Read only</string>
+    <string name="usb_open_root">Browse all files</string>
+    <string name="usb_contents">Contents</string>
+    <string name="usb_empty">This drive is empty</string>
+    <string name="usb_removed">Drive removed</string>
+</resources>

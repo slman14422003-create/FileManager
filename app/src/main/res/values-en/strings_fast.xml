@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="undo">Undo</string>
+    <string name="err_disk_full">Not enough free storage</string>
+    <string name="err_permission">No permission to write this file</string>
+    <string name="err_locked">The file is locked or in use by another app</string>
+    <string name="err_gone">The file or folder no longer exists</string>
+    <string name="err_changed">The file changed outside the app, your edit was not saved</string>
+    <string name="code_undo">Undo</string>
+    <string name="code_redo">Redo</string>
+    <string name="code_edit_part">Editing part of a large file, the rest stays untouched</string>
+    <string name="pdf_retry">Retry</string>
+    <string name="pdf_timeout">The conversion took too long and was stopped</string>
+    <string name="pdf_failed_msg">The file could not be converted to PDF</string>
+    <string name="fm_deleted_n">%d items deleted</string>
+</resources>
