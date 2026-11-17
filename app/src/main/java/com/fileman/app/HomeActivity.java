@@ -334,7 +334,6 @@ public class HomeActivity extends BaseActivity {
             h = h * 31 + (int) (Environment.getExternalStorageDirectory().getFreeSpace() >> 20);
         } catch (Throwable ignored) {
         }
-        h = h * 31 + String.valueOf(driveSub()).hashCode();
         for (Volumes.Vol v : Volumes.removable(this)) h = h * 31 + (v.mounted ? 7 : 3);
         h = h * 31 + Store.favorites(this).size();
         h = h * 31 + getResources().getConfiguration().toString().hashCode();
@@ -358,18 +357,15 @@ public class HomeActivity extends BaseActivity {
         content.addView(storageCard(internal));
         content.addView(smartGrid(dl));
 
-        LinearLayout cloud = rowGroup();
-        cloud.addView(Ui.rowView(this, cloud, new Row(R.drawable.ic_drive, false, getString(R.string.drive_title),
-                driveSub(), false, true).tint(Ui.color(this, R.color.info)),
-                v -> startActivity(new Intent(this, DriveActivity.class))));
         final List<Volumes.Vol> vols = new ArrayList<>();
         for (Volumes.Vol v : Volumes.removable(this)) if (v.mounted) vols.add(v);
         if (!vols.isEmpty()) {
+            LinearLayout cloud = rowGroup();
             cloud.addView(Ui.rowView(this, cloud, new Row(R.drawable.ic_drive, false, getString(R.string.usb_btn),
                     null, false, true).tint(Ui.color(this, R.color.ok)), v -> openUsb(vols)));
+            Ui.group(this, cloud);
+            content.addView(cloud);
         }
-        Ui.group(this, cloud);
-        content.addView(cloud);
 
         content.addView(Ui.sectionTitle(this, getString(R.string.home_sec_categories)));
         LinearLayout cats = rowGroup();
@@ -405,16 +401,6 @@ public class HomeActivity extends BaseActivity {
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         g.setPadding(0, Ui.dp(this, 14), 0, 0);
         return g;
-    }
-
-    private String driveSub() {
-        boolean in = DriveStore.signedIn(this);
-        long used = DriveStore.used(this);
-        long limit = DriveStore.limit(this);
-        return !in ? getString(R.string.drive_home_connect)
-                : used < 0 ? getString(R.string.drive_sub_in)
-                : limit > 0 ? getString(R.string.drive_home_used, Fmt.size(used), Fmt.size(limit))
-                : getString(R.string.drive_home_unlimited, Fmt.size(used));
     }
 
     /** One row of the grouped list for a category: system-colour chip, name, "count . size" and a chevron. */
@@ -722,53 +708,6 @@ public class HomeActivity extends BaseActivity {
         }
         hs.addView(row);
         return hs;
-    }
-
-    /** Prominent Google Drive card at the top: a usage ring and the used space once signed in, an invitation before. */
-    private View driveCard() {
-        boolean in = DriveStore.signedIn(this);
-        long used = DriveStore.used(this);
-        long limit = DriveStore.limit(this);
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.HORIZONTAL);
-        card.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        card.setBackgroundResource(R.drawable.bg_card);
-        int p = Ui.dp(this, 16);
-        card.setPadding(p, p, p, p);
-        UsageView ring = new UsageView(this);
-        double pct = in && limit > 0 && used >= 0 ? used * 100.0 / limit : 0;
-        ring.setUsage(UsageView.RING, pct, Ui.color(this, pct > 90 ? R.color.bad : R.color.accent), 0x33FFFFFF);
-        ring.setCenterIcon(R.drawable.ic_drive, Ui.color(this, R.color.accent_text));
-        card.addView(ring, new LinearLayout.LayoutParams(Ui.dp(this, 56), Ui.dp(this, 56)));
-        LinearLayout tx = new LinearLayout(this);
-        tx.setOrientation(LinearLayout.VERTICAL);
-        tx.setPadding(Ui.dp(this, 14), 0, 0, 0);
-        TextView t = new TextView(this);
-        t.setText(R.string.drive_title);
-        t.setTextSize(17);
-        t.setTypeface(t.getTypeface(), android.graphics.Typeface.BOLD);
-        t.setTextColor(Ui.color(this, R.color.text_primary));
-        t.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-        TextView s = new TextView(this);
-        s.setTextSize(13);
-        s.setTextColor(Ui.color(this, R.color.text_secondary));
-        s.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-        s.setText(!in ? getString(R.string.drive_home_connect)
-                : used < 0 ? getString(R.string.drive_sub_in)
-                : limit > 0 ? getString(R.string.drive_home_used, Fmt.size(used), Fmt.size(limit))
-                : getString(R.string.drive_home_unlimited, Fmt.size(used)));
-        tx.addView(t);
-        tx.addView(s);
-        card.addView(tx, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        int side = Math.max(Ui.dp(this, 10), Layout.gutter(this) - Ui.dp(this, 4));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(side, Ui.dp(this, 6), side, Ui.dp(this, 4));
-        card.setLayoutParams(lp);
-        card.setContentDescription(getString(R.string.drive_title));
-        Ui.press(this, card);
-        card.setOnClickListener(v -> startActivity(new Intent(this, DriveActivity.class)));
-        return card;
     }
 
     /** A titled group of tiles laid out in as many equal columns as the window allows. */

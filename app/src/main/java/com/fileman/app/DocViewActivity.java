@@ -60,6 +60,7 @@ public class DocViewActivity extends BaseActivity {
     private int zoom = 100;
     private String baseHtml;
     private int restoreY = 0;
+    private boolean liteShown;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -182,6 +183,15 @@ public class DocViewActivity extends BaseActivity {
                     restoreY = 0;
                     v.postDelayed(() -> v.scrollTo(0, y), 120);
                 }
+                if (liteShown) {
+                    // text is on screen: now bring in the styling and the pictures, keeping the reading position
+                    liteShown = false;
+                    v.postDelayed(() -> {
+                        if (isFinishing() || isDestroyed() || web == null) return;
+                        restoreY = web.getScrollY();
+                        render();
+                    }, 350);
+                }
             }
 
             @Override
@@ -244,7 +254,9 @@ public class DocViewActivity extends BaseActivity {
                 }
                 baseHtml = h;
                 restoreY = (int) Store.resume(this, file.getAbsolutePath());
-                render();
+                String lite = ConvertCache.lite(h);
+                if (lite != null) renderPage(lite, true);
+                else render();
             });
         });
     }
@@ -263,13 +275,20 @@ public class DocViewActivity extends BaseActivity {
     /** Loads the converted document, with the night-mode stylesheet in front when it is on. */
     private void render() {
         if (baseHtml == null) return;
+        renderPage(baseHtml, false);
+    }
+
+    /** {@code lite}: the page without its big pictures, shown first; the full page replaces it afterwards. */
+    private void renderPage(String page, boolean lite) {
+        if (page == null) return;
+        liteShown = lite;
         // slides are drawn at their real size with their own colours: no inverting and no text zoom on them
         boolean slides = baseHtml.contains("<div class=\"sl\" ");
         web.getSettings().setTextZoom(slides ? 100 : zoom);
         String css = EXTRA_CSS + (night ? (slides ? NIGHT_SLIDES_CSS : NIGHT_CSS) : "");
         // put the stylesheet after the document's own one so it wins over the canvas colour
-        int head = baseHtml.indexOf("</head>");
-        String h = head >= 0 ? baseHtml.substring(0, head) + css + baseHtml.substring(head) : css + baseHtml;
+        int head = page.indexOf("</head>");
+        String h = head >= 0 ? page.substring(0, head) + css + page.substring(head) : css + page;
         web.setBackgroundColor(night ? 0xFF121212 : Ui.color(this, R.color.bg));
         web.loadDataWithBaseURL(BASE, h, "text/html", "utf-8", null);
     }

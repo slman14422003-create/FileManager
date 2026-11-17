@@ -1,5 +1,6 @@
 package com.fileman.app;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Typeface;
 import android.view.Gravity;
@@ -15,6 +16,9 @@ final class BusyBox {
     final ProgressBar bar;
     final TextView percent;
     final TextView text;
+    final TextView speed;
+    private ValueAnimator smooth;
+    private float shown;
 
     BusyBox(Context c, CharSequence initial) {
         view = new LinearLayout(c);
@@ -47,6 +51,17 @@ final class BusyBox {
         view.addView(top, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        speed = new TextView(c);
+        speed.setTextSize(12);
+        speed.setTextColor(Ui.color(c, R.color.text_secondary));
+        speed.setTextDirection(View.TEXT_DIRECTION_LTR);
+        speed.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        speed.setVisibility(View.GONE);
+        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        sp.topMargin = Ui.dp(c, 4);
+        view.addView(speed, sp);
+
         bar = new ProgressBar(c, null, android.R.attr.progressBarStyleHorizontal);
         bar.setProgressDrawable(c.getDrawable(R.drawable.progress_rounded));
         bar.setMax(100);
@@ -59,18 +74,57 @@ final class BusyBox {
 
     /** 0..100 shows the percentage; a negative value keeps only the indeterminate bar. */
     void setPercent(int pct) {
+        setProgress(pct, -1L);
+    }
+
+    /** Smoothly interpolated percentage with the transfer speed (bytes per second, negative = unknown). */
+    void setProgress(int pct, long bytesPerSec) {
         if (pct < 0) {
             percent.setVisibility(View.GONE);
             bar.setIndeterminate(true);
             return;
         }
-        int p = Math.min(100, pct);
+        final int target = Math.min(100, pct);
         percent.setVisibility(View.VISIBLE);
-        percent.setText(p + "%");
-        if (bar.isIndeterminate()) {
-            bar.setIndeterminate(false);
+        if (bar.isIndeterminate()) bar.setIndeterminate(false);
+        if (bytesPerSec > 0) {
+            speed.setText(Fmt.size(bytesPerSec) + "/s");
+            speed.setVisibility(View.VISIBLE);
         }
+        if (smooth != null) smooth.cancel();
+        if (!Fx.motion(bar.getContext())) {
+            shown = target;
+            draw();
+            return;
+        }
+        smooth = ValueAnimator.ofFloat(shown, target);
+        smooth.setDuration(220);
+        smooth.setInterpolator(Motion.EASE);
+        smooth.addUpdateListener(a -> {
+            shown = (Float) a.getAnimatedValue();
+            draw();
+        });
+        smooth.start();
+    }
+
+    private void draw() {
+        int p = Math.round(shown);
+        percent.setText(p + "%");
         bar.setProgress(p);
+    }
+
+    /** A gentle pulse when the work is done. */
+    void pulse() {
+        setProgress(100, -1L);
+        if (!Fx.motion(view.getContext())) return;
+        view.animate().cancel();
+        view.animate().scaleX(1.04f).scaleY(1.04f).setDuration(110).withLayer()
+                .withEndAction(() -> view.animate().scaleX(1f).scaleY(1f).setDuration(140).withLayer().start()).start();
+    }
+
+    void stop() {
+        if (smooth != null) smooth.cancel();
+        view.animate().cancel();
     }
 
     void setText(CharSequence t) {

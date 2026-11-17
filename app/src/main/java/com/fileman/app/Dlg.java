@@ -446,6 +446,7 @@ public class Dlg extends AlertDialog.Builder {
     static void attachDrag(View grip, final View target, final AlertDialog[] ref, final float base) {
         final float limit = Ui.dp(grip.getContext(), 90);
         final float[] down = new float[1];
+        final boolean[] passed = new boolean[1];
         final VelocityTracker[] tracker = new VelocityTracker[1];
         grip.setOnTouchListener((v, e) -> {
             switch (e.getActionMasked()) {
@@ -458,6 +459,12 @@ public class Dlg extends AlertDialog.Builder {
                     if (tracker[0] != null) tracker[0].addMovement(e);
                     float dy = Math.max(0f, e.getRawY() - down[0]);
                     target.setTranslationY(dy);
+                    if (dy > limit && !passed[0]) {
+                        passed[0] = true;
+                        Fx.tick(v);
+                    } else if (dy <= limit) {
+                        passed[0] = false;
+                    }
                     dim(ref[0], base * (1f - Math.min(1f, dy / Math.max(1f, target.getHeight()))));
                     return true;
                 }
@@ -477,7 +484,8 @@ public class Dlg extends AlertDialog.Builder {
                         ref[0].dismiss();
                     } else {
                         dim(ref[0], base);
-                        target.animate().translationY(0f).setDuration(Motion.DUR).setInterpolator(Motion.OUT).start();
+                        passed[0] = false;
+                        Fx.settle(target, androidx.dynamicanimation.animation.DynamicAnimation.TRANSLATION_Y, 0f, vy);
                     }
                     return true;
                 }

@@ -91,6 +91,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.1'
     implementation 'androidx.core:core-splashscreen:1.0.1'
     implementation 'androidx.drawerlayout:drawerlayout:1.2.0'
+    implementation 'androidx.dynamicanimation:dynamicanimation:1.0.0'
     // live blur behind headers, bars, drawers (library module in this repo)
     implementation project(':blurview')
     // Extra archive formats (7z, rar, bz2, xz) - used only by ArcExtra.java; delete that file and these three lines to drop them

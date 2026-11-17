@@ -55,6 +55,8 @@ final class Wipe {
     /** Items renamed out of sight, waiting to be removed for real; {@code direct} could not be renamed. */
     static final class Stash {
         final List<File> hidden = new ArrayList<>();
+        /** The original location of each entry of {@code hidden}, same order (for undo). */
+        final List<File> origs = new ArrayList<>();
         final List<File> direct = new ArrayList<>();
     }
 
@@ -87,6 +89,7 @@ final class Wipe {
             }
             if (ok) {
                 st.hidden.add(hid);
+                st.origs.add(f);
             } else {
                 remember(c, hid.getAbsolutePath(), false);
                 st.direct.add(f);

@@ -40,6 +40,11 @@ public final class Ui {
     public static void enter(View v, int index) {
         if (v == null) return;
         v.animate().cancel();
+        if (!Fx.motion(v.getContext())) {
+            v.setAlpha(1f);
+            v.setTranslationY(0f);
+            return;
+        }
         v.setAlpha(0f);
         v.setTranslationY(dp(v.getContext(), 14));
         v.animate().alpha(1f).translationY(0f)

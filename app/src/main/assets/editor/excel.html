@@ -324,7 +324,7 @@ function endOp(noRecalc) {
   if (!op) return; undoSt.push(op); if (undoSt.length > 60) undoSt.shift(); redoSt.length = 0; op = null;
   if (!noRecalc) eng.recalc(); markDirty(); dispCache.clear(); layout(); render(); renderTabs();
 }
-function markDirty() { if (!dirty) { dirty = true; try { AN.onDirty(true); } catch (e) {} } }
+function markDirty() { if (!dirty) { dirty = true; try { AN.onDirty(true); } catch (e) {} } try { if (AN.onEdit) AN.onEdit(); } catch (e) {} }
 function applyOp(o, to) {
   const inv = { si: o.si, cells: new Map(), snap: null, sel: JSON.stringify({ sel, act, anchor }), cur };
   if (o.snap) { inv.snap = cloneSheets(); wb.sheets = o.snap; eng.wb = wb; cur = Math.min(o.cur, wb.sheets.length - 1); }

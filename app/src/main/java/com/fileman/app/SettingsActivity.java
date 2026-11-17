@@ -37,13 +37,43 @@ public class SettingsActivity extends BaseActivity {
         findViewById(R.id.btnBack).setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
         findViewById(R.id.btnRefresh).setVisibility(View.GONE);
         content = findViewById(R.id.content);
+        scrollHeaderWithContent();
         Ui.autoGroup(this, content);
+    }
+
+    /** Moves the title bar into the scrolling page so it leaves the screen with the content, like the other screens. */
+    private void scrollHeaderWithContent() {
+        View header = (View) findViewById(R.id.btnBack).getParent();
+        ViewGroup column = (ViewGroup) header.getParent();
+        android.widget.ScrollView scroller = (android.widget.ScrollView) content.getParent();
+        column.removeView(header);
+        scroller.removeView(content);
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.addView(header, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        page.addView(content, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        scroller.addView(page, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        String sig = signature();
+        if (sig.equals(renderedSig)) return;
+        renderedSig = sig;
         render();
+    }
+
+    private String renderedSig;
+
+    private String signature() {
+        return Store.language(this) + "|" + Store.themeMode(this) + "|" + Appearance.current(this).name + "|"
+                + Store.showHidden(this) + "|" + Assistant.enabled(this) + "|" + Blur.enabled(this) + "|"
+                + SaveTarget.label(this) + "|" + DisplaySize.level(this) + "|"
+                + getResources().getConfiguration().toString().hashCode();
     }
 
     private String languageName() {
@@ -54,6 +84,7 @@ public class SettingsActivity extends BaseActivity {
     }
 
     private void render() {
+        renderedSig = signature();
         content.removeAllViews();
         content.addView(Ui.hero(this, getString(R.string.app_name),
                 getString(R.string.set_version, BuildConfig.VERSION_NAME)));

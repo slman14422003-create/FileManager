@@ -169,7 +169,7 @@ const SIZES = { A4: [21, 29.7], Letter: [21.59, 27.94], A5: [14.8, 21] };
 
 /* ---------- أدوات ---------- */
 function toast(s) { const t = $('toast'); t.textContent = s; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 1800); }
-function markDirty() { if (!dirty) { dirty = true; try { AN.onDirty(true); } catch (e) {} } $('stDirty').textContent = '● غير محفوظ'; scheduleCount(); scheduleSnap(); }
+function markDirty() { if (!dirty) { dirty = true; try { AN.onDirty(true); } catch (e) {} } try { if (AN.onEdit) AN.onEdit(); } catch (e) {} $('stDirty').textContent = '● غير محفوظ'; scheduleCount(); scheduleSnap(); }
 /* ---- تراجع/إعادة مخصّص (لقطات) ---- */
 const hist = []; let hi = -1, snapT = null; const imgMap = new Map(), imgRev = [];
 function packHtml(h) { return h.replace(/src="(data:[^"]+)"/g, (m, u) => { let id = imgMap.get(u); if (id === undefined) { id = imgRev.length; imgRev.push(u); imgMap.set(u, id); } return 'src="@@' + id + '"'; }); }

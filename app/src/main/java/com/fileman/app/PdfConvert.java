@@ -25,6 +25,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Word, Excel, PowerPoint and OpenDocument files to PDF, written next to the original. */
@@ -42,7 +43,12 @@ final class PdfConvert {
             "xls", "xlt", "xlsx", "xlsm", "xltx", "xltm", "csv", "tsv", "ods",
             "ppt", "pps", "pot", "pptx", "pptm", "ppsx", "potx", "odp"));
 
-    private static final ExecutorService IO = Executors.newSingleThreadExecutor();
+    /** A stuck conversion must never block the next one: every job gets its own (daemon) thread when needed. */
+    private static final ExecutorService IO = Executors.newCachedThreadPool(r -> {
+        Thread t = new Thread(r, "pdf-convert");
+        t.setDaemon(true);
+        return t;
+    });
 
     private static final String BASE = "https://doc.local/pdf";
 
@@ -65,7 +71,8 @@ final class PdfConvert {
     }
 
     private static final long LOAD_TIMEOUT_MS = 20000;
-    private static final long WRITE_TIMEOUT_MS = 90000;
+    private static final long WRITE_TIMEOUT_MS = 45000;
+    private static final long CONVERT_TIMEOUT_MS = 60000;
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
     /** One conversion: owns the wait dialog, the hidden WebView and the watchdogs, and finishes exactly once. */
@@ -77,8 +84,18 @@ final class PdfConvert {
         WebView web;
         File target;
         PrintAttributes attrs;
+        Future<?> work;
+        Runnable retry;
+        boolean timedOut;
         final Runnable loadDog = () -> render(this);
-        final Runnable writeDog = () -> end(this, false, false);
+        final Runnable writeDog = () -> {
+            timedOut = true;
+            end(this, false, false);
+        };
+        final Runnable convDog = () -> {
+            timedOut = true;
+            end(this, false, false);
+        };
 
         Job(Activity a, File src) {
             this.a = a;
@@ -91,10 +108,13 @@ final class PdfConvert {
     static void file(final Activity a, final File src, final String password) {
         final String ext = Cats.extOf(src.getName());
         final Job job = new Job(a, src);
+        job.retry = () -> file(a, src, password);
         job.wait = waitDialog(job);
-        IO.execute(() -> {
+        MAIN.postDelayed(job.convDog, CONVERT_TIMEOUT_MS);
+        job.work = IO.submit(() -> {
             final OfficeLoad.Result r = OfficeLoad.load(a, src, ext, password);
             a.runOnUiThread(() -> {
+                MAIN.removeCallbacks(job.convDog);
                 if (job.over.get()) return;
                 if (a.isFinishing() || a.isDestroyed()) {
                     end(job, false, true);
@@ -128,6 +148,7 @@ final class PdfConvert {
 
     static void html(Activity a, String html, File src) {
         Job job = new Job(a, src);
+        job.retry = () -> html(a, html, src);
         job.wait = waitDialog(job);
         export(job, html);
     }
@@ -152,6 +173,8 @@ final class PdfConvert {
         if (!job.over.compareAndSet(false, true)) return;
         MAIN.removeCallbacks(job.loadDog);
         MAIN.removeCallbacks(job.writeDog);
+        MAIN.removeCallbacks(job.convDog);
+        if (job.work != null) job.work.cancel(true);
         dismiss(job.wait);
         WebView w = job.web;
         job.web = null;
@@ -165,8 +188,16 @@ final class PdfConvert {
         }
         if (!ok && job.target != null) //noinspection ResultOfMethodCallIgnored
             job.target.delete();
-        if (!ok && !silent && !job.a.isFinishing() && !job.a.isDestroyed())
-            Toast.makeText(job.a, R.string.pdf_failed, Toast.LENGTH_LONG).show();
+        if (!ok && !silent && !job.a.isFinishing() && !job.a.isDestroyed()) failed(job);
+    }
+
+    /** The failure window: what happened and a retry action. */
+    private static void failed(final Job job) {
+        Dlg d = new Dlg(job.a).setTitle(R.string.pdf_failed)
+                .setMessage(job.timedOut ? R.string.pdf_timeout : R.string.pdf_failed_msg)
+                .setNegativeButton(R.string.cancel, null);
+        if (job.retry != null) d.setPositiveButton(R.string.pdf_retry, (x, w) -> job.retry.run());
+        d.show();
     }
 
     // ------------------------------------------------------------------ rendering

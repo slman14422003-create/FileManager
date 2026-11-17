@@ -24,6 +24,11 @@ final class Motion {
     static void pageIn(View v, boolean forward) {
         if (v == null) return;
         v.animate().cancel();
+        if (!Fx.motion(v.getContext())) {
+            v.setAlpha(1f);
+            v.setTranslationX(0f);
+            return;
+        }
         boolean rtl = v.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
         float dx = v.getResources().getDisplayMetrics().density * 28f * (forward ? 1f : -1f) * (rtl ? -1f : 1f);
         v.setAlpha(0f);

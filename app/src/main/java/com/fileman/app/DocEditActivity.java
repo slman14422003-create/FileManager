@@ -58,6 +58,12 @@ public class DocEditActivity extends BaseActivity {
     private boolean overwriteConfirmed;
     private String initialContent = "";
     private Runnable afterSave;
+    private static final long AUTOSAVE_MS = 2000L;
+    private volatile boolean autoBusy;
+    private boolean errShown;
+    private final Runnable autoRun = () -> {
+        if (dirty && !autoBusy && web != null) requestSave("auto", null);
+    };
 
     private WebView web;
     private View loading;
@@ -269,6 +275,15 @@ public class DocEditActivity extends BaseActivity {
         }
 
         @JavascriptInterface
+        public void onEdit() {
+            ui.post(() -> {
+                dirty = true;
+                ui.removeCallbacks(autoRun);
+                ui.postDelayed(autoRun, AUTOSAVE_MS);
+            });
+        }
+
+        @JavascriptInterface
         public void onExported(String mode, String json) {
             handleExported(mode, json);
         }
@@ -388,19 +403,69 @@ public class DocEditActivity extends BaseActivity {
     /** Called from the page once it has turned the document into JSON. */
     private void handleExported(String mode, String json) {
         final Runnable then = afterSave;
+        final boolean auto = "auto".equals(mode);
+        if (auto) autoBusy = true;
         io.execute(() -> {
             File out = new File(getCacheDir(), "edit_out_" + System.nanoTime() + ext());
-            try (OutputStream os = new FileOutputStream(out)) {
+            try (OutputStream os = new java.io.BufferedOutputStream(new FileOutputStream(out), 64 * 1024)) {
                 if (excel) XlsxModel.write(json, os);
                 else DocxWriter.write(json, os);
             } catch (Throwable t) {
                 //noinspection ResultOfMethodCallIgnored
                 out.delete();
-                ui.post(() -> Toast.makeText(this, R.string.de_save_failed, Toast.LENGTH_SHORT).show());
+                final int msg = SafeWrite.describe(t) == R.string.fm_save_failed ? R.string.de_save_failed : SafeWrite.describe(t);
+                ui.post(() -> {
+                    autoBusy = false;
+                    dirty = true;
+                    updateSubtitle();
+                    if (!auto || !errShown) {
+                        errShown = true;
+                        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+                    }
+                });
+                return;
+            }
+            if (auto) {
+                autoSave(out);
                 return;
             }
             ui.post(() -> dispatchSave(mode, out, then));
         });
+    }
+
+    /**
+     * Autosave and the save in onPause: once the person has agreed to overwrite the original it is replaced
+     * atomically; before that only a recovery copy is kept in the cache, so nothing is overwritten unasked.
+     */
+    private void autoSave(final File out) {
+        final boolean overwrite = overwriteConfirmed;
+        File dest = overwrite ? file : new File(getCacheDir(), "recover_" + Integer.toHexString(file.getAbsolutePath().hashCode()) + ext());
+        try {
+            if (overwrite && !file.exists()) throw new java.io.FileNotFoundException("ENOENT");
+            SafeWrite.copyAtomic(out, dest);
+            ui.post(() -> {
+                autoBusy = false;
+                errShown = false;
+                if (overwrite) {
+                    markClean();
+                    updateSubtitle();
+                }
+            });
+        } catch (Throwable t) {
+            final int msg = SafeWrite.describe(t);
+            ui.post(() -> {
+                autoBusy = false;
+                dirty = true;
+                updateSubtitle();
+                if (!errShown) {
+                    errShown = true;
+                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+                }
+            });
+        } finally {
+            //noinspection ResultOfMethodCallIgnored
+            out.delete();
+        }
     }
 
     private void dispatchSave(String mode, File out, Runnable then) {
@@ -432,15 +497,22 @@ public class DocEditActivity extends BaseActivity {
     private void overwriteOriginal(File out, Runnable then) {
         io.execute(() -> {
             try {
-                copy(out, file);
+                SafeWrite.copyAtomic(out, file);
+                //noinspection ResultOfMethodCallIgnored
+                out.delete();
                 ui.post(() -> {
                     Toast.makeText(this, R.string.saved, Toast.LENGTH_SHORT).show();
+                    Fx.done(web);
                     markClean();
                     updateSubtitle();
                     if (then != null) then.run();
                 });
             } catch (Throwable t) {
-                ui.post(() -> saveCopy(out, then));
+                final int msg = SafeWrite.describe(t);
+                ui.post(() -> {
+                    if (msg != R.string.fm_save_failed) Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+                    saveCopy(out, then);
+                });
             }
         });
     }
@@ -456,7 +528,9 @@ public class DocEditActivity extends BaseActivity {
                 }
                 File target = new File(dir, base + " (edited)" + ext());
                 for (int i = 2; target.exists(); i++) target = new File(dir, base + " (edited " + i + ")" + ext());
-                copy(out, target);
+                SafeWrite.copyAtomic(out, target);
+                //noinspection ResultOfMethodCallIgnored
+                out.delete();
                 final File saved = target;
                 ui.post(() -> {
                     Toast.makeText(this, getString(R.string.de_saved_as, saved.getName()), Toast.LENGTH_LONG).show();
@@ -464,7 +538,8 @@ public class DocEditActivity extends BaseActivity {
                     if (then != null) then.run();
                 });
             } catch (Throwable t) {
-                ui.post(() -> Toast.makeText(this, R.string.de_save_failed, Toast.LENGTH_SHORT).show());
+                final int msg = SafeWrite.describe(t) == R.string.fm_save_failed ? R.string.de_save_failed : SafeWrite.describe(t);
+                ui.post(() -> Toast.makeText(this, msg, Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -476,6 +551,13 @@ public class DocEditActivity extends BaseActivity {
             while ((n = in.read(buf)) > 0) os.write(buf, 0, n);
             os.flush();
         }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        ui.removeCallbacks(autoRun);
+        if (dirty && web != null && !autoBusy) requestSave("auto", null);   // never lose edits when the screen goes away
     }
 
     @Override

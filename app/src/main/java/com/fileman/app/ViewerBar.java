@@ -70,6 +70,7 @@ final class ViewerBar {
         int type = f.isDirectory() ? Cats.T_DIR : Cats.typeOfExt(Cats.extOf(f.getName()));
         iv.setImageResource(Cats.iconFor(type));
         Ui.outlineIcon(a, iv, 10);
+        iv.setTransitionName(SharedOpen.NAME);
         iv.setVisibility(View.VISIBLE);
     }
 }

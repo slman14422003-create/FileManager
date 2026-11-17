@@ -153,7 +153,9 @@ public final class Opener {
     private static void start(Activity a, Class<?> cls, File f) {
         Intent i = new Intent(a, cls);
         i.putExtra("path", f.getAbsolutePath());
-        a.startActivity(i);
+        android.os.Bundle opts = SharedOpen.take(a);
+        if (opts != null) a.startActivity(i, opts);
+        else a.startActivity(i);
     }
 
     /** .doc / .xls / .ppt (binary Office formats) cannot be read without a large library. */

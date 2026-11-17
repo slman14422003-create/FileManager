@@ -25,6 +25,12 @@ final class LiveSync {
     private static final long MEDIA_QUIET_MS = 1200;
     private static final long MEDIA_MAX_WAIT_MS = 6000;
     private static final long MIN_FULL_GAP_MS = 4000;
+    /** A file that was created but not yet closed is still being written: hold it back this long at most. */
+    private static final long OPEN_HOLD_MS = 45000;
+    private static final long SWEEP_MS = 5000;
+    private static final int IN_ISDIR = 0x40000000;
+    private static final String[] PARTIAL = {".crdownload", ".part", ".partial", ".download", ".downloading",
+            ".opdownload", ".tmp", ".temp", ".cache"};
     private static final int MASK = FileObserver.CREATE | FileObserver.DELETE | FileObserver.DELETE_SELF
             | FileObserver.MOVED_FROM | FileObserver.MOVED_TO | FileObserver.MOVE_SELF
             | FileObserver.CLOSE_WRITE | FileObserver.ATTRIB;
@@ -48,15 +54,19 @@ final class LiveSync {
     private long firstAt;
     private long lastFullAt;
     private boolean mediaEvent;
+    private final Map<String, Long> opened = new HashMap<>();
+    private final Map<String, String[]> held = new HashMap<>();
 
     private final Runnable fire = new Runnable() {
         @Override
         public void run() {
             pending = false;
             if (!active) return;
+            if (!full) holdUnfinished();
             int total = 0;
             for (Set<String> v : changed.values()) total += v.size();
             boolean all = full || delta == null || changed.isEmpty() || total > MAX_DELTA;
+            if (changed.isEmpty() && !full) return;
             Map<String, Set<String>> copy = new HashMap<>(changed);
             changed.clear();
             full = false;
@@ -67,6 +77,66 @@ final class LiveSync {
                 return;
             }
             for (Map.Entry<String, Set<String>> e : copy.entrySet()) delta.onDelta(e.getKey(), e.getValue());
+        }
+    };
+
+    private static boolean partialName(String n) {
+        String l = n.toLowerCase(java.util.Locale.ROOT);
+        if (l.startsWith(".com.google.chrome.") || l.startsWith(".com.android.chrome.")) return true;
+        for (String x : PARTIAL) if (l.endsWith(x)) return true;
+        return false;
+    }
+
+    /** Takes out of the pending batch every file that is still being written, so it is never read half done. */
+    private void holdUnfinished() {
+        long now = SystemClock.uptimeMillis();
+        boolean any = false;
+        for (Map.Entry<String, Set<String>> e : changed.entrySet()) {
+            java.util.Iterator<String> it = e.getValue().iterator();
+            while (it.hasNext()) {
+                String n = it.next();
+                String key = e.getKey() + "/" + n;
+                Long t = opened.get(key);
+                boolean writing = t != null && now - t < OPEN_HOLD_MS;
+                if (writing || partialName(n)) {
+                    it.remove();
+                    if (writing) {
+                        held.put(key, new String[]{e.getKey(), n});
+                        any = true;
+                    }
+                }
+            }
+        }
+        java.util.Iterator<Map.Entry<String, Set<String>>> di = changed.entrySet().iterator();
+        while (di.hasNext()) if (di.next().getValue().isEmpty()) di.remove();
+        if (any) h.postDelayed(sweep, SWEEP_MS);
+    }
+
+    private final Runnable sweep = new Runnable() {
+        @Override
+        public void run() {
+            if (!active || held.isEmpty()) return;
+            long now = SystemClock.uptimeMillis();
+            boolean release = false;
+            java.util.Iterator<Map.Entry<String, String[]>> it = held.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<String, String[]> e = it.next();
+                Long t = opened.get(e.getKey());
+                if (t == null || now - t >= OPEN_HOLD_MS) {
+                    opened.remove(e.getKey());
+                    String[] dn = e.getValue();
+                    Set<String> set = changed.get(dn[0]);
+                    if (set == null) {
+                        set = new LinkedHashSet<>();
+                        changed.put(dn[0], set);
+                    }
+                    set.add(dn[1]);
+                    it.remove();
+                    release = true;
+                }
+            }
+            if (release) schedule();
+            if (!held.isEmpty()) h.postDelayed(this, SWEEP_MS);
         }
     };
 
@@ -126,7 +196,10 @@ final class LiveSync {
     void stop() {
         active = false;
         h.removeCallbacks(fire);
+        h.removeCallbacks(sweep);
         pending = false;
+        opened.clear();
+        held.clear();
         changed.clear();
         full = false;
         mediaEvent = false;
@@ -180,6 +253,15 @@ final class LiveSync {
                 if (self) {
                     full = true;
                 } else {
+                    String key = dir + "/" + name;
+                    if ((event & FileObserver.CREATE) != 0 && (event & IN_ISDIR) == 0) {
+                        opened.put(key, SystemClock.uptimeMillis());
+                    } else if ((event & (FileObserver.CLOSE_WRITE | FileObserver.MOVED_TO | FileObserver.DELETE
+                            | FileObserver.MOVED_FROM)) != 0) {
+                        opened.remove(key);
+                        if (held.remove(key) != null) h.removeCallbacks(sweep);
+                        if (!held.isEmpty()) h.postDelayed(sweep, SWEEP_MS);
+                    }
                     Set<String> set = changed.get(dir);
                     if (set == null) {
                         set = new LinkedHashSet<>();

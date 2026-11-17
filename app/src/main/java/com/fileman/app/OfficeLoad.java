@@ -48,7 +48,14 @@ final class OfficeLoad {
                 }
                 src = plain;
             }
+            String key = null;
+            if (src == file) {
+                key = ConvertCache.key(file, ext, Lang.isAr() + "|" + DocHtml.canvas + "|" + DocHtml.ring + "|" + DocHtml.lblSlide);
+                r.html = ConvertCache.get(c, key);
+                if (r.html != null) return r;
+            }
             r.html = DocHtml.convert(src, ext);
+            if (key != null && r.html != null) ConvertCache.put(c, key, r.html);
         } catch (OfficeCrypto.BadPassword e) {
             r.lock = 2;
         } catch (OfficeCrypto.Unsupported e) {

@@ -221,6 +221,63 @@ final class SmartIndex {
         return out;
     }
 
+    /** Files under {@code dir} whose name contains {@code q}, from the index (null when the index is missing or old). */
+    static List<File> names(Context c, String dir, String q, int limit) {
+        List<Entry> all = load(c);
+        if (all.isEmpty() || System.currentTimeMillis() - builtAt(c) > 12L * 3600L * 1000L) return null;
+        String pre = dir.endsWith("/") ? dir : dir + "/";
+        String ql = q.toLowerCase(java.util.Locale.ROOT);
+        List<File> out = new ArrayList<>();
+        for (Entry e : all) {
+            if (!e.path.startsWith(pre)) continue;
+            String n = e.path.substring(e.path.lastIndexOf('/') + 1);
+            if (!n.toLowerCase(java.util.Locale.ROOT).contains(ql)) continue;
+            File f = new File(e.path);
+            if (f.exists()) out.add(f);
+            if (out.size() >= limit) break;
+        }
+        return out;
+    }
+
+    /** Keeps the index current after a file operation: changed files are re-read, vanished paths are dropped. */
+    static synchronized void touch(Context c, String[] paths) {
+        if (paths == null || paths.length == 0) return;
+        List<Entry> cur = load(c);
+        if (cur.isEmpty()) return;
+        Map<String, Entry> adds = new HashMap<>();
+        List<String> drop = new ArrayList<>();
+        for (String p : paths) {
+            File f = new File(p);
+            if (f.isFile() && p.indexOf('\t') < 0 && p.indexOf('\n') < 0 && !f.getName().startsWith(".")) {
+                File parent = f.getParentFile();
+                String nameNorm = normalize(f.getName() + " " + (parent == null ? "" : parent.getName()));
+                String name = join(new LinkedHashSet<>(tokens(nameNorm)), 40);
+                Entry prev = null;
+                for (Entry e : cur) if (e.path.equals(p)) {
+                    prev = e;
+                    break;
+                }
+                adds.put(p, new Entry(p, f.lastModified(), f.length(), name, prev != null ? prev.text : " "));
+            } else {
+                drop.add(p);
+            }
+        }
+        List<Entry> next = new ArrayList<>(cur.size() + adds.size());
+        for (Entry e : cur) {
+            if (adds.containsKey(e.path)) continue;
+            boolean gone = false;
+            for (String d : drop) {
+                if (e.path.equals(d) || e.path.startsWith(d + "/")) {
+                    gone = true;
+                    break;
+                }
+            }
+            if (!gone) next.add(e);
+        }
+        next.addAll(adds.values());
+        cache = next;
+    }
+
     static int size(Context c) {
         return load(c).size();
     }

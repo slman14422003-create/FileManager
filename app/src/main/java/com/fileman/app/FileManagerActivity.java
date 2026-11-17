@@ -200,6 +200,7 @@ public class FileManagerActivity extends BaseActivity {
 
     /** Views of one list row, found once when the row is inflated instead of on every bind. */
     private static final class RowViews {
+        String path;
         ImageView icon, thumb;
         TextView title, sub, date;
         View pin, fav, check;
@@ -247,6 +248,23 @@ public class FileManagerActivity extends BaseActivity {
     private final Set<String> fresh = new java.util.HashSet<>();
     private final Runnable clearFresh = fresh::clear;
     private volatile boolean cancelled = false;
+    private ListFlip flip;
+    private CollapseTitle collapse;
+    private SkeletonView skeleton;
+    private UndoBar undoBar;
+    private final Set<String> touched = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.concurrent.atomic.AtomicLong opDone = new java.util.concurrent.atomic.AtomicLong();
+    private volatile long opTotal;
+    private volatile long opT0;
+    private volatile long opLastUi;
+    private final Runnable showSkeleton = new Runnable() {
+        @Override
+        public void run() {
+            if (skeleton != null || !shown.isEmpty() || isFinishing() || isDestroyed()) return;
+            skeleton = new SkeletonView(FileManagerActivity.this, 9);
+            listView.addHeaderView(skeleton, null, false);
+        }
+    };
 
     private final List<Entry> shown = new ArrayList<>();
     private final Set<String> selected = new LinkedHashSet<>();
@@ -299,6 +317,12 @@ public class FileManagerActivity extends BaseActivity {
     // ------------------------------------------------------------------ lifecycle
 
     @Override
+    protected void onPostCreate(Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        collapse = new CollapseTitle(this, listView, titleView);
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_files);
@@ -337,6 +361,11 @@ public class FileManagerActivity extends BaseActivity {
         listView.addHeaderView(listHeader, null, false);
         adapter = new FileAdapter();
         listView.setAdapter(adapter);
+        undoBar = new UndoBar(this);
+        flip = new ListFlip(listView, c -> {
+            Object t = c.getTag(R.id.tag_holder);
+            return t instanceof RowViews ? ((RowViews) t).path : null;
+        });
         listView.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(android.widget.AbsListView view, int state) {
@@ -345,6 +374,7 @@ public class FileManagerActivity extends BaseActivity {
 
             @Override
             public void onScroll(android.widget.AbsListView view, int first, int visible, int total) {
+                if (collapse != null) collapse.onScroll(first);
             }
         });
         listView.setOnItemClickListener((p, v, pos, id) -> onItemClick(pos - listView.getHeaderViewsCount()));
@@ -540,6 +570,7 @@ public class FileManagerActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        ui.postDelayed(SharedOpen::clear, 700);
         if (mode == M_DIR) AutoOrganize.sortDownloadsIfDue(this);
         if (volWatch == null) volWatch = Volumes.watch(this, () -> ui.postDelayed(this::volumesChanged, 700));
         scheduleTip(25000);
@@ -564,6 +595,7 @@ public class FileManagerActivity extends BaseActivity {
         super.onPause();
         ui.removeCallbacks(tipRun);
         if (live != null) live.stop();
+        if (undoBar != null) undoBar.finish(true);   // the undo window ends when the screen goes away
     }
 
     /** One folder reported a few changed names: patch the shown list in place instead of listing it again. */
@@ -593,6 +625,7 @@ public class FileManagerActivity extends BaseActivity {
     }
 
     private void applyDelta(Map<String, Entry> upd) {
+        flip.capture();
         Comparator<Entry> cmp = comparator();
         boolean changed = false;
         Set<String> added = new java.util.HashSet<>();
@@ -625,7 +658,10 @@ public class FileManagerActivity extends BaseActivity {
             shown.add(pos, ne);
             changed = true;
         }
-        if (!changed) return;
+        if (!changed) {
+            flip.play();
+            return;
+        }
         if (!added.isEmpty()) {
             for (String a : added) if (fresh.size() < 12) fresh.add(a);
             ui.removeCallbacks(clearFresh);
@@ -635,6 +671,7 @@ public class FileManagerActivity extends BaseActivity {
         for (Entry e : shown) alive.add(e.f.getAbsolutePath());
         selected.retainAll(alive);
         updateChrome();
+        flip.play();
         updateEmptyView();
         scheduleKids();
     }
@@ -687,7 +724,9 @@ public class FileManagerActivity extends BaseActivity {
             }
             volWatch = null;
         }
+        if (undoBar != null) undoBar.finish(true);
         if (live != null) live.stop();
+        if (busyBox != null) busyBox.stop();
         ui.removeCallbacksAndMessages(null);
         io.shutdownNow();
         thumbIo.shutdownNow();
@@ -718,6 +757,13 @@ public class FileManagerActivity extends BaseActivity {
     private void loading(boolean on) {
         if (on && quiet) return;
         loadingBar.setVisibility(on ? View.VISIBLE : View.INVISIBLE);
+        ui.removeCallbacks(showSkeleton);
+        if (on) {
+            if (shown.isEmpty()) ui.postDelayed(showSkeleton, 150);
+        } else if (skeleton != null) {
+            listView.removeHeaderView(skeleton);
+            skeleton = null;
+        }
     }
 
     // ------------------------------------------------------------------ locations
@@ -1009,6 +1055,17 @@ public class FileManagerActivity extends BaseActivity {
         loading(true);
         io.execute(() -> {
             List<Entry> out = new ArrayList<>();
+            List<File> fast = SmartIndex.names(this, dir.getAbsolutePath(), q, MAX_SEARCH);
+            if (fast != null && !fast.isEmpty()) {   // instant answer from the index, the full walk follows
+                final List<Entry> first = new ArrayList<>();
+                for (File f : fast) first.add(new Entry(f));
+                Collections.sort(first, comparator());
+                post(() -> {
+                    if (my != gen) return;
+                    listDenied = false;
+                    setShown(first);
+                });
+            }
             walkSearch(dir, q, out, my, 0, new int[]{250000});
             Collections.sort(out, comparator());
             final List<Entry> res = out;
@@ -1190,6 +1247,8 @@ public class FileManagerActivity extends BaseActivity {
             ui.removeCallbacks(clearFresh);
             ui.postDelayed(clearFresh, 700);
         }
+        final boolean slide = quiet && prevMode == mode && !shown.isEmpty();
+        if (slide) flip.capture();
         shown.clear();
         shown.addAll(list);
         // drop selections that no longer exist
@@ -1197,6 +1256,7 @@ public class FileManagerActivity extends BaseActivity {
         for (Entry e : shown) alive.add(e.f.getAbsolutePath());
         selected.retainAll(alive);
         updateChrome();   // notifies the adapter once
+        if (slide) flip.play();
         updateEmptyView();
         scheduleKids();
     }
@@ -1688,6 +1748,9 @@ public class FileManagerActivity extends BaseActivity {
             }
             final Entry e = shown.get(pos);
             final String path = e.f.getAbsolutePath();
+            h.path = path;
+            h.thumb.animate().cancel();
+            h.thumb.setAlpha(1f);
             boolean sel = selected.contains(path);
             int type = typeOf(e);
             int color = Ui.color(FileManagerActivity.this, e.dir ? R.color.accent : colorFor(type));
@@ -1728,12 +1791,10 @@ public class FileManagerActivity extends BaseActivity {
             h.check.setVisibility(sel ? View.VISIBLE : View.GONE);
             Ui.shapeRow(FileManagerActivity.this, v, pos == 0, pos == shown.size() - 1,
                     sel ? R.color.accent_soft : R.color.surface);
-            v.animate().cancel();
             if (fresh.contains(path)) {
-                Ui.enter(v, 0);
-            } else {
-                v.setAlpha(1f);
-                v.setTranslationY(0f);
+                Fx.appear(v);
+            } else if (v.getTranslationY() != 0f || v.getAlpha() != 1f || v.getTag(R.id.fx_spring_y) != null) {
+                Fx.rest(v);
             }
             return v;
         }
@@ -1800,6 +1861,7 @@ public class FileManagerActivity extends BaseActivity {
                     thumb.setImageBitmap(fb);
                     thumb.setVisibility(View.VISIBLE);
                     icon.setVisibility(View.INVISIBLE);
+                    Fx.fadeIn(thumb, 120);
                 }
             });
         });
@@ -1826,6 +1888,7 @@ public class FileManagerActivity extends BaseActivity {
         if (pos < 0 || pos >= shown.size()) return;
         String p = shown.get(pos).f.getAbsolutePath();
         if (!selected.remove(p)) selected.add(p);
+        Fx.light(listView);
         updateChrome();
     }
 
@@ -1915,7 +1978,18 @@ public class FileManagerActivity extends BaseActivity {
             startActivity(zi);
             return;
         }
+        armShared(shown.indexOf(e));
         Opener.open(this, e.f);
+    }
+
+    /** Picks the icon or thumbnail of a row as the shared element of the next viewer. */
+    private void armShared(int pos) {
+        if (pos < 0) return;
+        View row = listView.getChildAt(pos + listView.getHeaderViewsCount() - listView.getFirstVisiblePosition());
+        Object t = row == null ? null : row.getTag(R.id.tag_holder);
+        if (!(t instanceof RowViews)) return;
+        RowViews h = (RowViews) t;
+        SharedOpen.arm(h.thumb.getVisibility() == View.VISIBLE ? h.thumb : h.icon);
     }
 
     private void openExternal(File f, boolean chooser) {
@@ -2381,6 +2455,47 @@ public class FileManagerActivity extends BaseActivity {
         });
     }
 
+    private void opBegin(long total) {
+        opDone.set(0);
+        opTotal = total;
+        opT0 = android.os.SystemClock.uptimeMillis();
+        opLastUi = 0;
+    }
+
+    /** Bytes copied so far: drives the percentage and the transfer speed of the progress window. */
+    private void opAdd(long n) {
+        long total = opTotal;
+        if (total <= 0) return;
+        long d = opDone.addAndGet(n);
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - opLastUi < 120) return;
+        opLastUi = now;
+        final int pct = (int) Math.min(99, d * 100 / total);
+        final long bps = d * 1000L / Math.max(1L, now - opT0);
+        OpService.update(null, pct);
+        post(() -> {
+            if (busyBox != null) busyBox.setProgress(pct, bps);
+        });
+    }
+
+    /** Patches only the touched names of the open folder; falls back to one quiet refresh when nothing is known. */
+    private void settleList() {
+        if (mode != M_DIR || cur == null || touched.isEmpty()) {
+            boolean none = touched.isEmpty();
+            touched.clear();
+            if (none) refresh(true);
+            return;
+        }
+        final File dir = cur;
+        Set<String> names = new LinkedHashSet<>();
+        for (String t : touched) {
+            File par = new File(t).getParentFile();
+            if (par != null && par.equals(dir)) names.add(new File(t).getName());
+        }
+        touched.clear();
+        if (!names.isEmpty()) liveDelta(dir.getAbsolutePath(), names);
+    }
+
     private void runTask(String text, final Work w) {
         showBusyLater(text);
         io.execute(() -> {
@@ -2394,11 +2509,26 @@ public class FileManagerActivity extends BaseActivity {
             final String m = msg;
             final Exception er = err;
             post(() -> {
-                hideBusy();
-                opDone(er != null ? (er instanceof Cancel ? null : getString(R.string.error)) : m);
-                if (er != null) error(er);
-                else if (m != null) toast(m);
-                refresh(true);
+                final Runnable fin = () -> {
+                    opDone(er != null ? (er instanceof Cancel ? null : getString(R.string.error)) : m);
+                    if (er != null) error(er);
+                    else {
+                        if (m != null) toast(m);
+                        Fx.done(listView);
+                    }
+                    opTotal = 0;
+                    settleList();
+                };
+                if (er == null && busy != null && busy.isShowing() && busyBox != null && Fx.motion(this)) {
+                    busyBox.pulse();   // a gentle pulse, then the window goes away
+                    ui.postDelayed(() -> {
+                        hideBusy();
+                        fin.run();
+                    }, 260);
+                } else {
+                    hideBusy();
+                    fin.run();
+                }
             });
         });
     }
@@ -2426,24 +2556,31 @@ public class FileManagerActivity extends BaseActivity {
         return i > 0 ? n.substring(0, i) : n;
     }
 
+    private static final long BIG_FILE = 8L << 20;
+
     private void copyTree(File src, File dst) throws IOException {
         final List<File[]> jobs = new ArrayList<>();
         planCopy(src, dst, jobs, 0);
         if (jobs.isEmpty()) return;
-        if (jobs.size() < 6) {
-            for (File[] j : jobs) copyOne(j[0], j[1]);
+        final List<File[]> small = new ArrayList<>();
+        final List<File[]> big = new ArrayList<>();
+        for (File[] j : jobs) (j[0].length() >= BIG_FILE ? big : small).add(j);
+        // large files one after another on this thread (the disk is the limit), small ones side by side
+        for (File[] j : big) copyOne(j[0], j[1]);
+        if (small.size() < 4) {
+            for (File[] j : small) copyOne(j[0], j[1]);
             return;
         }
         final java.util.concurrent.atomic.AtomicInteger next = new java.util.concurrent.atomic.AtomicInteger();
         final java.util.concurrent.atomic.AtomicReference<Throwable> fail = new java.util.concurrent.atomic.AtomicReference<>();
-        final int n = Math.min(3, Math.max(2, Runtime.getRuntime().availableProcessors() / 2));
+        final int n = Math.min(4, Math.max(2, Runtime.getRuntime().availableProcessors() / 2));
         final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(n);
         for (int k = 0; k < n; k++) {
             Thread w = new Thread(() -> {
                 try {
                     int i;
-                    while (fail.get() == null && (i = next.getAndIncrement()) < jobs.size()) {
-                        File[] j = jobs.get(i);
+                    while (fail.get() == null && (i = next.getAndIncrement()) < small.size()) {
+                        File[] j = small.get(i);
                         copyOne(j[0], j[1]);
                     }
                 } catch (Throwable ex) {
@@ -2493,6 +2630,7 @@ public class FileManagerActivity extends BaseActivity {
                 long w = in.transferTo(pos, Math.min(8L << 20, size - pos), out);
                 if (w <= 0) break;
                 pos += w;
+                opAdd(w);
             }
         }
         //noinspection ResultOfMethodCallIgnored
@@ -2550,6 +2688,9 @@ public class FileManagerActivity extends BaseActivity {
         clip.clear();
         updatePasteBar();
         runTask(getString(cut ? R.string.fm_moving : R.string.fm_copying), () -> {
+            long sum = 0;
+            if (!cut) for (File f : src) sum += treeBytes(f, null, new int[]{200000});
+            opBegin(sum);
             int ok = 0;
             for (File f : src) {
                 if (cancelled) throw new Cancel();
@@ -2557,14 +2698,18 @@ public class FileManagerActivity extends BaseActivity {
                 if (f.isDirectory() && isInside(dest, f)) throw new IOException(getString(R.string.fm_err_into_self));
                 if (cut && dest.equals(f.getParentFile())) continue;
                 File target = unique(dest, f.getName());
+                touched.add(target.getAbsolutePath());
                 if (cut) {
-                    if (f.renameTo(target)) {
+                    if (f.renameTo(target)) {   // same volume: instant
                         moveMarks(f, target);
-                    } else {
+                    } else {   // another volume: copy with transferTo, then remove the source
+                        opBegin(treeBytes(f, null, new int[]{200000}));
                         copyOrClean(f, target);
                         Wipe.delete(java.util.Collections.singletonList(f), new java.util.concurrent.atomic.AtomicBoolean(), null);
                         moveMarks(f, target);
                     }
+                    File sp = f.getParentFile();
+                    if (sp != null) touched.add(f.getAbsolutePath());
                     rescan(new String[]{f.getAbsolutePath(), target.getAbsolutePath()});
                 } else {
                     copyOrClean(f, target);
@@ -2587,10 +2732,12 @@ public class FileManagerActivity extends BaseActivity {
                     selected.clear();
                     Assistant.log(this, "delete", files.size(), "");
                     final Set<String> gone = new java.util.HashSet<>(paths(files));
+                    flip.capture();
                     for (java.util.Iterator<Entry> it = shown.iterator(); it.hasNext(); ) {
                         if (gone.contains(it.next().f.getAbsolutePath())) it.remove();
                     }
                     adapter.notifyDataSetChanged();
+                    flip.play();
                     updateEmptyView();
                     updateChrome();
                     deleteFast(files);
@@ -2599,58 +2746,66 @@ public class FileManagerActivity extends BaseActivity {
                 .show();
     }
 
+    /** Deleting moves the items into the in-app trash at once; the data is freed after the 5 second undo window. */
     private void deleteFast(final List<File> files) {
-        showBusyLater(getString(R.string.fm_deleting));
-        final java.util.concurrent.atomic.AtomicBoolean stop = new java.util.concurrent.atomic.AtomicBoolean();
         io.execute(() -> {
             final Wipe.Stash st = Wipe.stash(this, files);
-            List<File> real = new ArrayList<>(st.direct);
-            Wipe.Result r = real.isEmpty() ? new Wipe.Result() : Wipe.delete(real, stop, null);
+            Wipe.Result r = null;
+            if (!st.direct.isEmpty()) r = Wipe.delete(new ArrayList<>(st.direct), new java.util.concurrent.atomic.AtomicBoolean(), null);
             List<String> removed = new ArrayList<>();
-            for (File f : files) if (!Wipe.exists(f)) removed.add(f.getAbsolutePath());
-            Set<String> fv = favs();
-            if (fv.removeAll(removed)) Store.setFavorites(this, fv);
-            Set<String> pv = Store.pins(this);
-            if (pv.removeAll(removed)) {
-                Store.setPins(this, pv);
-                pinCache = null;
-            }
-            favCache = null;
+            for (File f : files) removed.add(f.getAbsolutePath());
             rescan(removed.toArray(new String[0]));
             final Wipe.Result res = r;
-            final boolean more = !st.hidden.isEmpty();
             post(() -> {
-                hideBusy();
-                if (!more) opDone(res.cancelled ? null : getString(R.string.fm_done_n, files.size()));
                 scheduleTip(4000);
-                if (res.cancelled) {
-                    toast(R.string.fm_cancelled);
-                    refresh(true);
-                } else if (!res.failed.isEmpty()) {
+                Fx.done(listView);
+                if (res != null && !res.failed.isEmpty()) {
                     info(getString(R.string.error), getString(R.string.fm_del_failed_n, res.failed.size())
                             + "\n" + android.text.TextUtils.join("\n", res.failed.subList(0, Math.min(8, res.failed.size()))));
                     refresh(true);
-                } else toast(getString(R.string.fm_done_n, files.size()));
-            });
-            if (more) {
-                // the items are already out of sight; free their data in the background
-                cancelled = false;
-                final java.util.concurrent.atomic.AtomicBoolean never = new java.util.concurrent.atomic.AtomicBoolean();
-                try {
-                    Wipe.delete(st.hidden, never, (n, rd, total, name) ->
-                            OpService.update(getString(R.string.fm_deleting_n, n), total > 0 ? rd * 100 / total : -1));
-                } finally {
-                    Wipe.settled(this, st.hidden);
-                    OpService.end(null);
-                    bgHidden = false;
                 }
-            }
+                if (st.hidden.isEmpty()) return;
+                undoBar.show(getString(R.string.fm_deleted_n, st.hidden.size()), () -> undoDelete(st),
+                        () -> commitDelete(st, removed));
+            });
         });
+    }
+
+    private void undoDelete(final Wipe.Stash st) {
+        io.execute(() -> {
+            final List<File> back = TrashBin.restore(this, st);
+            List<String> ps = new ArrayList<>();
+            for (File f : back) {
+                ps.add(f.getAbsolutePath());
+                touched.add(f.getAbsolutePath());
+            }
+            rescan(ps.toArray(new String[0]));
+            post(() -> {
+                Fx.done(listView);
+                settleList();
+            });
+        });
+    }
+
+    private void commitDelete(Wipe.Stash st, List<String> removed) {
+        Set<String> fv = favs();
+        if (fv.removeAll(removed)) Store.setFavorites(this, fv);
+        Set<String> pv = Store.pins(this);
+        if (pv.removeAll(removed)) {
+            Store.setPins(this, pv);
+            pinCache = null;
+        }
+        favCache = null;
+        TrashBin.purge(this, st, null);
     }
 
     /** Tells the media database that these paths changed, so the gallery and music apps drop or pick them up. */
     private void rescan(String[] paths) {
         if (paths.length == 0) return;
+        try {
+            SmartIndex.touch(getApplicationContext(), paths);
+        } catch (Throwable ignored) {
+        }
         try {
             android.media.MediaScannerConnection.scanFile(getApplicationContext(), paths, null, null);
         } catch (Throwable ignored) {
