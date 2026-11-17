@@ -58,7 +58,7 @@ final class SkeletonView extends View {
     @Override
     protected void onDraw(Canvas c) {
         int w = getWidth();
-        boolean rtl = isLayoutRtl();
+        boolean rtl = getLayoutDirection() == LAYOUT_DIRECTION_RTL;
         paint.setAlpha(baseAlpha + (int) (phase * 60));
         int rows = getHeight() / rowH;
         float rad = Ui.dp(getContext(), 8);

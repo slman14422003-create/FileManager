@@ -61,8 +61,11 @@ public class DocEditActivity extends BaseActivity {
     private static final long AUTOSAVE_MS = 2000L;
     private volatile boolean autoBusy;
     private boolean errShown;
-    private final Runnable autoRun = () -> {
-        if (dirty && !autoBusy && web != null) requestSave("auto", null);
+    private final Runnable autoRun = new Runnable() {
+        @Override
+        public void run() {
+            if (dirty && !autoBusy && web != null) requestSave("auto", null);
+        }
     };
 
     private WebView web;
