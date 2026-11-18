@@ -58,6 +58,7 @@ import java.util.zip.ZipOutputStream;
 
 public class ShareSendActivity extends BaseActivity {
     private static final class Group {
+        String key = "";
         String label;
         List<ShareItem> items = new ArrayList<>();
         long size;
@@ -195,44 +196,97 @@ public class ShareSendActivity extends BaseActivity {
         return n;
     }
 
-    private View tile(int icon, String label, View.OnClickListener click) {
-        LinearLayout t = new LinearLayout(this);
-        t.setOrientation(LinearLayout.VERTICAL);
-        t.setGravity(Gravity.CENTER_HORIZONTAL);
-        t.setPadding(Ui.dp(this, 2), Ui.dp(this, 8), Ui.dp(this, 2), Ui.dp(this, 8));
-        t.setClickable(true);
-        t.setOnClickListener(click);
-        ImageView iv = new ImageView(this);
-        iv.setImageResource(icon);
-        int pad = Ui.dp(this, 15);
-        iv.setPadding(pad, pad, pad, pad);
-        Ui.outlineIcon(this, iv, 15);
-        t.addView(iv, new LinearLayout.LayoutParams(Ui.dp(this, 56), Ui.dp(this, 56)));
-        TextView tv = new TextView(this);
-        tv.setText(label);
-        tv.setTextSize(12);
-        tv.setMaxLines(2);
-        tv.setGravity(Gravity.CENTER);
-        tv.setTextColor(Ui.color(this, R.color.text_primary));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = Ui.dp(this, 6);
-        t.addView(tv, lp);
-        return t;
+    private volatile boolean scanCancel;
+    private View scanCard;
+    private TextView scanText, scanCount;
+    private final Runnable scanTick = new Runnable() {
+        @Override
+        public void run() {
+            if (scanCard == null || scanCard.getVisibility() != View.VISIBLE || destroyed) return;
+            scanCount.setText(getString(R.string.sx3_found, scanFound));
+            ui.postDelayed(this, 250);
+        }
+    };
+    private volatile int scanFound;
+
+    private void scanStart(String label) {
+        scanCancel = false;
+        scanFound = 0;
+        if (scanCard != null) {
+            scanText.setText(getString(R.string.sx3_scanning, label));
+            scanCount.setText(getString(R.string.sx3_found, 0));
+            scanCard.setVisibility(View.VISIBLE);
+            ui.removeCallbacks(scanTick);
+            ui.postDelayed(scanTick, 250);
+        }
+        busy(true);
     }
 
-    private View grid(View... tiles) {
+    private void scanEnd() {
+        ui.removeCallbacks(scanTick);
+        if (scanCard != null) scanCard.setVisibility(View.GONE);
+        busy(false);
+    }
+
+    private View scanCardView() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setPadding(Ui.dp(this, 16), Ui.dp(this, 14), Ui.dp(this, 12), Ui.dp(this, 14));
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setColor(Ui.color(this, R.color.accent_soft));
+        bg.setCornerRadius(Ui.dp(this, 22));
+        card.setBackground(bg);
+        SpinnerView sp = new SpinnerView(this);
+        card.addView(sp, new LinearLayout.LayoutParams(Ui.dp(this, 26), Ui.dp(this, 26)));
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        for (int i = 0; i < tiles.length; i += 4) {
-            LinearLayout r = new LinearLayout(this);
-            r.setOrientation(LinearLayout.HORIZONTAL);
-            for (int j = 0; j < 4; j++) {
-                View v = i + j < tiles.length ? tiles[i + j] : new View(this);
-                r.addView(v, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            }
-            col.addView(r, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        }
-        return Ui.block(this, col);
+        scanText = new TextView(this);
+        scanText.setTextSize(15);
+        scanText.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        scanText.setTextColor(Ui.color(this, R.color.accent_text));
+        scanText.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        scanCount = new TextView(this);
+        scanCount.setTextSize(12);
+        scanCount.setTextColor(Ui.color(this, R.color.text_secondary));
+        scanCount.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        col.addView(scanText);
+        col.addView(scanCount);
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        cp.setMarginStart(Ui.dp(this, 14));
+        cp.setMarginEnd(Ui.dp(this, 8));
+        card.addView(col, cp);
+        TextView stop = new TextView(this);
+        stop.setText(R.string.sx3_stop);
+        stop.setTextSize(13);
+        stop.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        stop.setTextColor(Ui.color(this, R.color.on_accent));
+        android.graphics.drawable.GradientDrawable pill = new android.graphics.drawable.GradientDrawable();
+        pill.setColor(Ui.color(this, R.color.accent));
+        pill.setCornerRadius(Ui.dp(this, 100));
+        stop.setBackground(pill);
+        stop.setPadding(Ui.dp(this, 16), Ui.dp(this, 8), Ui.dp(this, 16), Ui.dp(this, 8));
+        Ui.press(this, stop);
+        stop.setOnClickListener(v -> scanCancel = true);
+        card.addView(stop);
+        card.setVisibility(View.GONE);
+        scanCard = card;
+        return Ui.block(this, card);
+    }
+
+    private int countOf(String key) {
+        for (Group g : groups) if (key.equals(g.key)) return g.items.size();
+        return 0;
+    }
+
+    private View source(String key, int icon, int titleRes, int subRes, View.OnClickListener click) {
+        Row r = new Row(icon, true, getString(titleRes), getString(subRes), false, true);
+        int n = countOf(key);
+        if (n > 0) r.badge(getString(R.string.sx3_added, n), Ui.color(this, R.color.ok));
+        return Ui.rowView(this, content, r, v -> {
+            Fx.light(v);
+            click.onClick(v);
+        });
     }
 
     private void showCompose() {
@@ -240,6 +294,7 @@ public class ShareSendActivity extends BaseActivity {
         header(getString(R.string.sx_pick_hint));
         loading.setVisibility(View.INVISIBLE);
         content.removeAllViews();
+        content.addView(scanCardView());
 
         if (!groups.isEmpty()) {
             content.addView(Ui.sectionTitle(this, getString(R.string.sh_selected)));
@@ -260,19 +315,40 @@ public class ShareSendActivity extends BaseActivity {
             content.addView(button(R.string.sx_next, true, v -> askMethod()));
         }
 
-        content.addView(Ui.sectionTitle(this, getString(R.string.sx_pick_title)));
-        content.addView(grid(
-                tile(R.drawable.ic_image, getString(R.string.cat_images), v -> addCategory(Cats.IMG, getString(R.string.cat_images))),
-                tile(R.drawable.ic_video, getString(R.string.cat_videos), v -> addCategory(Cats.VID, getString(R.string.cat_videos))),
-                tile(R.drawable.ic_music, getString(R.string.cat_audio), v -> addCategory(Cats.AUD, getString(R.string.cat_audio))),
-                tile(R.drawable.ic_file, getString(R.string.sx_t_files), v -> openPicker(false)),
-                tile(R.drawable.ic_file_text, getString(R.string.cat_docs), v -> addCategory(Cats.DOC, getString(R.string.cat_docs))),
-                tile(R.drawable.ic_package, getString(R.string.sx_t_apps), v -> pickApps()),
-                tile(R.drawable.ic_contact, getString(R.string.sx_t_contacts), v -> pickContacts()),
-                tile(R.drawable.ic_clipboard, getString(R.string.sx_t_text), v -> pickText()),
-                tile(R.drawable.ic_folder, getString(R.string.sx_t_folder), v -> openPicker(true)),
-                tile(R.drawable.ic_archive, getString(R.string.cat_archives), v -> addCategory(Cats.ARC, getString(R.string.cat_archives))),
-                tile(R.drawable.ic_drive, getString(R.string.sx_t_all), v -> addEverything())));
+        content.addView(Ui.sectionTitle(this, getString(R.string.sx3_media)));
+        LinearLayout media = new LinearLayout(this);
+        media.setOrientation(LinearLayout.VERTICAL);
+        media.addView(source("img", R.drawable.ic_image, R.string.cat_images, R.string.sx3_images_sub,
+                v -> addCategory("img", Cats.IMG, getString(R.string.cat_images))));
+        media.addView(source("vid", R.drawable.ic_video, R.string.cat_videos, R.string.sx3_videos_sub,
+                v -> addCategory("vid", Cats.VID, getString(R.string.cat_videos))));
+        media.addView(source("aud", R.drawable.ic_music, R.string.cat_audio, R.string.sx3_audio_sub,
+                v -> addCategory("aud", Cats.AUD, getString(R.string.cat_audio))));
+        Ui.group(this, media);
+        content.addView(media);
+
+        content.addView(Ui.sectionTitle(this, getString(R.string.sx3_files)));
+        LinearLayout files = new LinearLayout(this);
+        files.setOrientation(LinearLayout.VERTICAL);
+        files.addView(source("files", R.drawable.ic_file, R.string.sx_t_files, R.string.sx3_files_sub, v -> openPicker(false)));
+        files.addView(source("folder", R.drawable.ic_folder, R.string.sx_t_folder, R.string.sx3_folder_sub, v -> openPicker(true)));
+        files.addView(source("doc", R.drawable.ic_file_text, R.string.cat_docs, R.string.sx3_docs_sub,
+                v -> addCategory("doc", Cats.DOC, getString(R.string.cat_docs))));
+        files.addView(source("arc", R.drawable.ic_archive, R.string.cat_archives, R.string.sx3_arc_sub,
+                v -> addCategory("arc", Cats.ARC, getString(R.string.cat_archives))));
+        files.addView(source("all", R.drawable.ic_drive, R.string.sx_t_all, R.string.sx3_all_sub, v -> addEverything()));
+        Ui.group(this, files);
+        content.addView(files);
+
+        content.addView(Ui.sectionTitle(this, getString(R.string.sx3_other)));
+        LinearLayout other = new LinearLayout(this);
+        other.setOrientation(LinearLayout.VERTICAL);
+        other.addView(source("apps", R.drawable.ic_package, R.string.sx_t_apps, R.string.sx3_apps_sub, v -> pickApps()));
+        other.addView(source("contacts", R.drawable.ic_contact, R.string.sx_t_contacts, R.string.sx3_contacts_sub, v -> pickContacts()));
+        other.addView(source("text", R.drawable.ic_clipboard, R.string.sx_t_text, R.string.sx3_text_sub, v -> pickText()));
+        Ui.group(this, other);
+        content.addView(other);
+        if (!groups.isEmpty()) content.addView(button(R.string.sx_next, true, v -> askMethod()));
     }
 
     private boolean needFiles() {
@@ -302,11 +378,11 @@ public class ShareSendActivity extends BaseActivity {
     }
 
     private void walk(File dir, String prefix, String cat, List<ShareItem> out, int depth) {
-        if (destroyed || depth > 30 || out.size() >= ShareProto.MAX_ITEMS) return;
+        if (destroyed || scanCancel || depth > 30 || out.size() >= ShareProto.MAX_ITEMS) return;
         File[] arr = dir.listFiles();
         if (arr == null) return;
         for (File f : arr) {
-            if (destroyed || out.size() >= ShareProto.MAX_ITEMS) return;
+            if (destroyed || scanCancel || out.size() >= ShareProto.MAX_ITEMS) return;
             String n = f.getName();
             if (n.endsWith(".fmpart")) continue;
             if (f.isDirectory()) {
@@ -316,16 +392,23 @@ public class ShareSendActivity extends BaseActivity {
             } else if (f.isFile() && f.canRead()) {
                 if (cat != null && !Cats.matches(cat, Cats.extOf(n))) continue;
                 out.add(ShareItem.of(f, prefix + n));
+                scanFound = out.size();
             }
         }
     }
 
+    private String pendingKey = "";
+
     private void commit(String label, List<ShareItem> items) {
+        if (scanCancel && !items.isEmpty()) scanCancel = false;
         if (items.isEmpty()) {
             Toast.makeText(this, R.string.sh_nothing_found, Toast.LENGTH_SHORT).show();
             return;
         }
         Group g = new Group();
+        g.key = pendingKey;
+        pendingKey = "";
+        for (int i = groups.size() - 1; i >= 0; i--) if (!g.key.isEmpty() && g.key.equals(groups.get(i).key)) groups.remove(i);
         g.label = label;
         g.items = items;
         for (ShareItem i : items) g.size += Math.max(0, i.size);
@@ -339,7 +422,8 @@ public class ShareSendActivity extends BaseActivity {
     }
 
     private void addPaths(final List<String> paths, final boolean dirMode) {
-        busy(true);
+        pendingKey = dirMode ? "folder" : "files";
+        scanStart(getString(dirMode ? R.string.sx_t_folder : R.string.sx_t_files));
         io.execute(() -> {
             List<ShareItem> out = new ArrayList<>();
             String label = "";
@@ -356,22 +440,23 @@ public class ShareSendActivity extends BaseActivity {
             final String fl = paths.size() > 1 && !dirMode ? getString(R.string.sh_n_files, paths.size()) : label;
             ui.post(() -> {
                 if (destroyed) return;
-                busy(false);
+                scanEnd();
                 commit(fl, out);
             });
         });
     }
 
-    private void addCategory(final String cat, final String label) {
+    private void addCategory(final String key, final String cat, final String label) {
         if (needFiles()) return;
-        busy(true);
+        pendingKey = key;
+        scanStart(label);
         io.execute(() -> {
             List<ShareItem> out = new ArrayList<>();
             File root = Environment.getExternalStorageDirectory();
             walk(root, label + "/", cat, out, 0);
             ui.post(() -> {
                 if (destroyed) return;
-                busy(false);
+                scanEnd();
                 commit(label, out);
             });
         });
@@ -379,13 +464,14 @@ public class ShareSendActivity extends BaseActivity {
 
     private void addEverything() {
         if (needFiles()) return;
-        busy(true);
+        pendingKey = "all";
+        scanStart(getString(R.string.sh_everything));
         io.execute(() -> {
             List<ShareItem> out = new ArrayList<>();
             walk(Environment.getExternalStorageDirectory(), "", null, out, 0);
             ui.post(() -> {
                 if (destroyed) return;
-                busy(false);
+                scanEnd();
                 commit(getString(R.string.sh_everything), out);
             });
         });
@@ -525,6 +611,7 @@ public class ShareSendActivity extends BaseActivity {
             ui.post(() -> {
                 if (destroyed) return;
                 busy(false);
+                pendingKey = "contacts";
                 commit(getString(R.string.sx_t_contacts) + " (" + sel.size() + ")", out);
             });
         });
@@ -570,6 +657,7 @@ public class ShareSendActivity extends BaseActivity {
             ui.post(() -> {
                 if (destroyed) return;
                 busy(false);
+                pendingKey = "text";
                 commit(getString(R.string.sx_t_text), out);
             });
         });
@@ -652,6 +740,7 @@ public class ShareSendActivity extends BaseActivity {
             ui.post(() -> {
                 if (destroyed) return;
                 busy(false);
+                pendingKey = "apps";
                 commit(getString(R.string.sh_add_apps), out);
             });
         });

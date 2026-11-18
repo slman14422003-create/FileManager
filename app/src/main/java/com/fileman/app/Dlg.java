@@ -316,13 +316,23 @@ public class Dlg extends AlertDialog.Builder {
             if (allIcons && itemIcons[k] == 0) allIcons = false;
             longest = Math.max(longest, itemLabels[k] == null ? 0 : itemLabels[k].length());
         }
-        final boolean grid = allIcons && itemLabels.length >= 2 && itemLabels.length <= 5 && longest <= 14;
+        final boolean grid = allIcons && itemLabels.length >= 2 && itemLabels.length <= 12 && longest <= 24;
         LinearLayout rows = new LinearLayout(c);
         if (grid) {
-            rows.setOrientation(LinearLayout.HORIZONTAL);
+            rows.setOrientation(LinearLayout.VERTICAL);
             rows.setPadding(0, Ui.dp(c, 4), 0, 0);
+            final int cols = itemLabels.length <= 5 ? itemLabels.length : 4;
+            LinearLayout line = null;
             for (int k = 0; k < itemLabels.length; k++) {
                 final int pos = k;
+                if (k % cols == 0) {
+                    line = new LinearLayout(c);
+                    line.setOrientation(LinearLayout.HORIZONTAL);
+                    LinearLayout.LayoutParams ll = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT);
+                    if (k > 0) ll.topMargin = Ui.dp(c, 12);
+                    rows.addView(line, ll);
+                }
                 boolean danger = destructive(c, itemLabels[k]);
                 LinearLayout col = new LinearLayout(c);
                 col.setOrientation(LinearLayout.VERTICAL);
@@ -339,10 +349,10 @@ public class Dlg extends AlertDialog.Builder {
                 circle.setShape(GradientDrawable.OVAL);
                 circle.setColor(Ui.color(c, R.color.field));
                 iv.setBackground(circle);
-                col.addView(iv, new LinearLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 40)));
+                col.addView(iv, new LinearLayout.LayoutParams(Ui.dp(c, 46), Ui.dp(c, 46)));
                 TextView t = new TextView(c);
                 t.setText(itemLabels[k]);
-                t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+                t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f);
                 t.setMaxLines(2);
                 t.setEllipsize(android.text.TextUtils.TruncateAt.END);
                 t.setGravity(Gravity.CENTER);
@@ -357,7 +367,10 @@ public class Dlg extends AlertDialog.Builder {
                     if (ref[0] != null) ref[0].dismiss();
                     if (itemListener != null) itemListener.onClick(ref[0], pos);
                 });
-                rows.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                line.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            }
+            for (int k2 = itemLabels.length; line != null && k2 % cols != 0; k2++) {
+                line.addView(new View(c), new LinearLayout.LayoutParams(0, 1, 1f));
             }
         } else {
             rows.setOrientation(LinearLayout.VERTICAL);
