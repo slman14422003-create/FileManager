@@ -98,6 +98,7 @@ public class ShareSendActivity extends BaseActivity {
 
     private ActivityResultLauncher<Intent> pickFiles;
     private ActivityResultLauncher<Intent> pickDir;
+    private ActivityResultLauncher<Intent> pickCat;
     private ActivityResultLauncher<String[]> permLauncher;
     private Runnable afterPerm;
 
@@ -134,6 +135,14 @@ public class ShareSendActivity extends BaseActivity {
             String one = d.getStringExtra("picked");
             if (one != null) paths.add(one);
             addPaths(paths, false);
+        });
+        pickCat = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), r -> {
+            Intent d = r.getData();
+            if (r.getResultCode() != RESULT_OK || d == null) return;
+            List<String> many = d.getStringArrayListExtra("picked_all");
+            String k = d.getStringExtra(SharePickActivity.EXTRA_KEY);
+            String l = d.getStringExtra(SharePickActivity.EXTRA_LABEL);
+            if (many != null && !many.isEmpty()) addPicked(k == null ? "" : k, l == null ? "" : l, many);
         });
         pickDir = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), r -> {
             Intent d = r.getData();
@@ -448,16 +457,25 @@ public class ShareSendActivity extends BaseActivity {
 
     private void addCategory(final String key, final String cat, final String label) {
         if (needFiles()) return;
+        pickCat.launch(new Intent(this, SharePickActivity.class)
+                .putExtra(SharePickActivity.EXTRA_CAT, cat)
+                .putExtra(SharePickActivity.EXTRA_KEY, key)
+                .putExtra(SharePickActivity.EXTRA_LABEL, label));
+    }
+
+    private void addPicked(final String key, final String label, final List<String> paths) {
         pendingKey = key;
         scanStart(label);
         io.execute(() -> {
             List<ShareItem> out = new ArrayList<>();
-            File root = Environment.getExternalStorageDirectory();
-            walk(root, label + "/", cat, out, 0);
+            for (String p : paths) {
+                File f = new File(p);
+                if (f.isFile() && f.canRead()) out.add(ShareItem.of(f, label + "/" + f.getName()));
+            }
             ui.post(() -> {
                 if (destroyed) return;
                 scanEnd();
-                commit(label, out);
+                commit(label + " (" + out.size() + ")", out);
             });
         });
     }

@@ -1449,7 +1449,7 @@ public class FileManagerActivity extends BaseActivity {
 
     private TextView crumbSep() {
         TextView sep = new TextView(this);
-        sep.setText("›");
+        sep.setText(Ui.isRtl(this) ? "‹" : "›");
         sep.setTextColor(Ui.color(this, R.color.text_hint));
         sep.setTextSize(16);
         sep.setPadding(Ui.dp(this, 2), 0, Ui.dp(this, 2), 0);
@@ -1491,7 +1491,7 @@ public class FileManagerActivity extends BaseActivity {
             if (!last) c.setOnClickListener(v -> navigate(target, false));
             crumbRow.addView(c);
         }
-        crumbScroll.post(() -> ((HorizontalScrollView) crumbScroll).fullScroll(View.FOCUS_RIGHT));
+        crumbScroll.post(() -> ((HorizontalScrollView) crumbScroll).fullScroll(Ui.isRtl(this) ? View.FOCUS_LEFT : View.FOCUS_RIGHT));
     }
 
     /** The "NN% used" pill next to the path; it opens the storage analysis. */

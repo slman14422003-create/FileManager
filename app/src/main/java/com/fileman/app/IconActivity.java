@@ -88,7 +88,7 @@ public class IconActivity extends BaseActivity {
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         cp.setMargins(Layout.gutter(this), Ui.dp(this, 8), Layout.gutter(this), 0);
         content.addView(card, cp);
-        TextView note = Ui.body(this, getString(R.string.ic_note), 13, R.color.text_secondary);
+        TextView note = Ui.footer(this, getString(R.string.ic_note));
         content.addView(note);
     }
 

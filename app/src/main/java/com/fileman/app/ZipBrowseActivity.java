@@ -92,6 +92,7 @@ public class ZipBrowseActivity extends BaseActivity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         setContentView(R.layout.activity_zip);
+        useGroupedBackground();
         String path = getIntent().getStringExtra("path");
         zip = path == null ? null : new File(path);
         if (zip == null || !zip.isFile()) {
@@ -307,7 +308,7 @@ public class ZipBrowseActivity extends BaseActivity {
     }
 
     private void styleExtract() {
-        int blue = Ui.color(this, R.color.info);
+        int blue = Ui.color(this, R.color.accent);
         android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
         g.setColor(blue);
         g.setCornerRadius(Ui.dp(this, 27));
@@ -321,7 +322,8 @@ public class ZipBrowseActivity extends BaseActivity {
         st.addState(new int[]{}, g);
         extractBtn.setBackground(st);
         extractBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_download, 0, 0, 0);
-        extractBtn.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
+        extractBtn.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.on_accent)));
+        extractBtn.setTextColor(Ui.color(this, R.color.on_accent));
         extractBtn.setCompoundDrawablePadding(Ui.dp(this, 10));
         extractBtn.setPaddingRelative(Ui.dp(this, 24), 0, Ui.dp(this, 24), 0);
         android.graphics.drawable.GradientDrawable pill = new android.graphics.drawable.GradientDrawable();
@@ -371,7 +373,7 @@ public class ZipBrowseActivity extends BaseActivity {
             path.append(parts[i]).append('/');
             final String target = path.toString();
             TextView sep = new TextView(this);
-            sep.setText("›");
+            sep.setText(Ui.isRtl(this) ? "‹" : "›");
             sep.setTextColor(Ui.color(this, R.color.text_hint));
             sep.setTextSize(16);
             sep.setPadding(Ui.dp(this, 2), 0, Ui.dp(this, 2), 0);
@@ -394,7 +396,7 @@ public class ZipBrowseActivity extends BaseActivity {
             crumbRow.addView(t);
         }
         final android.widget.HorizontalScrollView hs = (android.widget.HorizontalScrollView) crumbRow.getParent();
-        hs.post(() -> hs.fullScroll(View.FOCUS_RIGHT));
+        hs.post(() -> hs.fullScroll(Ui.isRtl(this) ? View.FOCUS_LEFT : View.FOCUS_RIGHT));
     }
 
     private void toggle(Node n) {

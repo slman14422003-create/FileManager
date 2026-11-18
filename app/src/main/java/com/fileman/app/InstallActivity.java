@@ -187,7 +187,7 @@ public class InstallActivity extends BaseActivity {
         sheetScroll = findViewById(R.id.sheetScroll);
         GradientDrawable gr = new GradientDrawable();
         gr.setColor(Ui.color(this, R.color.text_hint));
-        gr.setCornerRadius(Ui.dp(this, 3));
+        gr.setCornerRadius(Ui.dp(this, 2));
         findViewById(R.id.grabber).setBackground(gr);
         panel.setTranslationY(getResources().getDisplayMetrics().heightPixels);
 
@@ -769,7 +769,7 @@ public class InstallActivity extends BaseActivity {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable pg = new GradientDrawable();
-        pg.setCornerRadius(Ui.dp(this, 28));
+        pg.setCornerRadius(Ui.dp(this, 26));
         pg.setColor(Blur.surface(this, Ui.color(this, R.color.bg_group), 0xE6));
         panel.setBackground(pg);
         panel.setClipToOutline(true);
@@ -779,10 +779,10 @@ public class InstallActivity extends BaseActivity {
         grab.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
         View handle = new View(this);
         GradientDrawable hg = new GradientDrawable();
-        hg.setCornerRadius(Ui.dp(this, 3));
-        hg.setColor(Ui.color(this, R.color.stroke));
+        hg.setCornerRadius(Ui.dp(this, 2));
+        hg.setColor(Ui.color(this, R.color.text_hint));
         handle.setBackground(hg);
-        LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(Ui.dp(this, 38), Ui.dp(this, 5));
+        LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(Ui.dp(this, 30), Ui.dp(this, 4));
         hp.topMargin = Ui.dp(this, 10);
         hp.bottomMargin = Ui.dp(this, 6);
         grab.addView(handle, hp);

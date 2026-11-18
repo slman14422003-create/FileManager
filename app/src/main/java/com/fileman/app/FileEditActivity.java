@@ -137,6 +137,7 @@ public class FileEditActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_editor);
+        useGroupedBackground();
         String path = getIntent().getStringExtra("path");
         file = path == null ? null : new File(path);
         if (file == null || !file.isFile()) {

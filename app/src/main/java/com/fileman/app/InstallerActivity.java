@@ -930,7 +930,7 @@ public class InstallerActivity extends BaseActivity {
     private void renderApps() {
         busy(false);
         clear();
-        EditText q = Ui.block(this, Ui.edit(this, getString(R.string.pk_search_hint), appQuery));
+        EditText q = Ui.block(this, Ui.searchStyle(this, Ui.edit(this, getString(R.string.pk_search_hint), appQuery)));
         q.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int a, int b, int c) {
@@ -1061,6 +1061,7 @@ public class InstallerActivity extends BaseActivity {
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(Ui.dp(this, 24), Ui.dp(this, 12), Ui.dp(this, 24), Ui.dp(this, 16));
         p.t = Ui.body(this, getString(R.string.cv_stage_extract), 15, R.color.text_primary);
+        p.t.setPaddingRelative(0, Ui.dp(this, 6), 0, Ui.dp(this, 6));
         box.addView(p.t);
         ProgressBar bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         bar.setIndeterminate(true);

@@ -576,7 +576,7 @@ public class StorageActivity extends BaseActivity {
                 d.setBackgroundColor(Ui.color(this, R.color.stroke_soft));
                 LinearLayout.LayoutParams dp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                         Math.max(1, Ui.dp(this, 1) / 2));
-                dp.setMarginStart(Ui.dp(this, 70));
+                dp.setMarginStart(Ui.dp(this, 60));
                 card.addView(d, dp);
             }
             card.addView(bigRow(vis.get(i)));
@@ -606,10 +606,11 @@ public class StorageActivity extends BaseActivity {
 
         int type = Cats.typeOfExt(Cats.extOf(b.f.getName()));
         ImageView icon = new ImageView(this);
-        icon.setImageResource(Cats.iconFor(type));
-        icon.setPadding(Ui.dp(this, 9), Ui.dp(this, 9), Ui.dp(this, 9), Ui.dp(this, 9));
-        Ui.outlineIcon(this, icon, 10);
-        row.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 42), Ui.dp(this, 42)));
+        icon.setImageResource(Cats.iconForExt(Cats.extOf(b.f.getName()), type));
+        int chipRes = Cats.colorFor(type);
+        chipRes = chipRes == R.color.accent_text ? R.color.info : chipRes == R.color.text_secondary ? R.color.text_hint : chipRes;
+        Ui.iconChip(this, icon, Ui.color(this, chipRes));
+        row.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 32), Ui.dp(this, 32)));
 
         LinearLayout tx = new LinearLayout(this);
         tx.setOrientation(LinearLayout.VERTICAL);
@@ -694,10 +695,11 @@ public class StorageActivity extends BaseActivity {
         Button del = new Button(this);
         del.setText(R.string.delete);
         del.setAllCaps(false);
-        del.setTypeface(Typeface.DEFAULT_BOLD);
+        del.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         del.setTextColor(Ui.color(this, R.color.on_bad));
         del.setBackgroundResource(R.drawable.dlg_btn_danger);
         del.setStateListAnimator(null);
+        Ui.press(this, del);
         del.setOnClickListener(v -> confirmDelete());
         ((LinearLayout) selBar).addView(del, new LinearLayout.LayoutParams(Ui.dp(this, 104), Ui.dp(this, 44)));
 

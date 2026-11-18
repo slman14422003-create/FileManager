@@ -163,7 +163,7 @@ public class ContactsActivity extends BaseActivity {
         Ui.press(this, summary);
         col.addView(Ui.block(this, summary));
 
-        search = Ui.edit(this, getString(R.string.ct_search_hint), "");
+        search = Ui.searchStyle(this, Ui.edit(this, getString(R.string.ct_search_hint), ""));
         search.setSingleLine(true);
         search.addTextChangedListener(new TextWatcher() {
             @Override

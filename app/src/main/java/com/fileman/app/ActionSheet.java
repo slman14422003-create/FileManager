@@ -56,7 +56,7 @@ final class ActionSheet {
         panel.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Blur.surface(c, Ui.color(c, R.color.surface), 0xEC));
-        bg.setCornerRadius(Ui.dp(c, 28));
+        bg.setCornerRadius(Ui.dp(c, 26));
         panel.setBackground(bg);
         panel.setPadding(Ui.dp(c, 14), Ui.dp(c, 12), Ui.dp(c, 14), Ui.dp(c, 14));
         panel.setElevation(Ui.dpf(c, 12));
@@ -69,7 +69,7 @@ final class ActionSheet {
         gd.setColor(Ui.color(c, R.color.text_hint));
         gd.setCornerRadius(Ui.dp(c, 2));
         grip.setBackground(gd);
-        gripBox.addView(grip, new FrameLayout.LayoutParams(Ui.dp(c, 34), Ui.dp(c, 4), Gravity.CENTER));
+        gripBox.addView(grip, new FrameLayout.LayoutParams(Ui.dp(c, 30), Ui.dp(c, 4), Gravity.CENTER));
         LinearLayout.LayoutParams gbp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(c, 18));
         gbp.bottomMargin = Ui.dp(c, 6);
         panel.addView(gripBox, gbp);

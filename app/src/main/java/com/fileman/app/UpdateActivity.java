@@ -271,9 +271,9 @@ public class UpdateActivity extends BaseActivity {
         progressText.setPadding(0, 0, 0, Ui.dp(this, 12));
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setIndeterminate(true);
-        Ui.tint(this, progressBar);
+        Ui.tintRounded(this, progressBar);
         box.addView(progressText);
-        box.addView(progressBar);
+        box.addView(progressBar, new LinearLayout.LayoutParams(-1, Ui.dp(this, 6)));
         progressText.setText(R.string.downloading);
         progressDialog = new Dlg(this).setTitle(R.string.downloading).setView(box).setCancelable(false)
                 .setNegativeButton(R.string.cancel, (d, w) -> cancel[0] = true)

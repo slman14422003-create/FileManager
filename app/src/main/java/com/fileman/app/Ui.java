@@ -31,6 +31,10 @@ public final class Ui {
     }
 
     /** Gives a view a soft "press in, spring back" scale animation. */
+    static boolean isRtl(Context c) {
+        return c.getResources().getConfiguration().getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
+    }
+
     public static void press(Context c, View v) {
         if (v == null || v.getStateListAnimator() != null) return;   // inflate once per (recycled) view
         v.setStateListAnimator(android.animation.AnimatorInflater.loadStateListAnimator(c, R.animator.press_scale));
@@ -253,6 +257,23 @@ public final class Ui {
         return e;
     }
 
+    /** Restyles an {@link #edit} field as the app's pill search field (same look as the files / home search bars). */
+    public static EditText searchStyle(Context c, EditText e) {
+        e.setBackgroundResource(R.drawable.bg_search);
+        e.setMinHeight(dp(c, 44));
+        e.setPaddingRelative(dp(c, 16), dp(c, 10), dp(c, 16), dp(c, 10));
+        e.setTextSize(14);
+        android.graphics.drawable.Drawable d = ContextCompat.getDrawable(c, R.drawable.ic_search);
+        if (d != null) {
+            d = d.mutate();
+            d.setTint(color(c, R.color.text_hint));
+            d.setBounds(0, 0, dp(c, 20), dp(c, 20));
+            e.setCompoundDrawablesRelative(d, null, null, null);
+            e.setCompoundDrawablePadding(dp(c, 10));
+        }
+        return e;
+    }
+
     /** Multi-line input (notes, comments, descriptions). */
     public static EditText editMulti(Context c, CharSequence hint, CharSequence text, int minLines) {
         EditText e = edit(c, hint, text);
@@ -299,7 +320,7 @@ public final class Ui {
         tint(c, bar);
         bar.setProgressDrawable(c.getDrawable(R.drawable.progress_rounded));
         ViewGroup.LayoutParams p = bar.getLayoutParams();
-        int h = dp(c, 8);
+        int h = dp(c, 6);
         if (p != null) {
             p.height = h;
             bar.setLayoutParams(p);
@@ -404,7 +425,7 @@ public final class Ui {
         t.setTextSize(sizeSp);
         t.setLineSpacing(0, 1.15f);
         t.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-        t.setPaddingRelative(dp(c, 26), dp(c, 6), dp(c, 26), dp(c, 6));
+        t.setPaddingRelative(dp(c, 32), dp(c, 6), dp(c, 32), dp(c, 6));
         t.setTextIsSelectable(true);
         return t;
     }

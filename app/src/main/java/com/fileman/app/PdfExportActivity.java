@@ -341,9 +341,10 @@ public class PdfExportActivity extends BaseActivity {
         final TextView msg = Ui.body(this, getString(R.string.px_progress, 0, pages.length), 15, R.color.text_primary);
         final ProgressBar bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         bar.setMax(100);
-        Ui.tint(this, bar);
+        msg.setPaddingRelative(0, Ui.dp(this, 6), 0, Ui.dp(this, 6));
+        Ui.tintRounded(this, bar);
         box.addView(msg);
-        box.addView(bar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 12)));
+        box.addView(bar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 6)));
         cancelled.set(false);
         final AlertDialog dlg = new Dlg(this).setTitle(R.string.px_saving).setView(box)
                 .setNegativeButton(R.string.cancel, (d, w) -> cancelled.set(true)).create();

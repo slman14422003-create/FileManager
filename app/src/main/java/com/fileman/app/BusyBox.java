@@ -67,7 +67,7 @@ final class BusyBox {
         bar.setMax(100);
         bar.setIndeterminate(true);
         bar.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(Ui.color(c, R.color.accent)));
-        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(c, 5));
+        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(c, 6));
         bp.topMargin = Ui.dp(c, 12);
         view.addView(bar, bp);
     }

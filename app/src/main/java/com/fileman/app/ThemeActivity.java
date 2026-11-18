@@ -43,7 +43,7 @@ public class ThemeActivity extends BaseActivity {
         scroll.setClipToPadding(false);
         LinearLayout tiles = new LinearLayout(this);
         tiles.setOrientation(LinearLayout.HORIZONTAL);
-        tiles.setPadding(Ui.dp(this, 20), Ui.dp(this, 4), Ui.dp(this, 20), Ui.dp(this, 4));
+        tiles.setPadding(Layout.gutter(this), Ui.dp(this, 4), Layout.gutter(this), Ui.dp(this, 4));
         View selected = null;
         for (String id : Appearance.MODES) {
             View tile = modeTile(id, mode, pal);
@@ -58,12 +58,12 @@ public class ThemeActivity extends BaseActivity {
             final View target = selected;
             scroll.post(() -> scroll.scrollTo(Math.max(0, target.getLeft() - Ui.dp(this, 40)), 0));
         }
-        content.addView(Ui.body(this, getString(Appearance.AUTO.equals(mode) ? R.string.theme_auto_note
-                : R.string.theme_mode_note), 13, R.color.text_hint));
+        content.addView(Ui.footer(this, getString(Appearance.AUTO.equals(mode) ? R.string.theme_auto_note
+                : R.string.theme_mode_note)));
 
         content.addView(Ui.sectionTitle(this, getString(R.string.theme_colors)));
         content.addView(paletteGrid(mode, pal));
-        content.addView(Ui.body(this, getString(R.string.theme_colors_note), 13, R.color.text_hint));
+        content.addView(Ui.footer(this, getString(R.string.theme_colors_note)));
     }
 
     private View modeTile(final String id, String current, int pal) {

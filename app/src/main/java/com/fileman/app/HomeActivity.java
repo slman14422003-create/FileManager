@@ -533,7 +533,7 @@ public class HomeActivity extends BaseActivity {
     }
 
     private int sideMargin() {
-        return Math.max(Ui.dp(this, 10), Layout.gutter(this) - Ui.dp(this, 4));
+        return Math.max(Ui.dp(this, 16), Layout.gutter(this));
     }
 
     /** Storage card: used / total, a segmented bar by kind of file, two shortcuts and one thin bar per extra volume. */

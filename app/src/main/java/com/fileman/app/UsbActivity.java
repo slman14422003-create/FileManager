@@ -96,8 +96,8 @@ public class UsbActivity extends BaseActivity {
         col.addView(Ui.sectionTitle(this, getString(R.string.usb_contents)));
         final LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
-        list.setBackgroundResource(R.drawable.bg_card);
-        col.addView(list, margins(side, 0, side, 0));
+        Ui.autoGroup(this, list);
+        col.addView(list, margins(0, 0, 0, 0));
 
         ScrollView sv = new ScrollView(this);
         sv.setFillViewport(true);
@@ -240,11 +240,9 @@ public class UsbActivity extends BaseActivity {
                       java.util.Map<File, Long> sizes) {
         list.removeAllViews();
         if (items.isEmpty()) {
-            TextView t = new TextView(this);
-            t.setText(R.string.usb_empty);
-            t.setTextSize(14);
+            TextView t = Ui.footer(this, getString(R.string.usb_empty));
             t.setGravity(Gravity.CENTER);
-            t.setTextColor(Ui.color(this, R.color.text_secondary));
+            t.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
             t.setPadding(0, Ui.dp(this, 28), 0, Ui.dp(this, 28));
             list.addView(t);
             return;
@@ -254,41 +252,18 @@ public class UsbActivity extends BaseActivity {
     }
 
     private View row(final File f, final boolean dir, Long size) {
-        LinearLayout r = new LinearLayout(this);
-        r.setOrientation(LinearLayout.HORIZONTAL);
-        r.setGravity(Gravity.CENTER_VERTICAL);
-        r.setPadding(Ui.dp(this, 16), Ui.dp(this, 12), Ui.dp(this, 16), Ui.dp(this, 12));
-        ImageView ic = new ImageView(this);
-        ic.setImageResource(dir ? R.drawable.ic_folder : R.drawable.ic_file);
-        ic.setColorFilter(Ui.color(this, R.color.accent));
-        r.addView(ic, new LinearLayout.LayoutParams(Ui.dp(this, 26), Ui.dp(this, 26)));
-        TextView n = new TextView(this);
-        n.setText(f.getName());
-        n.setSingleLine(true);
-        n.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
-        n.setTextSize(15);
-        n.setTextColor(Ui.color(this, R.color.text_primary));
-        n.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-        LinearLayout.LayoutParams np = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        np.setMarginStart(Ui.dp(this, 14));
-        np.setMarginEnd(Ui.dp(this, 10));
-        r.addView(n, np);
-        if (!dir) {
-            TextView s = new TextView(this);
-            s.setText(Fmt.size(size == null ? 0L : size));
-            s.setTextSize(12);
-            s.setTextColor(Ui.color(this, R.color.text_secondary));
-            r.addView(s);
-        }
-        Ui.press(this, r);
-        r.setOnClickListener(v -> {
+        int t = dir ? Cats.T_DIR : Cats.typeOfExt(Cats.extOf(f.getName()));
+        int c = Cats.colorFor(t);
+        c = c == R.color.accent_text ? R.color.info : c == R.color.text_secondary ? R.color.text_hint : c;
+        Row row = new Row(dir ? R.drawable.ic_folder : Cats.iconForExt(Cats.extOf(f.getName()), t), false, f.getName(),
+                dir ? null : Fmt.size(size == null ? 0L : size), false, dir).tint(Ui.color(this, c));
+        return Ui.rowView(this, null, row, v -> {
             if (dir) {
                 startActivity(new Intent(this, FileManagerActivity.class).putExtra("path", f.getAbsolutePath()));
             } else {
                 Opener.open(this, f);
             }
         });
-        return r;
     }
 
     private LinearLayout.LayoutParams margins(int l, int t, int r, int b) {

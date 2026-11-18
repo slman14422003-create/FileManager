@@ -482,7 +482,7 @@ public class SmartActivity extends BaseActivity {
             g.add(m);
         }
         content.addView(Ui.noteCard(this, getString(R.string.sm_auto_summary, moves.size(), groups.size()), R.color.accent_text));
-        content.addView(Ui.body(this, getString(R.string.sm_auto_protected), 12, R.color.text_secondary));
+        content.addView(Ui.footer(this, getString(R.string.sm_auto_protected)));
         action = Ui.block(this, Ui.button(this, R.string.delete, true));
         action.setOnClickListener(v -> applyAuto());
         content.addView(action);
@@ -555,7 +555,7 @@ public class SmartActivity extends BaseActivity {
         rebuild.setText(R.string.sm_find_build);
         rebuild.setOnClickListener(v -> buildIndex());
         content.addView(rebuild);
-        content.addView(Ui.body(this, getString(R.string.sm_find_note), 12, R.color.text_secondary));
+        content.addView(Ui.footer(this, getString(R.string.sm_find_note)));
         results = new LinearLayout(this);
         results.setOrientation(LinearLayout.VERTICAL);
         content.addView(results);
@@ -648,7 +648,7 @@ public class SmartActivity extends BaseActivity {
         content.removeAllViews();
         if (alerts.isEmpty()) {
             content.addView(Ui.body(this, getString(R.string.sm_guard_none), 14, R.color.text_secondary));
-            content.addView(Ui.body(this, getString(R.string.sm_guard_note), 12, R.color.text_secondary));
+            content.addView(Ui.footer(this, getString(R.string.sm_guard_note)));
             return;
         }
         content.addView(Ui.noteCard(this, getString(R.string.sm_guard_summary, alerts.size()), R.color.accent_text));
@@ -664,7 +664,7 @@ public class SmartActivity extends BaseActivity {
         }
         Ui.group(this, box);
         content.addView(box);
-        content.addView(Ui.body(this, getString(R.string.sm_guard_note), 12, R.color.text_secondary));
+        content.addView(Ui.footer(this, getString(R.string.sm_guard_note)));
     }
 
     private void alertMenu(final SmartGuard.Alert a) {
