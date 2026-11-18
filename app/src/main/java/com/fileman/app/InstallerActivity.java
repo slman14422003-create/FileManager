@@ -66,7 +66,7 @@ public class InstallerActivity extends BaseActivity {
         Drawable icon;
     }
 
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.single("fm-bg");
     private final Handler ui = new Handler(Looper.getMainLooper());
 
     private LinearLayout content;

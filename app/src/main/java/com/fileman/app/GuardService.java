@@ -74,7 +74,8 @@ public final class GuardService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        GuardCore.start(this);
+        final android.content.Context app = getApplicationContext();
+        Bg.single("fm-guard-start").execute(() -> GuardCore.start(app));
         return START_STICKY;
     }
 

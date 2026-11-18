@@ -62,7 +62,7 @@ public class ZipBrowseActivity extends BaseActivity {
         String subBase;    // formatted "size . date" / "N items", built on first bind
     }
 
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.single("fm-bg");
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final Map<String, List<Node>> tree = new HashMap<>();
     private final Set<String> selected = new LinkedHashSet<>();

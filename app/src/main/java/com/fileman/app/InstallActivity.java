@@ -46,7 +46,7 @@ import java.util.concurrent.Executors;
 public class InstallActivity extends BaseActivity {
     private static final int S_LOADING = 0, S_READY = 1, S_INSTALLING = 2, S_DONE = 3, S_FAILED = 4, S_INVALID = 5, S_RISK = 6, S_BLOCKED = 7;
 
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.single("fm-bg");
     private final Handler ui = new Handler(Looper.getMainLooper());
     private volatile boolean destroyed = false;
     private boolean resumed = false;

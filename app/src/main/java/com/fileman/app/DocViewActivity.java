@@ -48,7 +48,7 @@ public class DocViewActivity extends BaseActivity {
 
     private static final String BASE = "https://doc.local/view";
 
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.single("fm-bg");
     private final Handler ui = new Handler(Looper.getMainLooper());
     private File file;
     private View loading;

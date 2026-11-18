@@ -39,8 +39,8 @@ public class HomeActivity extends BaseActivity {
     private static final int RECENT_ON_HOME = 5;
     private static final int PINNED_ON_HOME = 4;
 
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
-    private final ExecutorService fast = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.single("fm-bg");
+    private final ExecutorService fast = Bg.single("fm-bg");
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final AtomicBoolean stop = new AtomicBoolean(false);
 

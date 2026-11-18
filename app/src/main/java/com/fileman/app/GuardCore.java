@@ -67,7 +67,7 @@ final class GuardCore {
     private static final SecureRandom RNG = new SecureRandom();
 
     private static final List<FileObserver> observers = new ArrayList<>();
-    private static final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private static final ExecutorService worker = Bg.single("fm-bg");
     private static final ScheduledExecutorService sched = Executors.newSingleThreadScheduledExecutor();
     private static volatile long lastTrip;
     private static boolean running;
@@ -311,7 +311,14 @@ final class GuardCore {
     }
 
     static boolean usageGranted(Context c) {
-        return recent(c) != null;
+        try {
+            android.app.AppOpsManager ao = (android.app.AppOpsManager) c.getSystemService(Context.APP_OPS_SERVICE);
+            int m = ao.checkOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    android.os.Process.myUid(), c.getPackageName());
+            return m == android.app.AppOpsManager.MODE_ALLOWED;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     static List<Suspect> identify(Context c) {

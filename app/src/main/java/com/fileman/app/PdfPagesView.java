@@ -85,7 +85,7 @@ public class PdfPagesView extends View {
     }
 
     private final Handler ui = new Handler(Looper.getMainLooper());
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.single("fm-bg");
     private final float density;
     private final int margin, gap, padBottom;
     private int padTop;

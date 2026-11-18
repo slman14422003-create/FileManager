@@ -83,8 +83,8 @@ public class FileEditActivity extends BaseActivity {
         }
     }
 
-    private final ExecutorService io = Executors.newFixedThreadPool(2);
-    private final ExecutorService hlIo = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.fixed(2, "fm-pool");
+    private final ExecutorService hlIo = Bg.single("fm-bg");
     private final Handler ui = new Handler(Looper.getMainLooper());
     private File file;
     private TextWindow tw;

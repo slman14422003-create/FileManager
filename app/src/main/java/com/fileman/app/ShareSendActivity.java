@@ -64,7 +64,7 @@ public class ShareSendActivity extends BaseActivity {
         long size;
     }
 
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.single("fm-bg");
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final List<Group> groups = new ArrayList<>();
     private final ShareNet.Hotspot hotspot = new ShareNet.Hotspot();

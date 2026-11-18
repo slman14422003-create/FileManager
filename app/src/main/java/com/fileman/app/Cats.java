@@ -321,7 +321,7 @@ public final class Cats {
             }
             if (!dirs.isEmpty()) {
                 int threads = Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors()));
-                java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(threads);
+                java.util.concurrent.ExecutorService pool = Bg.fixed(threads, "fm-pool");
                 List<java.util.concurrent.Future<Object[]>> parts = new ArrayList<>();
                 final boolean hidden = showHidden;
                 final int keep = keepRecent;

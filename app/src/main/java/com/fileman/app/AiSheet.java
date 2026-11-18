@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 
 /** One smart sheet for every screen: it offers what makes sense for the open file or folder, plus the smart tools. */
 final class AiSheet {
-    private static final ExecutorService IO = Executors.newSingleThreadExecutor();
+    private static final ExecutorService IO = Bg.single("fm-bg");
     private static final Handler UI = new Handler(Looper.getMainLooper());
 
     private AiSheet() {

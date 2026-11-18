@@ -63,9 +63,9 @@ public class ImageViewActivity extends BaseActivity {
     private static final int SLIDE_MS = 3500;
     private static final int PREFETCH = 2;   // images decoded ahead in each direction
 
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
-    private final ExecutorService preIo = Executors.newSingleThreadExecutor();   // neighbours, never blocks the visible image
-    private final ExecutorService thumbIo = Executors.newFixedThreadPool(2);
+    private final ExecutorService io = Bg.single("fm-bg");
+    private final ExecutorService preIo = Bg.single("fm-bg");   // neighbours, never blocks the visible image
+    private final ExecutorService thumbIo = Bg.fixed(2, "fm-pool");
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final List<File> images = new ArrayList<>();
     private final Map<String, String> dims = new ConcurrentHashMap<>();

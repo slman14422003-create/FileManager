@@ -63,7 +63,7 @@ final class Assistant {
     }
 
     /** act: delete, extract, visit, paste, open. n: how many items. arg: a folder path or file type. */
-    private static final java.util.concurrent.ExecutorService LOG_IO = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private static final java.util.concurrent.ExecutorService LOG_IO = Bg.single("fm-bg");
 
     /** Logging never blocks the screen: the write happens on a background thread. */
     static void log(Context c, final String act, final int n, final String arg) {

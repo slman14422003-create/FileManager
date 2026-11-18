@@ -64,12 +64,16 @@ public abstract class BaseActivity extends AppCompatActivity {
     protected void syncBack() {
     }
 
+    private final Runnable syncRun = this::syncBack;
+
     @Override
     public boolean dispatchTouchEvent(android.view.MotionEvent ev) {
         boolean r = super.dispatchTouchEvent(ev);
         int a = ev.getActionMasked();
         if (a == android.view.MotionEvent.ACTION_UP || a == android.view.MotionEvent.ACTION_CANCEL) {
-            getWindow().getDecorView().postDelayed(this::syncBack, 150);
+            android.view.View d = getWindow().getDecorView();
+            d.removeCallbacks(syncRun);
+            d.postDelayed(syncRun, 150);
         }
         return r;
     }

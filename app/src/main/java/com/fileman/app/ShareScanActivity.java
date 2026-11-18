@@ -53,7 +53,7 @@ public class ShareScanActivity extends BaseActivity {
     private Camera camera;
     private boolean torch;
     private volatile boolean found;
-    private final ExecutorService exec = Executors.newSingleThreadExecutor();
+    private final ExecutorService exec = Bg.single("fm-bg");
     private final MultiFormatReader reader = new MultiFormatReader();
     private ActivityResultLauncher<String> permLauncher;
     private TextView hint;

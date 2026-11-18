@@ -86,7 +86,7 @@ public class SharePickActivity extends BaseActivity {
         }
     }
 
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.single("fm-bg");
     private final ThreadPoolExecutor thumbIo = new ThreadPoolExecutor(3, 3, 0L, TimeUnit.SECONDS,
             new LinkedBlockingDeque<Runnable>() {
                 @Override

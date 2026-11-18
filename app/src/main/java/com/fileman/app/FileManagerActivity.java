@@ -186,7 +186,7 @@ public class FileManagerActivity extends BaseActivity {
         String run() throws Exception;
     }
 
-    private final ExecutorService io = Executors.newFixedThreadPool(3);
+    private final ExecutorService io = Bg.fixed(3, "fm-pool");
     // newest request first: after a fast scroll the rows on screen are decoded before the ones already scrolled past
     private final ExecutorService thumbIo = new java.util.concurrent.ThreadPoolExecutor(2, 2, 0L,
             java.util.concurrent.TimeUnit.MILLISECONDS,
@@ -219,7 +219,7 @@ public class FileManagerActivity extends BaseActivity {
         TextView title, sub, date;
         View pin, fav, check;
     }
-    private final ExecutorService kidsIo = Executors.newSingleThreadExecutor();
+    private final ExecutorService kidsIo = Bg.single("fm-bg");
     private long kidsGen;
     private boolean scrolling;
     private final Runnable kidsNotify = new Runnable() {
@@ -918,6 +918,9 @@ public class FileManagerActivity extends BaseActivity {
     private OnBackPressedCallback fmBack;
 
     /** The system back preview (live screen transition) is only blocked while this screen has something of its own to undo. */
+    private File backFor;
+    private boolean backOk;
+
     @Override
     protected void syncBack() {
         try {
@@ -925,8 +928,12 @@ public class FileManagerActivity extends BaseActivity {
             boolean busy = drawerRoot.isDrawerOpen(placesPanel) || searchOpen || searchView.hasFocus()
                     || !selected.isEmpty() || mode != M_DIR || !query.isEmpty();
             if (!busy && !isVolumeRoot(cur)) {
-                File p = cur.getParentFile();
-                busy = p != null && p.canRead();
+                if (backFor != cur) {
+                    File p = cur.getParentFile();
+                    backOk = p != null && p.canRead();
+                    backFor = cur;
+                }
+                busy = backOk;
             }
             fmBack.setEnabled(busy);
         } catch (Throwable ignored) {

@@ -81,7 +81,7 @@ public class MediaActivity extends BaseActivity {
     private static final int FIT = 0, FILL = 1, STRETCH = 2;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.single("fm-bg");
     private final Random rnd = new Random();
 
     // playlist

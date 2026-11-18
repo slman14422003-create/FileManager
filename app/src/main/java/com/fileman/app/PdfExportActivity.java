@@ -56,7 +56,7 @@ public class PdfExportActivity extends BaseActivity {
     private static final int[] JPEG_Q = {92, 82, 70, 55};
     private static final long MAX_PIXELS = 24_000_000L;
 
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.single("fm-bg");
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final AtomicBoolean cancelled = new AtomicBoolean();
     private volatile boolean destroyed = false;

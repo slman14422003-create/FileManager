@@ -28,7 +28,7 @@ import java.util.concurrent.Executors;
 public class VaultActivity extends BaseActivity {
     private static final int REQ_CRED = 77;
 
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.single("fm-bg");
     private final Handler ui = new Handler(Looper.getMainLooper());
     private LinearLayout content;
     private Runnable pendingOk;

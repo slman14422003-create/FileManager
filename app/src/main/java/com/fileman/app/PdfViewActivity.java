@@ -56,7 +56,7 @@ public class PdfViewActivity extends BaseActivity {
     private static final float[] ZOOMS = {1f, 1.5f, 2f, 3f, 4f, 5f};
     private static final long IDLE_HIDE_MS = 4000;
 
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.single("fm-bg");
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final Object lock = new Object();
 

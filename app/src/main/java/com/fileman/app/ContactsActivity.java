@@ -75,8 +75,8 @@ public class ContactsActivity extends BaseActivity {
     private static final int[] AVATAR_COLORS = {R.color.accent_text, R.color.ok, R.color.violet, R.color.warn,
             R.color.info, R.color.bad, R.color.lime};
 
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
-    private final ExecutorService photoIo = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.single("fm-bg");
+    private final ExecutorService photoIo = Bg.single("fm-bg");
     private final Handler ui = new Handler(Looper.getMainLooper());
 
     private File file;

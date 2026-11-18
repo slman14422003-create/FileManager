@@ -27,7 +27,7 @@ public class SmartActivity extends BaseActivity {
     static final String EXTRA = "mode";
     static final String M_CLEAN = "clean", M_ORG = "organize", M_NAME = "rename", M_FIND = "find", M_GUARD = "guard", M_AUTO = "auto";
 
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final ExecutorService io = Bg.single("fm-bg");
     private final Handler ui = new Handler(Looper.getMainLooper());
     private volatile long gen = 0;
     private volatile boolean destroyed = false;

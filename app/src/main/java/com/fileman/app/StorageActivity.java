@@ -54,7 +54,7 @@ public class StorageActivity extends BaseActivity {
     private static final long[] THRESH = {10 * MB, 50 * MB, 100 * MB, 500 * MB};
     private static final int PAGE = 30;
 
-    private final ExecutorService pool = Executors.newFixedThreadPool(4);
+    private final ExecutorService pool = Bg.fixed(4, "fm-pool");
     private final Handler ui = new Handler(Looper.getMainLooper());
     private AtomicBoolean runStop = new AtomicBoolean(false);
     private int runId;
