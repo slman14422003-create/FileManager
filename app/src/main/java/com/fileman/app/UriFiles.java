@@ -33,7 +33,9 @@ final class UriFiles {
         String scheme = u.getScheme();
         if ("file".equals(scheme)) {
             String p = u.getPath();
-            return p == null ? null : new File(p);
+            if (p == null) return null;
+            File f = new File(p);
+            return onStorage(f) ? f : null;
         }
         if (!"content".equals(scheme)) return null;
         String auth = u.getAuthority();
@@ -96,6 +98,7 @@ final class UriFiles {
 
     /** Copies the content behind the link into the cache and returns the copy (named like the original). */
     static File copyToCache(Context c, Uri u) throws IOException {
+        if (u == null || !"content".equals(u.getScheme())) throw new IOException("scheme");
         File root = new File(c.getCacheDir(), "incoming");
         File dir = new File(root, Long.toString(System.nanoTime()));
         if (!dir.mkdirs() && !dir.isDirectory()) throw new IOException("cache");
@@ -112,10 +115,21 @@ final class UriFiles {
         File out = new File(dir, name);
         try (InputStream in = c.getContentResolver().openInputStream(u)) {
             if (in == null) throw new IOException("no stream");
+            long cap = Math.max(0L, c.getCacheDir().getUsableSpace() - (64L << 20));
+            long total = 0;
+            boolean ok = false;
             try (OutputStream os = new FileOutputStream(out)) {
                 byte[] buf = new byte[64 * 1024];
                 int n;
-                while ((n = in.read(buf)) > 0) os.write(buf, 0, n);
+                while ((n = in.read(buf)) > 0) {
+                    total += n;
+                    if (total > cap) throw new IOException("not enough space");
+                    os.write(buf, 0, n);
+                }
+                ok = true;
+            } finally {
+                if (!ok) //noinspection ResultOfMethodCallIgnored
+                    out.delete();
             }
         }
         return out;

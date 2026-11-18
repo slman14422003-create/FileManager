@@ -39,7 +39,7 @@ final class CrashLog {
             e.printStackTrace(pw);
             pw.println("----");
             pw.flush();
-            File dir = c.getExternalFilesDir(null);   // app-private: other apps cannot read the log
+            File dir = android.os.Build.VERSION.SDK_INT >= 30 ? c.getExternalFilesDir(null) : null;   // app-private: other apps cannot read the log
             File f = new File(dir, NAME);
             if (dir == null || !(dir.isDirectory() && dir.canWrite())) f = new File(c.getCacheDir(), NAME);
             boolean append = f.exists() && f.length() < MAX;

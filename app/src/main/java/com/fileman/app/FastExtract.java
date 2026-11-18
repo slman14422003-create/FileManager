@@ -45,8 +45,13 @@ final class FastExtract {
             File d = new File(dest, p);
             if (!d.isDirectory() && !d.mkdirs() && !d.isDirectory()) throw new IOException(d.getName());
         }
+        final String root = dest.getCanonicalPath();
         final int count = files.size();
         if (count == 0) return 0;
+        for (String p : parents) {
+            if (!new File(dest, p).getCanonicalPath().startsWith(root + File.separator)
+                    && !new File(dest, p).getCanonicalPath().equals(root)) throw new IOException("unsafe entry name");
+        }
         final AtomicInteger next = new AtomicInteger();
         final AtomicInteger done = new AtomicInteger();
         final AtomicLong used = new AtomicLong();
@@ -71,6 +76,10 @@ final class FastExtract {
                 while (fail.get() == null && !host.cancelled() && (i = next.getAndIncrement()) < count) {
                     Arc.Item it = files.get(i);
                     File out = new File(dest, names.get(i));
+                    File par = out.getParentFile();
+                    if (par == null || !out.getCanonicalPath().equals(new File(par.getCanonicalPath(), out.getName()).getPath())
+                            || !out.getCanonicalPath().startsWith(root + File.separator))
+                        throw new IOException("unsafe entry name");
                     host.name(it.name);
                     try (InputStream in = arc.stream(it)) {
                         long left = Math.max(0L, room - used.get());

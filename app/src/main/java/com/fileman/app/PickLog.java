@@ -27,10 +27,12 @@ final class PickLog {
         try {
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
-            pw.println(new SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US).format(new Date()) + "  " + what);
+            String line = what == null ? "" : what.replaceAll("[\\p{Cntrl}]", "_");
+            if (line.length() > 600) line = line.substring(0, 600);
+            pw.println(new SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US).format(new Date()) + "  " + line);
             if (e != null) e.printStackTrace(pw);
             pw.flush();
-            File dir = c.getExternalFilesDir(null);   // app-private: other apps cannot read the log
+            File dir = android.os.Build.VERSION.SDK_INT >= 30 ? c.getExternalFilesDir(null) : null;   // app-private: other apps cannot read the log
             File f = new File(dir, NAME);
             if (dir == null || !(dir.isDirectory() && dir.canWrite())) f = new File(c.getCacheDir(), NAME);
             if (f.exists() && f.length() > MAX) //noinspection ResultOfMethodCallIgnored

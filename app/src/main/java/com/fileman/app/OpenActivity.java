@@ -162,7 +162,7 @@ public class OpenActivity extends Activity {
         if (cd != null) {
             for (int k = 0; k < cd.getItemCount(); k++) {
                 Uri u = cd.getItemAt(k).getUri();
-                if (u != null && !out.contains(u)) out.add(u);
+                if (u != null && "content".equals(u.getScheme()) && !out.contains(u)) out.add(u);
             }
         }
         return out;

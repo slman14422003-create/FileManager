@@ -60,6 +60,26 @@ public abstract class BaseActivity extends AppCompatActivity {
         if (savedInstanceState == null && !(this instanceof HomeActivity)) Motion.enterScreen(this);
     }
 
+    /** Screens that handle back themselves enable their callback only while needed, so the system's live back preview works otherwise. */
+    protected void syncBack() {
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent ev) {
+        boolean r = super.dispatchTouchEvent(ev);
+        int a = ev.getActionMasked();
+        if (a == android.view.MotionEvent.ACTION_UP || a == android.view.MotionEvent.ACTION_CANCEL) {
+            getWindow().getDecorView().postDelayed(this::syncBack, 150);
+        }
+        return r;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        syncBack();
+    }
+
     /** Screens whose header and bars should blur what scrolls under them. Viewers and capture screens return false. */
     protected boolean glassScreen() {
         return true;

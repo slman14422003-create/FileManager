@@ -78,11 +78,6 @@ public class UsbActivity extends BaseActivity {
 
     private void build() {
         if (isFinishing() || isDestroyed() || root == null) return;
-        if (!Volumes.isMounted(this, root)) {
-            Toast.makeText(this, R.string.usb_removed, Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
         final int mine = ++token;
         final Volumes.Vol vol = volOf();
         final int side = Ui.dp(this, 16);
@@ -111,7 +106,15 @@ public class UsbActivity extends BaseActivity {
         holder.addView(sv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         new Thread(() -> {
-            File[] all = root.listFiles();
+            File[] all = root.exists() && root.canRead() ? root.listFiles() : null;
+            if (all == null) {   // drive gone (checked off the UI thread: a removed USB drive can block)
+                ui.post(() -> {
+                    if (isFinishing() || isDestroyed() || mine != token) return;
+                    Toast.makeText(this, R.string.usb_removed, Toast.LENGTH_SHORT).show();
+                    finish();
+                });
+                return;
+            }
             final List<File> items = new ArrayList<>();
             if (all != null) {
                 for (File f : all) {
@@ -120,13 +123,26 @@ public class UsbActivity extends BaseActivity {
                     items.add(f);
                 }
             }
+            final java.util.HashMap<File, Boolean> isDir = new java.util.HashMap<>();
+            final java.util.HashMap<File, String> lower = new java.util.HashMap<>();
+            for (File f : items) {
+                isDir.put(f, f.isDirectory());
+                lower.put(f, f.getName().toLowerCase(Locale.ROOT));
+            }
             Collections.sort(items, (x, y) -> {
-                if (x.isDirectory() != y.isDirectory()) return x.isDirectory() ? -1 : 1;
-                return x.getName().toLowerCase(Locale.ROOT).compareTo(y.getName().toLowerCase(Locale.ROOT));
+                boolean dx = isDir.get(x), dy = isDir.get(y);
+                if (dx != dy) return dx ? -1 : 1;
+                return lower.get(x).compareTo(lower.get(y));
             });
+            final java.util.HashMap<File, Long> sizes = new java.util.HashMap<>();
+            int shownN = Math.min(items.size(), MAX_ITEMS);
+            for (int i = 0; i < shownN; i++) {
+                File f = items.get(i);
+                if (!isDir.get(f)) sizes.put(f, f.length());
+            }
             ui.post(() -> {
                 if (isFinishing() || isDestroyed() || mine != token) return;
-                fill(list, items);
+                fill(list, items, isDir, sizes);
             });
         }).start();
     }
@@ -220,7 +236,8 @@ public class UsbActivity extends BaseActivity {
         return card;
     }
 
-    private void fill(LinearLayout list, List<File> items) {
+    private void fill(LinearLayout list, List<File> items, java.util.Map<File, Boolean> isDir,
+                      java.util.Map<File, Long> sizes) {
         list.removeAllViews();
         if (items.isEmpty()) {
             TextView t = new TextView(this);
@@ -233,16 +250,16 @@ public class UsbActivity extends BaseActivity {
             return;
         }
         int n = Math.min(items.size(), MAX_ITEMS);
-        for (int i = 0; i < n; i++) list.addView(row(items.get(i)));
+        for (int i = 0; i < n; i++) list.addView(row(items.get(i), isDir.get(items.get(i)), sizes.get(items.get(i))));
     }
 
-    private View row(final File f) {
+    private View row(final File f, final boolean dir, Long size) {
         LinearLayout r = new LinearLayout(this);
         r.setOrientation(LinearLayout.HORIZONTAL);
         r.setGravity(Gravity.CENTER_VERTICAL);
         r.setPadding(Ui.dp(this, 16), Ui.dp(this, 12), Ui.dp(this, 16), Ui.dp(this, 12));
         ImageView ic = new ImageView(this);
-        ic.setImageResource(f.isDirectory() ? R.drawable.ic_folder : R.drawable.ic_file);
+        ic.setImageResource(dir ? R.drawable.ic_folder : R.drawable.ic_file);
         ic.setColorFilter(Ui.color(this, R.color.accent));
         r.addView(ic, new LinearLayout.LayoutParams(Ui.dp(this, 26), Ui.dp(this, 26)));
         TextView n = new TextView(this);
@@ -256,16 +273,16 @@ public class UsbActivity extends BaseActivity {
         np.setMarginStart(Ui.dp(this, 14));
         np.setMarginEnd(Ui.dp(this, 10));
         r.addView(n, np);
-        if (f.isFile()) {
+        if (!dir) {
             TextView s = new TextView(this);
-            s.setText(Fmt.size(f.length()));
+            s.setText(Fmt.size(size == null ? 0L : size));
             s.setTextSize(12);
             s.setTextColor(Ui.color(this, R.color.text_secondary));
             r.addView(s);
         }
         Ui.press(this, r);
         r.setOnClickListener(v -> {
-            if (f.isDirectory()) {
+            if (dir) {
                 startActivity(new Intent(this, FileManagerActivity.class).putExtra("path", f.getAbsolutePath()));
             } else {
                 Opener.open(this, f);

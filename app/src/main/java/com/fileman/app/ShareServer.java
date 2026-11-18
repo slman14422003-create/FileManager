@@ -69,12 +69,28 @@ final class ShareServer {
         while (running) {
             try {
                 final SocketChannel ch = server.accept();
+                if (!localPeer(ch.socket().getInetAddress()) || conns.size() >= 64) {
+                    try {
+                        ch.close();
+                    } catch (IOException ignored) {
+                    }
+                    continue;
+                }
                 conns.add(ch);
                 pool.execute(() -> serve(ch));
             } catch (IOException e) {
                 if (!running) return;
             }
         }
+    }
+
+    /** The server listens on every interface; only peers on a private, link-local or loopback address may talk to it. */
+    private static boolean localPeer(java.net.InetAddress a) {
+        if (a == null) return false;
+        if (a.isLoopbackAddress() || a.isSiteLocalAddress() || a.isLinkLocalAddress()) return true;
+        byte[] b = a.getAddress();
+        if (b.length == 16) return (b[0] & 0xFE) == 0xFC;   // IPv6 unique local fc00::/7
+        return false;
     }
 
     void stop() {
@@ -156,7 +172,7 @@ final class ShareServer {
                 s.setReceiveBufferSize(ShareProto.BUF * 2);
             } catch (Exception ignored) {
             }
-            s.setSoTimeout(300000);
+            s.setSoTimeout(10000);
             ip = s.getInetAddress() == null ? "" : s.getInetAddress().getHostAddress();
             DataInputStream in = new DataInputStream(new BufferedInputStream(s.getInputStream(), 8192));
             DataOutputStream out = new DataOutputStream(new BufferedOutputStream(s.getOutputStream(), 65536));
@@ -165,11 +181,18 @@ final class ShareServer {
             byte[] got = new byte[16];
             in.readFully(got);
             String peerName = in.readUTF();
-            if (!MessageDigest.isEqual(got, token)) {
+            if (peerName.length() > 64) peerName = peerName.substring(0, 64);
+            peerName = peerName.replaceAll("[\\p{Cntrl}]", "_");
+            if (token == null || !MessageDigest.isEqual(got, token)) {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException ignored) {
+                }
                 out.writeByte(ShareProto.DENIED);
                 out.flush();
                 return;
             }
+            s.setSoTimeout(300000);
             out.writeByte(ShareProto.OK);
             out.writeUTF(deviceName);
             out.flush();
@@ -212,7 +235,7 @@ final class ShareServer {
                         }
                         long size = it.size;
                         if (off < 0 || off > size) off = size;
-                        if (len < 0 || off + len > size) len = size - off;
+                        if (len < 0 || len > size - off) len = size - off;
                         out.writeByte(ShareProto.OK);
                         out.writeLong(len);
                         out.flush();
@@ -304,6 +327,7 @@ final class ShareServer {
         File dest = null;
         File part = null;
         boolean ok = false;
+        boolean reserved = false;
         if (rel != null && size >= 0 && receiveDir != null) {
             File target = new File(receiveDir, rel);
             File parent = target.getParentFile();
@@ -315,8 +339,12 @@ final class ShareServer {
             }
             if (inside && size > receiveDir.getUsableSpace()) inside = false;
             if (inside) {
-                dest = uniqueFile(target);
-                part = new File(dest.getParentFile(), dest.getName() + ".fmpart");
+                dest = reserve(target);
+                if (dest != null) {
+                    reserved = true;
+                    part = new File(dest.getParentFile(), dest.getName() + ".fmpart");
+                    if (part.exists()) part.delete();
+                }
             }
         }
         byte[] buf = new byte[ShareProto.BUF];
@@ -346,6 +374,9 @@ final class ShareServer {
             if (!ok && part != null) {
                 part.delete();
             }
+            if (!ok && reserved && dest != null && dest.length() == 0) {
+                dest.delete();
+            }
         }
         out.writeByte(ok ? ShareProto.OK : ShareProto.ERR);
         out.flush();
@@ -353,6 +384,19 @@ final class ShareServer {
             Listener l = listener;
             if (l != null) l.onReceived(dest);
         }
+    }
+
+    /** Picks a free name and creates it empty in one step, so two uploads of the same name cannot end up on one file. */
+    private static synchronized File reserve(File target) {
+        for (int i = 0; i < 1000; i++) {
+            File f = uniqueFile(target);
+            try {
+                if (f.createNewFile()) return f;
+            } catch (IOException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     static File uniqueFile(File f) {

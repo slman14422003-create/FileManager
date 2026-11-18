@@ -288,11 +288,12 @@ public class HomeActivity extends BaseActivity {
         for (File f : arr) {
             if (stop.get() || budget[0] <= 0) return;
             budget[0]--;
-            if (f.isDirectory()) {
+            long[] st = Cats.stat(f);
+            if (st != null ? st[0] == 1 : f.isDirectory()) {
                 if (!Cats.isLink(f)) dirTotals(f, count, size, budget, depth + 1);
             } else {
                 count[0]++;
-                size[0] += f.length();
+                size[0] += st != null ? st[1] : f.length();
             }
         }
     }

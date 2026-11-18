@@ -117,6 +117,10 @@ public class FileManagerActivity extends BaseActivity {
         /** Number of items in a folder: KIDS_UNKNOWN until it has been counted in the background, -1 when unreadable. */
         volatile int kids;
         final String ext;
+        /** Formatted modified date, filled on first bind (UI thread only). */
+        String dateStr;
+        /** Formatted size and thumbnail cache key, filled on first bind (UI thread only). */
+        String sizeStr, thumbKey, pathStr;
 
         Entry(File f) {
             this.f = f;
@@ -183,7 +187,15 @@ public class FileManagerActivity extends BaseActivity {
     }
 
     private final ExecutorService io = Executors.newFixedThreadPool(3);
-    private final ExecutorService thumbIo = Executors.newFixedThreadPool(2, r -> new Thread(() -> {
+    // newest request first: after a fast scroll the rows on screen are decoded before the ones already scrolled past
+    private final ExecutorService thumbIo = new java.util.concurrent.ThreadPoolExecutor(2, 2, 0L,
+            java.util.concurrent.TimeUnit.MILLISECONDS,
+            new java.util.concurrent.LinkedBlockingDeque<Runnable>() {
+                @Override
+                public boolean offer(Runnable r) {
+                    return offerFirst(r);
+                }
+            }, r -> new Thread(() -> {
         android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
         r.run();
     }, "thumb"));
@@ -201,6 +213,8 @@ public class FileManagerActivity extends BaseActivity {
     /** Views of one list row, found once when the row is inflated instead of on every bind. */
     private static final class RowViews {
         String path;
+        int iconRes, chipArgb;
+        boolean chipSet;
         ImageView icon, thumb;
         TextView title, sub, date;
         View pin, fav, check;
@@ -500,12 +514,13 @@ public class FileManagerActivity extends BaseActivity {
                     if (uris != null && !uris.isEmpty()) importUris(uris);
                 });
 
-        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+        fmBack = new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
                 onBack();
             }
-        });
+        };
+        getOnBackPressedDispatcher().addCallback(this, fmBack);
 
         lastGranted = Perms.hasAllFiles(this);
         File start = null;
@@ -897,6 +912,24 @@ public class FileManagerActivity extends BaseActivity {
             if (imm != null) imm.hideSoftInputFromWindow(searchView.getWindowToken(), 0);
             searchView.clearFocus();
             if (!searchView.getText().toString().isEmpty()) searchView.setText("");
+        }
+    }
+
+    private OnBackPressedCallback fmBack;
+
+    /** The system back preview (live screen transition) is only blocked while this screen has something of its own to undo. */
+    @Override
+    protected void syncBack() {
+        try {
+            if (fmBack == null) return;
+            boolean busy = drawerRoot.isDrawerOpen(placesPanel) || searchOpen || searchView.hasFocus()
+                    || !selected.isEmpty() || mode != M_DIR || !query.isEmpty();
+            if (!busy && !isVolumeRoot(cur)) {
+                File p = cur.getParentFile();
+                busy = p != null && p.canRead();
+            }
+            fmBack.setEnabled(busy);
+        } catch (Throwable ignored) {
         }
     }
 
@@ -1750,21 +1783,30 @@ public class FileManagerActivity extends BaseActivity {
                 h = (RowViews) v.getTag(R.id.tag_holder);
             }
             final Entry e = shown.get(pos);
-            final String path = e.f.getAbsolutePath();
+            if (e.pathStr == null) e.pathStr = e.f.getAbsolutePath();
+            final String path = e.pathStr;
             h.path = path;
             h.thumb.animate().cancel();
             h.thumb.setAlpha(1f);
             boolean sel = selected.contains(path);
             int type = typeOf(e);
-            int color = Ui.color(FileManagerActivity.this, e.dir ? R.color.accent : colorFor(type));
-
             ImageView icon = h.icon;
             ImageView thumb = h.thumb;
-            icon.setImageResource(iconFor(type));
-            Ui.iconChip(FileManagerActivity.this, icon,
-                    Ui.color(FileManagerActivity.this, e.dir ? R.color.info : chipColorFor(type)));
+            int iconRes = iconFor(type);
+            if (h.iconRes != iconRes) {
+                h.iconRes = iconRes;
+                icon.setImageResource(iconRes);
+            }
+            int chip = Ui.color(FileManagerActivity.this, e.dir ? R.color.info : chipColorFor(type));
+            if (!h.chipSet || h.chipArgb != chip) {
+                h.chipSet = true;
+                h.chipArgb = chip;
+                Ui.iconChip(FileManagerActivity.this, icon, chip);
+            }
             thumb.setTag(path);
-            Bitmap cached = (type == T_IMG || type == T_APK || type == T_VID) ? thumbs.get(path + "|" + e.mod) : null;
+            boolean thumbable = type == T_IMG || type == T_APK || type == T_VID;
+            if (thumbable && e.thumbKey == null) e.thumbKey = path + "|" + e.mod;
+            Bitmap cached = thumbable ? thumbs.get(e.thumbKey) : null;
             if (cached != null) {
                 thumb.setImageBitmap(cached);
                 thumb.setVisibility(View.VISIBLE);
@@ -1780,14 +1822,16 @@ public class FileManagerActivity extends BaseActivity {
             if (e.dir) {
                 sub.append(e.kids == KIDS_UNKNOWN ? "\u2026" : e.kids < 0 ? getString(R.string.fm_unreadable) : getString(R.string.fm_items_n, e.kids));
             } else {
-                sub.append(Fmt.size(e.size));
+                if (e.sizeStr == null) e.sizeStr = Fmt.size(e.size);
+                sub.append(e.sizeStr);
             }
             if (mode != M_DIR) {
                 File p = e.f.getParentFile();
                 if (p != null) sub.append(" · ").append(p.getAbsolutePath());
             }
             h.sub.setText(sub.toString());
-            h.date.setText(dateFmt.format(new Date(e.mod)));
+            if (e.dateStr == null) e.dateStr = dateFmt.format(new Date(e.mod));
+            h.date.setText(e.dateStr);
 
             h.pin.setVisibility(pinSet().contains(path) ? View.VISIBLE : View.GONE);
             h.fav.setVisibility(favSet().contains(path) ? View.VISIBLE : View.GONE);
@@ -1808,9 +1852,11 @@ public class FileManagerActivity extends BaseActivity {
         final String key = path + "|" + e.mod;
         thumbIo.execute(() -> {
             if (!path.equals(thumb.getTag())) return;   // scrolled away before we got to it
-            Bitmap b = null;
+            Bitmap b = thumbs.get(key);   // an earlier duplicate request may have finished already
             try {
-                if (type == T_IMG) {
+                if (b != null) {
+                    // nothing to decode
+                } else if (type == T_IMG) {
                     BitmapFactory.Options o = new BitmapFactory.Options();
                     o.inJustDecodeBounds = true;
                     BitmapFactory.decodeFile(path, o);
@@ -1831,6 +1877,7 @@ public class FileManagerActivity extends BaseActivity {
                                     ? Bitmap.createScaledBitmap(frame, Math.max(1, frame.getWidth() * 192 / max),
                                     Math.max(1, frame.getHeight() * 192 / max), true)
                                     : frame;
+                            if (b != frame) frame.recycle();
                         }
                     } finally {
                         try {
@@ -2246,6 +2293,7 @@ public class FileManagerActivity extends BaseActivity {
             add(labels, ids, getString(R.string.pdf_convert), 10);
         }
         add(labels, ids, getString(R.string.fm_compress), 4);
+        if (anyFile) add(labels, ids, getString(R.string.v_menu_protect), 12);
         if (isZip) {
             add(labels, ids, getString(R.string.fm_extract_here), 5);
             add(labels, ids, getString(R.string.fm_extract_folder), 6);
@@ -2296,6 +2344,12 @@ public class FileManagerActivity extends BaseActivity {
                         case 11:
                             DocEditActivity.open(this, one);
                             break;
+                        case 12:
+                            VaultActivity.protect(this, files, () -> {
+                                clearSelection();
+                                refresh();
+                            });
+                            break;
                         default:
                             copyText(one.getAbsolutePath());
                             break;
@@ -2326,6 +2380,8 @@ public class FileManagerActivity extends BaseActivity {
             case 10:
             case 11:
                 return R.drawable.ic_file_text;
+            case 12:
+                return R.drawable.ic_lock;
             default:
                 return R.drawable.ic_copy;
         }

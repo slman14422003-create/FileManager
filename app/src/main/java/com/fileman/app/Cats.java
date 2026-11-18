@@ -3,6 +3,7 @@ package com.fileman.app;
 import android.content.ContentResolver;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.provider.OpenableColumns;
 import android.webkit.MimeTypeMap;
 
@@ -225,6 +226,21 @@ public final class Cats {
 
     // ------------------------------------------------------------------ helpers
 
+    /**
+     * Type, size and modified time of a path with one stat call: {isDir (0/1), size, modified}. Null when it cannot
+     * be read that way (old Android, broken link): callers then fall back to the File methods.
+     */
+    static long[] stat(File f) {
+        if (Build.VERSION.SDK_INT < 26) return null;
+        try {
+            java.nio.file.attribute.BasicFileAttributes a = java.nio.file.Files.readAttributes(
+                    f.toPath(), java.nio.file.attribute.BasicFileAttributes.class);
+            return new long[]{a.isDirectory() ? 1 : 0, a.size(), Math.max(0L, a.lastModifiedTime().toMillis())};
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     public static boolean isLink(File f) {
         return Wipe.isLink(f);
     }
@@ -256,6 +272,11 @@ public final class Cats {
         public Hit(File f) {
             this.f = f;
             this.mod = f.lastModified();
+        }
+
+        Hit(File f, long mod) {
+            this.f = f;
+            this.mod = mod;
         }
     }
 
@@ -346,19 +367,23 @@ public final class Cats {
     }
 
     private static void addFile(File f, String n, Stats st, PriorityQueue<Hit> heap, int keep) {
+        addFile(f, n, st, heap, keep, f.length(), -1L);
+    }
+
+    /** len is already known; mod is -1 when it has not been read yet. */
+    private static void addFile(File f, String n, Stats st, PriorityQueue<Hit> heap, int keep, long len, long knownMod) {
         String ext = extOf(n);
-        long len = f.length();
         int t = typeOfExt(ext);
         st.count[t]++;
         st.size[t] += len;
         if (t != T_OTHER || len > 0) {
-            long mod = f.lastModified();
+            long mod = knownMod >= 0 ? knownMod : f.lastModified();
             if (mod >= st.newSince) {
                 st.newCount++;
                 st.newSize += len;
             }
             if (heap.size() < keep || mod > heap.peek().mod) {
-                heap.add(new Hit(f));
+                heap.add(new Hit(f, mod));
                 if (heap.size() > keep) heap.poll();
             }
         }
@@ -374,6 +399,22 @@ public final class Cats {
             String n = f.getName();
             if (!hidden && n.startsWith(".")) continue;
             budget[0]--;
+            // one stat call for type, size and date: on the FUSE-backed storage each File.isDirectory / length / lastModified is a separate IPC
+            if (Build.VERSION.SDK_INT >= 26) {
+                java.nio.file.attribute.BasicFileAttributes a = null;
+                try {
+                    a = java.nio.file.Files.readAttributes(f.toPath(), java.nio.file.attribute.BasicFileAttributes.class);
+                } catch (Throwable ignored) {
+                }
+                if (a != null) {
+                    if (a.isDirectory()) {
+                        if (!isLink(f)) walk(f, hidden, st, heap, keep, budget, stop, depth + 1);
+                    } else {
+                        addFile(f, n, st, heap, keep, a.size(), Math.max(0L, a.lastModifiedTime().toMillis()));
+                    }
+                    continue;
+                }
+            }
             if (f.isDirectory()) {
                 if (!isLink(f)) walk(f, hidden, st, heap, keep, budget, stop, depth + 1);
                 continue;

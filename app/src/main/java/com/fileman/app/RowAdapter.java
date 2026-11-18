@@ -69,8 +69,13 @@ public class RowAdapter extends BaseAdapter {
     public static void bind(Context ctx, View v, Row r) {
         Ui.press(ctx, v.findViewById(R.id.card));
         ImageView icon = v.findViewById(R.id.icon);
-        icon.setImageResource(r.icon);
-        Ui.iconChip(ctx, icon, r.iconColor != 0 ? r.iconColor : Ui.color(ctx, R.color.info));
+        int chip = r.iconColor != 0 ? r.iconColor : Ui.color(ctx, R.color.info);
+        Long iconKey = ((long) r.icon << 32) | (chip & 0xFFFFFFFFL);
+        if (!iconKey.equals(icon.getTag())) {   // recycled rows often keep the same icon: no relayout then
+            icon.setTag(iconKey);
+            icon.setImageResource(r.icon);
+            Ui.iconChip(ctx, icon, chip);
+        }
 
         ((TextView) v.findViewById(R.id.title)).setText(r.title);
 
@@ -88,10 +93,16 @@ public class RowAdapter extends BaseAdapter {
         } else {
             badge.setText(r.badge);
             badge.setTextColor(r.badgeColor);
-            GradientDrawable g = new GradientDrawable();
-            g.setCornerRadius(Ui.dp(ctx, 100));
+            android.graphics.drawable.Drawable old = badge.getBackground();
+            GradientDrawable g;
+            if (old instanceof GradientDrawable) {
+                g = (GradientDrawable) old;
+            } else {
+                g = new GradientDrawable();
+                g.setCornerRadius(Ui.dp(ctx, 100));
+            }
             g.setColor((r.badgeColor & 0x00FFFFFF) | 0x26000000);
-            badge.setBackground(g);
+            if (old != g) badge.setBackground(g);
             badge.setVisibility(View.VISIBLE);
         }
 

@@ -134,6 +134,8 @@ final class ShareDownload {
     private void plan(boolean skipExisting) {
         List<ShareItem> batch = new ArrayList<>();
         long batchBytes = 0;
+        Set<String> taken = new java.util.HashSet<>();
+        long room = -1;
         for (ShareItem it : items) {
             if (cancelled) return;
             File dest;
@@ -144,6 +146,7 @@ final class ShareDownload {
                 done.addAndGet(Math.max(0, it.size));
                 continue;
             }
+            if (room < 0) room = dir.getUsableSpace();
             if (dest.exists()) {
                 if (skipExisting && dest.length() == it.size) {
                     filesSkipped.incrementAndGet();
@@ -153,6 +156,21 @@ final class ShareDownload {
                 }
                 dest = ShareServer.uniqueFile(dest);
             }
+            // two entries with the same name must not share one destination (or one .fmpart file)
+            for (int k = 1; !taken.add(dest.getPath()) && k < 100000; k++) {
+                String nm = dest.getName();
+                int dot = nm.lastIndexOf('.');
+                String stem = dot > 0 ? nm.substring(0, dot) : nm;
+                String ext = dot > 0 ? nm.substring(dot) : "";
+                dest = new File(dest.getParentFile(), stem + " (" + k + ")" + ext);
+            }
+            // sizes come from the other device: never reserve more than the free space (sparse pre-allocation, disk fill)
+            if (it.size > room) {
+                filesFailed.incrementAndGet();
+                done.addAndGet(Math.max(0, it.size));
+                continue;
+            }
+            room -= Math.max(0, it.size);
             dests.put(it.id, dest);
             if (it.size <= 0) {
                 try {
@@ -352,11 +370,13 @@ final class ShareDownload {
                     continue;
                 }
                 long size = c.in.readLong();
+                if (size < 0 || size != it.size) throw new IOException("length");
                 File dest = dests.get(it.id);
                 if (dest == null) throw new IOException("dest");
                 File part = new File(dest.getParentFile(), dest.getName() + ".fmpart");
                 active.put(it.id, it.rel);
                 long got = 0;
+                if (part.exists()) part.delete();
                 try (FileOutputStream fo = new FileOutputStream(part)) {
                     long left = size;
                     while (left > 0) {

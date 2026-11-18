@@ -58,6 +58,8 @@ public class ZipBrowseActivity extends BaseActivity {
         long size, packed, time;
         int kids;
         Arc.Item item;
+        String lower;      // lower-cased name for searching, set while the archive is read
+        String subBase;    // formatted "size . date" / "N items", built on first bind
     }
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
@@ -219,6 +221,7 @@ public class ZipBrowseActivity extends BaseActivity {
                     if (last && !dir) {
                         Node f = new Node();
                         f.name = parts[i];
+                        f.lower = parts[i].toLowerCase(Locale.ROOT);
                         f.path = full;
                         f.size = Math.max(0, e.size);
                         f.packed = Math.max(0, e.packed);
@@ -231,6 +234,7 @@ public class ZipBrowseActivity extends BaseActivity {
                     } else if (!dirs.containsKey(full)) {
                         Node d = new Node();
                         d.name = parts[i];
+                        d.lower = parts[i].toLowerCase(Locale.ROOT);
                         d.path = full;
                         d.dir = true;
                         d.time = last ? e.time : 0;
@@ -287,7 +291,7 @@ public class ZipBrowseActivity extends BaseActivity {
         if (!query.isEmpty()) {
             for (List<Node> l : tree.values()) {
                 for (Node n : l) {
-                    if (n.name.toLowerCase(Locale.ROOT).contains(query)) shown.add(n);
+                    if (n.lower.contains(query)) shown.add(n);
                     if (shown.size() >= 500) break;
                 }
                 if (shown.size() >= 500) break;
@@ -298,9 +302,8 @@ public class ZipBrowseActivity extends BaseActivity {
             if (l != null) shown.addAll(l);
         }
         selected.clear();
-        adapter.notifyDataSetChanged();
         list.setSelection(0);
-        refreshChrome();
+        refreshChrome();   // notifies the adapter
     }
 
     private void styleExtract() {
@@ -434,15 +437,20 @@ public class ZipBrowseActivity extends BaseActivity {
             View v = convertView != null ? convertView
                     : android.view.LayoutInflater.from(ZipBrowseActivity.this).inflate(R.layout.item_row, parent, false);
             Node n = shown.get(position);
-            int type = n.dir ? Cats.T_DIR : Cats.typeOfExt(Cats.extOf(n.name));
-            String sub = n.dir ? getString(R.string.fm_items_n, n.kids)
-                    : Fmt.size(n.size) + (n.time > 0 ? " · " + Fmt.date(n.time) : "");
+            String ext = Cats.extOf(n.name);
+            int type = n.dir ? Cats.T_DIR : Cats.typeOfExt(ext);
+            String sub = n.subBase;
+            if (sub == null) {   // formatting dates and sizes is costly: once per entry, not once per bind
+                sub = n.dir ? getString(R.string.fm_items_n, n.kids)
+                        : Fmt.size(n.size) + (n.time > 0 ? " · " + Fmt.date(n.time) : "");
+                n.subBase = sub;
+            }
             if (!query.isEmpty()) {
                 int cut = n.path.lastIndexOf('/', n.path.length() - 2);
                 sub = (cut < 0 ? "/" : "/" + n.path.substring(0, cut + 1)) + " · " + sub;
             }
             boolean sel = selected.contains(n.path);
-            Row r = new Row(sel ? R.drawable.ic_check_circle : Cats.iconForExt(Cats.extOf(n.name), type), false, n.name, sub, false, n.dir && !sel)
+            Row r = new Row(sel ? R.drawable.ic_check_circle : Cats.iconForExt(ext, type), false, n.name, sub, false, n.dir && !sel)
                     .tint(Ui.color(ZipBrowseActivity.this, sel ? R.color.accent_text : Cats.colorFor(type)));
             RowAdapter.bind(ZipBrowseActivity.this, v, r);
             Ui.shapeRow(ZipBrowseActivity.this, v, position == 0, position == shown.size() - 1,
@@ -657,16 +665,28 @@ public class ZipBrowseActivity extends BaseActivity {
 
     /** A small folder browser: go into folders, go up, then choose the current one. */
     private void pickFolder(final File start, final Dest d) {
+        try {
+            io.execute(() -> {   // listing a big or removable folder can block: never on the UI thread
+                final File[] kids = start.listFiles(f -> f.isDirectory() && !f.getName().startsWith("."));
+                final List<File> dirs = new ArrayList<>();
+                if (kids != null) Collections.addAll(dirs, kids);
+                Collections.sort(dirs, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+                ui.post(() -> {
+                    if (destroyed || isFinishing() || isDestroyed()) return;
+                    showPickDialog(start, d, dirs);
+                });
+            });
+        } catch (java.util.concurrent.RejectedExecutionException ignored) {
+        }
+    }
+
+    private void showPickDialog(final File start, final Dest d, final List<File> dirs) {
         if (pickDialog != null) {
             try {
                 pickDialog.dismiss();
             } catch (Exception ignored) {
             }
         }
-        final File[] kids = start.listFiles(f -> f.isDirectory() && !f.getName().startsWith("."));
-        final List<File> dirs = new ArrayList<>();
-        if (kids != null) Collections.addAll(dirs, kids);
-        Collections.sort(dirs, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
         final File up = start.getParentFile();
         final boolean canUp = up != null && up.canRead();
         List<String> names = new ArrayList<>();

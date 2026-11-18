@@ -29,9 +29,14 @@ final class SaveCopy {
             }
             File dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
             if (Perms.hasAllFiles(c) && dl != null && (dl.isDirectory() || dl.mkdirs()) && dl.canWrite()) {
-                File out = ExternalDocs.uniqueIn(dl, src.getName(), false);
+                File out = ExternalDocs.uniqueIn(dl, UriFiles.clean(src.getName()), false);
+                boolean ok = false;
                 try (InputStream in = new FileInputStream(src); OutputStream os = new FileOutputStream(out)) {
                     copy(in, os);
+                    ok = true;
+                } finally {
+                    if (!ok) //noinspection ResultOfMethodCallIgnored
+                        out.delete();
                 }
                 return true;
             }
@@ -99,9 +104,14 @@ final class SaveCopy {
             String n = nameOf(c, src);
             if (Perms.hasAllFiles(c) && dir != null && (dir.isDirectory() || dir.mkdirs()) && dir.canWrite()) {
                 File out = ExternalDocs.uniqueIn(dir, n, false);
+                boolean ok = false;
                 try (InputStream in = c.getContentResolver().openInputStream(src); OutputStream os = new FileOutputStream(out)) {
                     if (in == null) return null;
                     copy(in, os);
+                    ok = true;
+                } finally {
+                    if (!ok) //noinspection ResultOfMethodCallIgnored
+                        out.delete();
                 }
                 return out.getName();
             }

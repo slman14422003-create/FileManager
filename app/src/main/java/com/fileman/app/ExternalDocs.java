@@ -179,7 +179,7 @@ public class ExternalDocs extends DocumentsProvider {
             throws FileNotFoundException {
         log("open-start " + mode + " " + documentId, null);
         try {
-            final File f = fileFor(documentId);
+            final File f = fileFor(documentId).getCanonicalFile();   // open the resolved path the check was made on
             int m = ParcelFileDescriptor.parseMode(mode);
             if ((m & ParcelFileDescriptor.MODE_WRITE_ONLY) != 0) {
                 File parent = f.getParentFile();
@@ -192,6 +192,8 @@ public class ExternalDocs extends DocumentsProvider {
         } catch (FileNotFoundException | RuntimeException e) {
             log("open " + mode + " FAILED " + documentId, e);
             throw e;
+        } catch (IOException e) {
+            throw new FileNotFoundException(e.getMessage());
         }
     }
 
@@ -207,7 +209,7 @@ public class ExternalDocs extends DocumentsProvider {
         log("create-start " + parentDocumentId + " name=" + displayName, null);
         File dir = fileFor(parentDocumentId);
         if (!dir.isDirectory()) throw new FileNotFoundException();
-        String name = displayName == null ? "" : displayName.replace('/', '_').trim();
+        String name = displayName == null ? "" : displayName.replace('/', '_').replaceAll("[\\p{Cntrl}]", "_").trim();
         if (name.isEmpty() || name.equals(".") || name.equals("..")) throw new FileNotFoundException();
         File out = uniqueIn(dir, name, Document.MIME_TYPE_DIR.equals(mimeType));
         try {
@@ -243,8 +245,18 @@ public class ExternalDocs extends DocumentsProvider {
         if (f.equals(base()) || !deleteTree(f)) throw new FileNotFoundException();
     }
 
+    private static boolean isLink(File f) {
+        try {
+            File p = f.getParentFile();
+            if (p == null) return false;
+            return !new File(p.getCanonicalPath(), f.getName()).getPath().equals(f.getCanonicalPath());
+        } catch (IOException e) {
+            return true;
+        }
+    }
+
     private static boolean deleteTree(File f) {
-        if (f.isDirectory()) {
+        if (f.isDirectory() && !isLink(f)) {
             File[] kids = f.listFiles();
             if (kids != null) for (File k : kids) if (!deleteTree(k)) return false;
         }
@@ -254,8 +266,8 @@ public class ExternalDocs extends DocumentsProvider {
     @Override
     public String renameDocument(String documentId, String displayName) throws FileNotFoundException {
         File f = fileFor(documentId);
-        String name = displayName == null ? "" : displayName.replace('/', '_').trim();
-        if (name.isEmpty() || f.equals(base())) throw new FileNotFoundException();
+        String name = displayName == null ? "" : displayName.replace('/', '_').replaceAll("[\\p{Cntrl}]", "_").trim();
+        if (name.isEmpty() || name.equals(".") || name.equals("..") || f.equals(base())) throw new FileNotFoundException();
         File to = new File(f.getParentFile(), name);
         if (to.exists() || !f.renameTo(to)) throw new FileNotFoundException();
         return docIdFor(to);

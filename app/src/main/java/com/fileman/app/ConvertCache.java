@@ -80,10 +80,16 @@ final class ConvertCache {
         long total = 0;
         for (File f : all) total += f.length();
         if (total <= MAX_BYTES) return;
-        Arrays.sort(all, Comparator.comparingLong(File::lastModified));
+        final java.util.HashMap<File, Long> mods = new java.util.HashMap<>();
+        final java.util.HashMap<File, Long> lens = new java.util.HashMap<>();
+        for (File f : all) {
+            mods.put(f, f.lastModified());
+            lens.put(f, f.length());
+        }
+        Arrays.sort(all, (a, b) -> Long.compare(mods.get(a), mods.get(b)));
         for (File f : all) {
             if (total <= MAX_BYTES * 3 / 4) break;
-            long len = f.length();
+            long len = lens.get(f);
             if (f.delete()) total -= len;
         }
     }

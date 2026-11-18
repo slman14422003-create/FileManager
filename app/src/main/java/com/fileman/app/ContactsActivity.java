@@ -97,6 +97,8 @@ public class ContactsActivity extends BaseActivity {
     private ListView list;
     private ContactAdapter adapter;
 
+    private final Runnable filterRun = this::applyFilter;
+    private final java.util.IdentityHashMap<Contacts.Card, String> keys = new java.util.IdentityHashMap<>();
     private final LruCache<Contacts.Card, Bitmap> photos = new LruCache<>(48);
     private final Set<Contacts.Card> noPhoto = new HashSet<>();
     private final Set<Contacts.Card> photoLoading = new HashSet<>();
@@ -174,7 +176,8 @@ public class ContactsActivity extends BaseActivity {
 
             @Override
             public void afterTextChanged(Editable s) {
-                applyFilter();
+                ui.removeCallbacks(filterRun);
+                ui.postDelayed(filterRun, 120);
             }
         });
         col.addView(Ui.block(this, search));
@@ -345,6 +348,7 @@ public class ContactsActivity extends BaseActivity {
     // ------------------------------------------------------------------ list
 
     private void refresh() {
+        keys.clear();   // cards may have been edited: search keys are rebuilt lazily
         subtitle.setText(getString(R.string.ct_subtitle, all.size(), Fmt.size(file.length())));
         int total = 0;
         for (int v : fixes.values()) total += v;
@@ -365,7 +369,11 @@ public class ContactsActivity extends BaseActivity {
                 shown.add(c);
                 continue;
             }
-            String key = c.searchKey();
+            String key = keys.get(c);
+            if (key == null) {
+                key = c.searchKey();
+                keys.put(c, key);
+            }
             if (key.contains(q) || (qd.length() >= 2 && key.contains(qd))) shown.add(c);
         }
         adapter.notifyDataSetChanged();
@@ -422,10 +430,16 @@ public class ContactsActivity extends BaseActivity {
             return;
         }
         int col = Ui.color(this, AVATAR_COLORS[(c.display().hashCode() & 0x7fffffff) % AVATAR_COLORS.length]);
-        GradientDrawable g = new GradientDrawable();
-        g.setShape(GradientDrawable.OVAL);
+        android.graphics.drawable.Drawable old = av.getBackground();
+        GradientDrawable g;
+        if (old instanceof GradientDrawable) {
+            g = (GradientDrawable) old;
+        } else {
+            g = new GradientDrawable();
+            g.setShape(GradientDrawable.OVAL);
+        }
         g.setColor((col & 0x00FFFFFF) | 0x26000000);
-        av.setBackground(g);
+        if (old != g) av.setBackground(g);
         av.setTextColor(col);
         av.setText(c.initial());
         if (c.hasPhoto() && !noPhoto.contains(c) && photoLoading.add(c)) {

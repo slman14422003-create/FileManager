@@ -56,6 +56,12 @@ public class DocViewActivity extends BaseActivity {
     private TextView subtitle;
     private ImageButton findBtn;
     private boolean finding = false;
+    private androidx.activity.OnBackPressedCallback findBack;
+
+    @Override
+    protected void syncBack() {
+        if (findBack != null) findBack.setEnabled(finding);
+    }
     private boolean night = false;
     private int zoom = 100;
     private String baseHtml;
@@ -131,7 +137,7 @@ public class DocViewActivity extends BaseActivity {
             Opener.moreMenu(this, file, names.toArray(new String[0]), acts.toArray(new Runnable[0]));
         });
         // find / text size / night mode live in a floating bar over the page (set up after the WebView exists)
-        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+        findBack = new androidx.activity.OnBackPressedCallback(false) {
             @Override
             public void handleOnBackPressed() {
                 if (finding) {
@@ -141,7 +147,8 @@ public class DocViewActivity extends BaseActivity {
                     getOnBackPressedDispatcher().onBackPressed();
                 }
             }
-        });
+        };
+        getOnBackPressedDispatcher().addCallback(this, findBack);
 
         web = new WebView(this);
         web.setFindListener((active, count, done) -> {
@@ -160,6 +167,9 @@ public class DocViewActivity extends BaseActivity {
         s.setAllowContentAccess(false);
         s.setDomStorageEnabled(false);
         s.setBlockNetworkLoads(true);
+        s.setGeolocationEnabled(false);
+        s.setAllowFileAccessFromFileURLs(false);
+        s.setAllowUniversalAccessFromFileURLs(false);
         s.setBuiltInZoomControls(true);
         s.setDisplayZoomControls(false);
         s.setSupportZoom(true);
@@ -174,6 +184,13 @@ public class DocViewActivity extends BaseActivity {
                 if (u.startsWith(BASE) && u.contains("#")) return false;
                 openLink(u);
                 return true;
+            }
+
+            @Override
+            public android.webkit.WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
+                String u = r.getUrl().toString();
+                if (u.startsWith("data:") || u.startsWith(BASE)) return null;
+                return new android.webkit.WebResourceResponse("text/plain", "utf-8", new java.io.ByteArrayInputStream(new byte[0]));
             }
 
             @Override
@@ -377,7 +394,7 @@ public class DocViewActivity extends BaseActivity {
                 .setPositiveButton(R.string.v_find_go, (d, w) -> {
                     String t = q.getText().toString().trim();
                     if (t.isEmpty()) return;
-                    finding = true;
+                    finding = true; syncBack();
                     findBtn.setImageResource(R.drawable.ic_arrow_down);
                     web.findAllAsync(t);
                 })
@@ -386,7 +403,7 @@ public class DocViewActivity extends BaseActivity {
     }
 
     private void stopFind() {
-        finding = false;
+        finding = false; syncBack();
         web.clearMatches();
         findBtn.setImageResource(R.drawable.ic_search);
         subtitle.setText(Cats.extOf(file.getName()).toUpperCase(java.util.Locale.ROOT) + " · " + Fmt.size(file.length()));

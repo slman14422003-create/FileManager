@@ -127,10 +127,12 @@ final class ShareClient {
         if (c.in.readUnsignedByte() != ShareProto.OK) throw new IOException("list");
         listVersion = c.in.readInt();
         int n = c.in.readInt();
+        if (n < 0 || n > ShareProto.MAX_ITEMS) throw new IOException("list");
         List<ShareItem> out = new ArrayList<>(Math.min(n, 100000));
         for (int i = 0; i < n; i++) {
             ShareItem it = new ShareItem();
-            it.id = c.in.readInt();
+            c.in.readInt();
+            it.id = i + 1;   // the server numbers items by position; never trust a repeated or odd id
             it.rel = c.in.readUTF();
             it.size = c.in.readLong();
             it.mtime = c.in.readLong();

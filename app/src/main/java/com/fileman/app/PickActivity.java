@@ -114,7 +114,7 @@ public class PickActivity extends Activity {
     private void finishCreate(String dirPath, String name) {
         PickLog.add(this, "picker create dir=" + dirPath + " name=" + name + " allFiles=" + Perms.hasAllFiles(this)
                 + " sdk=" + Build.VERSION.SDK_INT, null);
-        String n = name == null || name.trim().isEmpty() ? "file" : name.trim().replace('/', '_');
+        String n = UriFiles.clean(name == null ? null : name.trim());
         Uri uri = null;
         boolean durable = true;
         File dir = dirPath == null ? null : new File(dirPath);

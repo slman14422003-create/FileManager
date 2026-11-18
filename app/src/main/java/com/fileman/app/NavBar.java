@@ -84,10 +84,13 @@ final class NavBar {
         Layout.markNav(bar);
         Layout.refreshNav(a);
         Blur.glass(a, bar, 100, Blur.ALPHA_CAPSULE, true);
-        bar.setAlpha(0f);
-        bar.setTranslationY(Ui.dp(a, 16));
-        bar.animate().alpha(1f).translationY(0f).setDuration(260)
-                .setInterpolator(Motion.OUT).start();
+        // switching tabs keeps the bar where it is (no flicker); only a fresh entry slides it in
+        if (!a.getIntent().getBooleanExtra(Motion.EXTRA_FADE, false) && Fx.motion(a)) {
+            bar.setAlpha(0f);
+            bar.setTranslationY(Ui.dp(a, 16));
+            bar.animate().alpha(1f).translationY(0f).setDuration(260)
+                    .setInterpolator(Motion.OUT).start();
+        }
         return bar;
     }
 

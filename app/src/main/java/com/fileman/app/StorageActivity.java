@@ -238,11 +238,12 @@ public class StorageActivity extends BaseActivity {
         if (arr == null) return;
         for (File f : arr) {
             if (budget[0]-- <= 0 || stop.get()) return;
-            if (f.isDirectory()) {
+            long[] st = Cats.stat(f);
+            if (st != null ? st[0] == 1 : f.isDirectory()) {
                 if (depth == 0 && f.getName().equals("Android")) continue;
                 if (!Cats.isLink(f)) findBig(f, out, budget, depth + 1, stop);
             } else {
-                long len = f.length();
+                long len = st != null ? st[1] : f.length();
                 if (len >= THRESH[0]) out.add(new Big(f, len));
             }
         }
@@ -253,7 +254,10 @@ public class StorageActivity extends BaseActivity {
         File[] k = d.listFiles();
         if (k == null) return d.length();
         long t = 0;
-        for (File f : k) t += f.isDirectory() ? dirSize(f) : f.length();
+        for (File f : k) {
+            long[] st = Cats.stat(f);
+            t += (st != null ? st[0] == 1 : f.isDirectory()) ? dirSize(f) : (st != null ? st[1] : f.length());
+        }
         return t;
     }
 
@@ -819,11 +823,16 @@ public class StorageActivity extends BaseActivity {
         content.addView(cacheAnchor);
         addRow(new Row(R.drawable.ic_delete, false, getString(R.string.sa_clean_own),
                 getString(usage ? R.string.sa_cache_apps : R.string.sa_cache_own), false, false), v -> {
-            long before = dirSize(getCacheDir()) + dirSize(getExternalCacheDir());
-            deleteContents(getCacheDir());
-            deleteContents(getExternalCacheDir());
-            Toast.makeText(this, getString(R.string.sa_cleaned, Fmt.size(before)), Toast.LENGTH_SHORT).show();
-            load(true);
+            pool.execute(() -> {   // walking and deleting the cache folders is disk work: not on the UI thread
+                final long before = dirSize(getCacheDir()) + dirSize(getExternalCacheDir());
+                deleteContents(getCacheDir());
+                deleteContents(getExternalCacheDir());
+                ui.post(() -> {
+                    if (destroyed) return;
+                    Toast.makeText(this, getString(R.string.sa_cleaned, Fmt.size(before)), Toast.LENGTH_SHORT).show();
+                    load(true);
+                });
+            });
         });
     }
 

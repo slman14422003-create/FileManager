@@ -110,18 +110,35 @@ final class PkgInstaller {
     static File fromUri(Context c, android.net.Uri u) throws IOException {
         if ("file".equals(u.getScheme()) && u.getPath() != null) {
             File f = new File(u.getPath());
-            if (f.isFile() && f.canRead()) return f;
+            if (f.isFile() && f.canRead() && Safe.mayExpose(c, f)) return f;
+            throw new IOException("blocked");
         }
+        if (!"content".equals(u.getScheme())) throw new IOException("scheme");
         File dir = new File(c.getCacheDir(), "inst");
         //noinspection ResultOfMethodCallIgnored
         dir.mkdirs();
-        File out = new File(dir, "incoming.pkg");
+        File out = File.createTempFile("incoming", ".pkg", dir);
         long expected = sizeOf(c, u);
         long free = freeBytes();
         if (expected > 0 && free >= 0 && free < expected * 2 + (32L << 20)) throw new NoSpace();
         InputStream in = c.getContentResolver().openInputStream(u);
         if (in == null) throw new IOException("no stream");
-        copy(in, new FileOutputStream(out), null);
+        long cap = Math.max(0L, (free >= 0 ? free : (1L << 40)) - (32L << 20));
+        boolean ok = false;
+        try (InputStream i = in; OutputStream o = new FileOutputStream(out)) {
+            byte[] buf = new byte[1 << 16];
+            int r;
+            long n = 0;
+            while ((r = i.read(buf)) > 0) {
+                n += r;
+                if (n > cap) throw new NoSpace();
+                o.write(buf, 0, r);
+            }
+            ok = true;
+        } finally {
+            if (!ok) //noinspection ResultOfMethodCallIgnored
+                out.delete();
+        }
         return out;
     }
 
@@ -162,6 +179,8 @@ final class PkgInstaller {
             try (ZipReader z = ZipReader.open(f)) {
                 ZipReader.Entry ze = z.find(pickBase(in.entries));
                 if (ze == null) throw new IOException("base missing");
+                long free = freeBytes();
+                if (free >= 0 && ze.size > free - (32L << 20)) throw new NoSpace();   // declared size of a hostile bundle
                 copy(z.open(ze), new FileOutputStream(apk), null);
             }
         }
@@ -555,6 +574,7 @@ final class PkgInstaller {
     static int copyObb(Context c, Info in, Progress pr) throws IOException {
         if (in.obbEntries.isEmpty() || in.pkg.isEmpty()) return 0;
         if (!Perms.hasAllFiles(c)) throw new IOException("no all-files access");
+        if (!in.pkg.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*")) throw new IOException("bad package name");
         File dir = new File(Environment.getExternalStorageDirectory(), "Android/obb/" + in.pkg);
         if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("cannot create " + dir);
         long total = 0;
@@ -570,7 +590,7 @@ final class PkgInstaller {
                 ZipReader.Entry ze = z.find(name);
                 if (ze == null) continue;
                 String leaf = name.substring(name.lastIndexOf('/') + 1);
-                if (leaf.isEmpty() || leaf.contains("..")) continue;
+                if (leaf.isEmpty() || leaf.contains("..") || leaf.equals(".") || !leaf.matches("[A-Za-z0-9._+()\\- ]{1,200}")) continue;
                 File out = new File(dir, leaf);
                 File part = new File(dir, leaf + ".part");
                 try (InputStream is = z.open(ze); OutputStream os = new FileOutputStream(part)) {

@@ -218,7 +218,9 @@ final class SmartScan {
                 }
                 for (List<File> g : full.values()) {
                     if (g.size() < 2) continue;
-                    Collections.sort(g, (a, b) -> Long.compare(a.lastModified(), b.lastModified()));
+                    final Map<File, Long> mods = new HashMap<>();
+                    for (File gf : g) mods.put(gf, gf.lastModified());
+                    Collections.sort(g, (a, b) -> Long.compare(mods.get(a), mods.get(b)));
                     File keep = g.get(0);
                     for (int i = 1; i < g.size(); i++) {
                         r.items.add(new Item(g.get(i), K_DUP, e.getKey(), keep.getName(), true));

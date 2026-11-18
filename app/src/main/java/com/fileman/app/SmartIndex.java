@@ -332,14 +332,15 @@ final class SmartIndex {
             if (n.startsWith(".")) continue;
             if (depth == 0 && n.equals("Android")) continue;
             budget[0]--;
-            if (f.isDirectory()) {
+            long[] st = Cats.stat(f);
+            if (st != null ? st[0] == 1 : f.isDirectory()) {
                 if (!Cats.isLink(f)) walk(f, depth + 1, old, out, budget, textFiles, textBytes, stop, progress);
                 continue;
             }
             String path = f.getAbsolutePath();
             if (path.indexOf('\t') >= 0 || path.indexOf('\n') >= 0) continue;
-            long mod = f.lastModified();
-            long len = f.length();
+            long mod = st != null ? st[2] : f.lastModified();
+            long len = st != null ? st[1] : f.length();
             Entry prev = old.get(path);
             if (prev != null && prev.mod == mod && prev.size == len) {
                 out.add(prev);

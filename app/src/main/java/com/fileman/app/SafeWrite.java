@@ -34,7 +34,13 @@ final class SafeWrite {
         File dir = target.getAbsoluteFile().getParentFile();
         if (dir == null || !dir.isDirectory()) throw new FileNotFoundException("ENOENT");
         if (estimate > 0 && dir.getUsableSpace() < estimate + (1L << 20)) throw new NoSpace();
-        File tmp = new File(dir, "." + target.getName() + "." + Long.toHexString(System.nanoTime()) + ".tmp");
+        File tmp = null;
+        java.security.SecureRandom rnd = new java.security.SecureRandom();
+        for (int i = 0; i < 20 && tmp == null; i++) {
+            File cand = new File(dir, "." + target.getName() + "." + Long.toHexString(rnd.nextLong()) + ".tmp");
+            if (cand.createNewFile()) tmp = cand;   // exclusive: never reuse or follow a name somebody else planted
+        }
+        if (tmp == null) throw new IOException("cannot create temp file");
         boolean ok = false;
         try {
             try (FileOutputStream fos = new FileOutputStream(tmp);

@@ -186,7 +186,9 @@ public final class Updater {
      * newer than the installed app, or null when the repository has no installable release.
      */
     public static Info check(Context c, String owner, String repo, boolean includePre) throws Exception {
-        String json = getText("https://api.github.com/repos/" + owner + "/" + repo + "/releases?per_page=20");
+        String[] slug = split(owner + "/" + repo);   // owner and repo end up in the URL path: never trust them unchecked
+        if (slug == null) throw new IOException("bad repository");
+        String json = getText("https://api.github.com/repos/" + slug[0] + "/" + slug[1] + "/releases?per_page=20");
         JSONArray rels = new JSONArray(json);
         for (int i = 0; i < rels.length(); i++) {
             JSONObject r = rels.getJSONObject(i);
@@ -267,6 +269,19 @@ public final class Updater {
         File[] old = dir.listFiles();
         if (old != null) for (File o : old) o.delete();
         File apk = new File(dir, "update.apk");
+        boolean good = false;
+        try {
+            File r = downloadChecked(c, in, progress, cancel, apk);
+            good = true;
+            return r;
+        } finally {
+            if (!good) //noinspection ResultOfMethodCallIgnored
+                apk.delete();
+        }
+    }
+
+    private static File downloadChecked(Context c, Info in, Progress progress, boolean[] cancel, File apk) throws Exception {
+        if (!Net.allowed(in.assetUrl)) throw new IOException("blocked host");
         HttpURLConnection conn = open(in.assetUrl, "application/octet-stream");
         try {
             int code = conn.getResponseCode();
@@ -350,7 +365,10 @@ public final class Updater {
             Signature[] a = signersOf(theirs);
             Signature[] b = signersOf(mine);
             if (a == null || b == null || a.length != 1 || b.length != 1) return false;
-            return hex(a[0]).equals(hex(b[0]));
+            if (!hex(a[0]).equals(hex(b[0]))) return false;
+            long tv = Build.VERSION.SDK_INT >= 28 ? theirs.getLongVersionCode() : theirs.versionCode;
+            long mv = Build.VERSION.SDK_INT >= 28 ? mine.getLongVersionCode() : mine.versionCode;
+            return tv > mv;
         } catch (Exception e) {
             return false;
         }

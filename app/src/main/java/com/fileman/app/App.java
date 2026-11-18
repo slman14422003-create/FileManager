@@ -22,6 +22,7 @@ import androidx.core.view.WindowInsetsCompat;
 public class App extends Application {
     private static final List<Activity> OPEN = new ArrayList<>();
     private static Activity resumed;
+    private static boolean guardStarted;
     private final Handler main = new Handler(Looper.getMainLooper());
 
     /** Screens currently alive (used to recreate them when the colour theme changes). */
@@ -42,6 +43,8 @@ public class App extends Application {
         Lang.init(this);
         Appearance.applyMode(this);
         Wipe.resume(this);
+        Vault.watch(this);
+        new Thread(() -> Vault.clearTemps(getApplicationContext()), "vault-clean").start();
         // a drive plugged in while one of the main screens is open: ask what to do with it
         Volumes.watch(this, () -> main.postDelayed(() -> {
             Activity a = resumed;
@@ -74,6 +77,10 @@ public class App extends Application {
             @Override
             public void onActivityResumed(final Activity a) {
                 resumed = a;
+                if (!guardStarted) {
+                    guardStarted = true;
+                    GuardService.ensure(a);
+                }
                 if (a instanceof HomeActivity) main.postDelayed(() -> {
                     if (resumed == a) UsbPrompt.check(a);
                 }, 700);

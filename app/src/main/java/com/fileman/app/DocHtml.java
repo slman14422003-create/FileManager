@@ -167,6 +167,7 @@ final class DocHtml {
     /** Wide content (sheets): the page grows to the content and the viewer zooms out so it fits the screen width. */
     private static String fitPage(String body) {
         return "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+                + "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src data:; style-src 'unsafe-inline'\">"
                 + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,minimum-scale=0.05,maximum-scale=8\">"
                 + "<style>" + css() + FIT_CSS + "</style></head><body><div class=\"paper fit\">" + body + "</div></body></html>";
     }
@@ -178,6 +179,7 @@ final class DocHtml {
 
     private static String page(String body) {
         return "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+                + "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src data:; style-src 'unsafe-inline'\">"
                 + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
                 + "<style>" + css() + "</style></head><body><div class=\"paper\">" + body + "</div></body></html>";
     }
@@ -2566,6 +2568,7 @@ final class DocHtml {
         byte[] d = readAll(f, 4L * 1024 * 1024);
         String uri = "data:image/svg+xml;base64," + Base64.encodeToString(d, Base64.NO_WRAP);
         return "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+                + "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src data:; style-src 'unsafe-inline'\">"
                 + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head>"
                 + "<body style=\"margin:0;background:#000;display:flex;align-items:center;justify-content:center;"
                 + "min-height:100vh\"><img src=\"" + uri + "\" style=\"max-width:94%;max-height:94vh;background:#fff;"

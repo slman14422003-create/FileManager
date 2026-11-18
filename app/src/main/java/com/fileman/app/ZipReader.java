@@ -201,7 +201,7 @@ final class ZipReader implements Closeable {
         byte[] hdr = new byte[46];
         java.io.BufferedInputStream bin = new java.io.BufferedInputStream(new RafStream(raf, cdOffset + base, cdSize), 1 << 16);
         long count = 0;
-        while (remaining >= 46 && count < 5_000_000L) {
+        while (remaining >= 46 && count < 500_000L) {
             readFully(bin, hdr, 46);
             if (u32(hdr, 0) != 0x02014b50L) throw new ZipException("bad central entry");
             Entry e = new Entry();
@@ -241,12 +241,13 @@ final class ZipReader implements Closeable {
                     e.aesVersion = u16(extra, q);
                     e.aes = extra[q + 4] & 0xFF;
                     e.aesMethod = u16(extra, q + 5);
-                } else if (id == 0x7075 && sz > 5 && extra[q] == 1) {   // Info-ZIP unicode path: always UTF-8
+                } else if (id == 0x7075 && sz > 5 && q + sz <= extraLen && extra[q] == 1) {   // Info-ZIP unicode path: always UTF-8
                     e.flags |= 0x800;
                     name = java.util.Arrays.copyOfRange(extra, q + 5, q + sz);
                 }
                 p += 4 + sz;
             }
+            if (e.size < 0 || e.packed < 0 || e.offset < 0 || e.offset > length) throw new ZipException("bad central entry");
             e.offset += base;
             rawNames.add(name);
             utf8Flag.add((e.flags & 0x800) != 0);
@@ -394,7 +395,7 @@ final class ZipReader implements Closeable {
             if (u32(lh, 0) != 0x04034b50L) throw new ZipException("bad local header");
             e.dataStart = e.offset + 30 + u16(lh, 26) + u16(lh, 28);
         }
-        if (e.dataStart + e.packed > length) throw new ZipException("entry beyond end of file");
+        if (e.dataStart < 0 || e.packed < 0 || e.dataStart > length || e.packed > length - e.dataStart) throw new ZipException("entry beyond end of file");
         InputStream raw = new java.io.BufferedInputStream(new RafStream(raf, e.dataStart, e.packed), 1 << 16);
         boolean checkCrc = true;
         boolean legacyCrypto = false;
@@ -692,6 +693,7 @@ final class ZipReader implements Closeable {
             if (r > 0) {
                 crc.update(b, off, r);
                 seen += r;
+                if (seen > expectSize) throw new ZipException("size mismatch");
             } else if (r < 0 && !checked) {
                 checked = true;
                 if (seen != expectSize) throw new ZipException("size mismatch");

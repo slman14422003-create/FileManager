@@ -153,7 +153,8 @@ public class MediaActivity extends BaseActivity {
                 updateSleepChip();
                 Toast.makeText(MediaActivity.this, R.string.mp_sleep_done, Toast.LENGTH_LONG).show();
             }
-            ui.postDelayed(this, 400);
+            // idle while paused: startPlayback() restarts the loop
+            if (playing() || dragging || sleepAt > 0) ui.postDelayed(this, 400);
         }
     };
 
@@ -1139,6 +1140,8 @@ public class MediaActivity extends BaseActivity {
             requestFocus();
             if (video) videoView.start();
             else player.start();
+            ui.removeCallbacks(tick);
+            ui.post(tick);
             setPlayIcon(true);
             scheduleHide();
         } catch (Exception ignored) {

@@ -55,6 +55,12 @@ public class DocEditActivity extends BaseActivity {
     private File file;
     private boolean excel;
     private boolean dirty;
+    private OnBackPressedCallback editBackCb;
+
+    @Override
+    protected void syncBack() {
+        if (editBackCb != null) editBackCb.setEnabled(dirty);
+    }
     private boolean overwriteConfirmed;
     private String initialContent = "";
     private Runnable afterSave;
@@ -122,7 +128,7 @@ public class DocEditActivity extends BaseActivity {
         more.setVisibility(View.VISIBLE);
         more.setOnClickListener(v -> showMore());
 
-        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+        editBackCb = new OnBackPressedCallback(false) {
             @Override
             public void handleOnBackPressed() {
                 if (!dirty) {
@@ -144,7 +150,8 @@ public class DocEditActivity extends BaseActivity {
                         .setNeutralButton(R.string.cancel, null)
                         .show();
             }
-        });
+        };
+        getOnBackPressedDispatcher().addCallback(this, editBackCb);
 
         web = new WebView(this);
         WebSettings s = web.getSettings();
@@ -280,7 +287,7 @@ public class DocEditActivity extends BaseActivity {
         @JavascriptInterface
         public void onEdit() {
             ui.post(() -> {
-                dirty = true;
+                dirty = true; syncBack();
                 ui.removeCallbacks(autoRun);
                 ui.postDelayed(autoRun, AUTOSAVE_MS);
             });
@@ -419,7 +426,7 @@ public class DocEditActivity extends BaseActivity {
                 final int msg = SafeWrite.describe(t) == R.string.fm_save_failed ? R.string.de_save_failed : SafeWrite.describe(t);
                 ui.post(() -> {
                     autoBusy = false;
-                    dirty = true;
+                    dirty = true; syncBack();
                     updateSubtitle();
                     if (!auto || !errShown) {
                         errShown = true;
@@ -458,7 +465,7 @@ public class DocEditActivity extends BaseActivity {
             final int msg = SafeWrite.describe(t);
             ui.post(() -> {
                 autoBusy = false;
-                dirty = true;
+                dirty = true; syncBack();
                 updateSubtitle();
                 if (!errShown) {
                     errShown = true;
