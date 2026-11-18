@@ -18,4 +18,12 @@
     <string name="sx3_found">%1$d files found so far</string>
     <string name="sx3_stop">Stop</string>
     <string name="sx3_added">%1$d</string>
+    <string name="sx3_scanning_short">Searching…</string>
+    <string name="sp_select_all">Select all</string>
+    <string name="sp_clear">Clear selection</string>
+    <string name="sp_selected">%1$d selected · %2$s</string>
+    <string name="sp_add">Add (%1$d)</string>
+    <string name="sp_empty">No files</string>
+    <string name="sp_found">%1$d items</string>
+    <string name="sp_hint">Tap to choose what to send</string>
 </resources>

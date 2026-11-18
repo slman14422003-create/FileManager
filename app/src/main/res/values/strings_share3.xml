@@ -18,4 +18,12 @@
     <string name="sx3_found">وُجد %1$d ملف حتى الآن</string>
     <string name="sx3_stop">إيقاف</string>
     <string name="sx3_added">%1$d</string>
+    <string name="sx3_scanning_short">جارٍ البحث…</string>
+    <string name="sp_select_all">تحديد الكل</string>
+    <string name="sp_clear">إلغاء التحديد</string>
+    <string name="sp_selected">%1$d محدد · %2$s</string>
+    <string name="sp_add">إضافة (%1$d)</string>
+    <string name="sp_empty">لا توجد ملفات</string>
+    <string name="sp_found">%1$d عنصر</string>
+    <string name="sp_hint">اضغط لاختيار ما تريد إرساله</string>
 </resources>

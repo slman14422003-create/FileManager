@@ -27,8 +27,8 @@
 
         <View
             android:id="@+id/grabber"
-            android:layout_width="38dp"
-            android:layout_height="5dp"
+            android:layout_width="30dp"
+            android:layout_height="4dp"
             android:layout_gravity="center" />
     </FrameLayout>
 
@@ -217,7 +217,7 @@
         android:layout_marginStart="@dimen/gutter"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="@dimen/gutter"
-        android:minHeight="46dp"
+        android:minHeight="52dp"
         android:visibility="gone" />
 
     <Button
@@ -229,7 +229,7 @@
         android:layout_marginTop="8dp"
         android:layout_marginEnd="@dimen/gutter"
         android:layout_marginBottom="16dp"
-        android:minHeight="46dp"
+        android:minHeight="52dp"
         android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>

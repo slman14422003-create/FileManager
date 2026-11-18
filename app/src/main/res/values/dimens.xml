@@ -8,7 +8,7 @@
           expanded >= 840dp  (values-w840dp)     tablets, desktop-like windows
     -->
     <!-- space between the screen edge and cards / rows -->
-    <dimen name="gutter">14dp</dimen>
+    <dimen name="gutter">16dp</dimen>
     <!-- widest the page content may grow before it is centred with margins on both sides (0 = no limit) -->
     <dimen name="content_max_width">0dp</dimen>
     <!-- widest the floating bottom bar may grow -->
