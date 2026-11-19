@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="doc_lbl_slide">Slide</string>
+    <string name="doc_lbl_hidden">Hidden</string>
+    <string name="doc_lbl_notes">Notes</string>
+    <string name="doc_lbl_chart">Chart</string>
+    <string name="doc_lbl_comments">Comments</string>
+    <string name="doc_lbl_header">Header</string>
+    <string name="doc_lbl_footer">Footer</string>
+    <string name="doc_lbl_cut">Showing only the first %1$d rows and %2$d columns.</string>
+</resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="set_reduce">تقليل الحركة</string>
+    <string name="set_reduce_sub">إيقاف انتقالات الشاشات والحركات لسلاسة أكبر على الأجهزة الضعيفة</string>
+    <string name="set_crash">نسخ سجل الأخطاء</string>
+    <string name="set_crash_sub">انسخ آخر أعطال التطبيق لإرسالها للمطوّر</string>
+    <string name="set_crash_none">لا يوجد سجل أخطاء</string>
+    <string name="set_crash_done">تم نسخ السجل</string>
+    <string name="g_saver">إيقاف الحراسة عند توفير الطاقة</string>
+    <string name="g_saver_sub">يوفّر البطارية، لكن الحماية تتوقف أثناء وضع توفير الطاقة</string>
+</resources>

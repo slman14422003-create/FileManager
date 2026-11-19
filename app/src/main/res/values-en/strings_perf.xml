@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="set_reduce">Reduce motion</string>
+    <string name="set_reduce_sub">Turn off screen transitions and animations for smoother use on weak devices</string>
+    <string name="set_crash">Copy crash log</string>
+    <string name="set_crash_sub">Copy the latest app crashes to send to the developer</string>
+    <string name="set_crash_none">No crash log</string>
+    <string name="set_crash_done">Log copied</string>
+    <string name="g_saver">Pause guard in battery saver</string>
+    <string name="g_saver_sub">Saves battery, but protection stops while battery saver is on</string>
+</resources>
