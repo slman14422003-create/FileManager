@@ -5,6 +5,7 @@
     <item name="tag_blur" type="id" />
     <item name="tag_glass_spec" type="id" />
     <item name="tag_glass_done" type="id" />
+    <item name="tag_pick" type="id" />
     <item name="tag_pad" type="id" />
     <item name="tag_holder" type="id" />
     <item name="fx_spring_x" type="id" />
