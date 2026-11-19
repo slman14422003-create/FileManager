@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sx3_media">الوسائط</string>
+    <string name="sx3_files">الملفات</string>
+    <string name="sx3_other">أخرى</string>
+    <string name="sx3_images_sub">كل الصور الموجودة في الجهاز</string>
+    <string name="sx3_videos_sub">كل مقاطع الفيديو</string>
+    <string name="sx3_audio_sub">الموسيقى والتسجيلات الصوتية</string>
+    <string name="sx3_files_sub">اختر الملفات بنفسك من مدير الملفات</string>
+    <string name="sx3_folder_sub">أرسل مجلدًا كاملًا بمحتوياته</string>
+    <string name="sx3_docs_sub">PDF وWord وExcel وغيرها</string>
+    <string name="sx3_arc_sub">ملفات ZIP وRAR وما شابهها</string>
+    <string name="sx3_all_sub">كل ملفات الذاكرة الداخلية</string>
+    <string name="sx3_apps_sub">تطبيقاتك المثبّتة كملفات APK</string>
+    <string name="sx3_contacts_sub">اختر جهات اتصال وأرسلها كملف vCard</string>
+    <string name="sx3_text_sub">أرسل نصًا أو ما نسخته</string>
+    <string name="sx3_scanning">جارٍ البحث: %1$s</string>
+    <string name="sx3_found">وُجد %1$d ملف حتى الآن</string>
+    <string name="sx3_stop">إيقاف</string>
+    <string name="sx3_added">%1$d</string>
+    <string name="sx3_scanning_short">جارٍ البحث…</string>
+    <string name="sp_select_all">تحديد الكل</string>
+    <string name="sp_clear">إلغاء التحديد</string>
+    <string name="sp_selected">%1$d محدد · %2$s</string>
+    <string name="sp_add">إضافة (%1$d)</string>
+    <string name="sp_empty">لا توجد ملفات</string>
+    <string name="sp_found">%1$d عنصر</string>
+    <string name="sp_hint">اضغط لاختيار ما تريد إرساله</string>
+</resources>
