@@ -321,7 +321,8 @@ public class Dlg extends AlertDialog.Builder {
         if (grid) {
             rows.setOrientation(LinearLayout.VERTICAL);
             rows.setPadding(0, Ui.dp(c, 4), 0, 0);
-            final int cols = itemLabels.length <= 5 ? itemLabels.length : 4;
+            final int n0 = itemLabels.length;
+            final int cols = n0 <= 4 ? n0 : (n0 == 5 || n0 == 6 || n0 == 9) ? 3 : 4;
             LinearLayout line = null;
             for (int k = 0; k < itemLabels.length; k++) {
                 final int pos = k;
@@ -343,11 +344,11 @@ public class Dlg extends AlertDialog.Builder {
                 iv.setImageResource(itemIcons[k]);
                 iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 iv.setPadding(Ui.dp(c, 11), Ui.dp(c, 11), Ui.dp(c, 11), Ui.dp(c, 11));
-                iv.setImageTintList(ColorStateList.valueOf(Ui.color(c, danger ? R.color.bad : R.color.text_primary)));
+                iv.setImageTintList(ColorStateList.valueOf(Ui.color(c, danger ? R.color.bad : R.color.accent_text)));
                 iv.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
                 GradientDrawable circle = new GradientDrawable();
                 circle.setShape(GradientDrawable.OVAL);
-                circle.setColor(Ui.color(c, R.color.field));
+                circle.setColor(danger ? (Ui.color(c, R.color.bad) & 0x00FFFFFF) | 0x26000000 : Ui.color(c, R.color.accent_soft));
                 iv.setBackground(circle);
                 col.addView(iv, new LinearLayout.LayoutParams(Ui.dp(c, 46), Ui.dp(c, 46)));
                 TextView t = new TextView(c);
@@ -369,8 +370,11 @@ public class Dlg extends AlertDialog.Builder {
                 });
                 line.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             }
-            for (int k2 = itemLabels.length; line != null && k2 % cols != 0; k2++) {
-                line.addView(new View(c), new LinearLayout.LayoutParams(0, 1, 1f));
+            int rest = itemLabels.length % cols;
+            if (line != null && rest != 0) {
+                float pad = (cols - rest) / 2f;
+                line.addView(new View(c), 0, new LinearLayout.LayoutParams(0, 1, pad));
+                line.addView(new View(c), new LinearLayout.LayoutParams(0, 1, pad));
             }
         } else {
             rows.setOrientation(LinearLayout.VERTICAL);

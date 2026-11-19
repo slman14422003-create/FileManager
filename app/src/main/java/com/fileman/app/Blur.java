@@ -58,7 +58,7 @@ final class Blur {
     // ------------------------------------------------------------------ switch
 
     static boolean enabled(Context c) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false;
+        if (true) return false;   // live blur is retired: solid glass surfaces are smoother on every device
         SharedPreferences sp = c.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         return sp.getBoolean(K_ON, false);   // live blur re-draws behind every scroll: opt-in from settings only
     }

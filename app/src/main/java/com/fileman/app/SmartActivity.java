@@ -8,7 +8,6 @@ import android.os.Looper;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -208,10 +207,10 @@ public class SmartActivity extends BaseActivity {
         });
     }
 
-    private CheckBox checkRow(String title, String sub, boolean checked) {
-        CheckBox cb = Ui.check(this, R.string.delete, checked);
-        cb.setText(title + "\n" + sub);
-        return cb;
+    private View checkRow(String title, String sub, boolean checked, java.io.File f, java.util.function.Consumer<Boolean> change) {
+        int icon = f == null ? R.drawable.ic_folder : f.isDirectory() ? R.drawable.ic_folder
+                : Cats.iconForExt(Cats.extOf(f.getName()), Cats.typeOfExt(Cats.extOf(f.getName())));
+        return Ui.pickRow(this, content, icon, title, sub, checked, change);
     }
 
     private void openFolder(File f) {
@@ -281,12 +280,10 @@ public class SmartActivity extends BaseActivity {
             int shown = Math.min(part.size(), 150);
             for (int i = 0; i < shown; i++) {
                 final SmartScan.Item it = part.get(i);
-                CheckBox cb = checkRow(it.f.getName(), itemNote(it), it.checked);
-                cb.setOnCheckedChangeListener((b, on) -> {
+                box.addView(checkRow(it.f.getName(), itemNote(it), it.checked, it.f, on -> {
                     it.checked = on;
                     updateAction();
-                });
-                box.addView(cb);
+                }));
             }
             Ui.group(this, box);
             content.addView(box);
@@ -379,12 +376,10 @@ public class SmartActivity extends BaseActivity {
         for (int i = 0; i < shown; i++) {
             final SmartPlan.Move m = moves.get(i);
             String sub = organize ? getString(R.string.sm_move_to, m.group) : "\u2192 " + m.to.getName();
-            CheckBox cb = checkRow(m.from.getName(), sub, m.checked);
-            cb.setOnCheckedChangeListener((b, on) -> {
+            box.addView(checkRow(m.from.getName(), sub, m.checked, m.from, on -> {
                 m.checked = on;
                 updateMoveAction(organize);
-            });
-            box.addView(cb);
+            }));
         }
         Ui.group(this, box);
         content.addView(box);
@@ -501,12 +496,10 @@ public class SmartActivity extends BaseActivity {
             }
             if (list.size() > 3) names.append(" \u2026");
             String title = getString(R.string.sm_auto_group, en.getKey(), list.size());
-            CheckBox cb = checkRow(title, Fmt.size(bytes) + " \u00b7 " + names, true);
-            cb.setOnCheckedChangeListener((b, on) -> {
+            box.addView(checkRow(title, Fmt.size(bytes) + " \u00b7 " + names, true, null, on -> {
                 for (SmartPlan.Move m : list) m.checked = on;
                 updateAutoAction();
-            });
-            box.addView(cb);
+            }));
         }
         Ui.group(this, box);
         content.addView(box);

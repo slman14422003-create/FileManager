@@ -292,7 +292,8 @@ public final class Ui {
         cb.setTextColor(color(c, R.color.text_primary));
         cb.setTextSize(15);
         cb.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
-        cb.setButtonTintList(ContextCompat.getColorStateList(c, R.color.check_tint));
+        cb.setButtonDrawable(R.drawable.bg_check);
+        cb.setBackground(null);
         cb.setMinHeight(dp(c, 48));
         cb.setPaddingRelative(dp(c, 10), 0, 0, 0);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -300,6 +301,30 @@ public final class Ui {
         lp.bottomMargin = dp(c, 2);
         cb.setLayoutParams(lp);
         return cb;
+    }
+
+    /** A selectable card row (icon, title, note, round check) used by every cleanup / organize list. */
+    public static View pickRow(Context c, ViewGroup parent, int icon, String title, String sub, boolean checked,
+                               final java.util.function.Consumer<Boolean> onChange) {
+        final View v = LayoutInflater.from(c).inflate(R.layout.item_row, parent, false);
+        RowAdapter.bind(c, v, new Row(icon, false, title, sub, false, false));
+        final ImageView mark = v.findViewById(R.id.chevron);
+        mark.setImageResource(R.drawable.bg_check);
+        mark.setImageTintList(null);
+        ViewGroup.LayoutParams lp = mark.getLayoutParams();
+        lp.width = dp(c, 24);
+        lp.height = dp(c, 24);
+        mark.setLayoutParams(lp);
+        mark.setSelected(checked);
+        v.setTag(R.id.tag_pick, checked);
+        v.setOnClickListener(x -> {
+            boolean on = !Boolean.TRUE.equals(v.getTag(R.id.tag_pick));
+            v.setTag(R.id.tag_pick, on);
+            mark.setSelected(on);
+            Fx.tick(v);
+            if (onChange != null) onChange.accept(on);
+        });
+        return v;
     }
 
     public static LinearLayout box(Context c) {

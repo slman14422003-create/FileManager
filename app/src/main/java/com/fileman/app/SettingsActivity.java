@@ -141,14 +141,6 @@ public class SettingsActivity extends BaseActivity {
         smart.onChange((b, on) -> Assistant.setEnabled(this, on));
         content.addView(smart.view);
 
-        Ui.Toggle glass = Ui.toggle(this, content, R.string.set_blur, R.string.set_blur_sub,
-                Blur.enabled(this));
-        glass.withIcon(R.drawable.ic_palette);
-        glass.onChange((b, on) -> {
-            Blur.setEnabled(this, on);
-            for (android.app.Activity act : App.openActivities()) act.recreate();
-        });
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) content.addView(glass.view);
 
         content.addView(Ui.sectionTitle(this, getString(R.string.dl_section)));
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_download, false,
