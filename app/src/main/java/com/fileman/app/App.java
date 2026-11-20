@@ -69,6 +69,7 @@ public class App extends Application {
             @Override
             public void onActivityCreated(Activity a, Bundle b) {
                 Motion.install(a);
+                secureIfProtected(a);
                 if (AppLock.enabled(App.this)) {
                     try {
                         a.getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE,
@@ -114,6 +115,7 @@ public class App extends Application {
             @Override
             public void onActivityResumed(final Activity a) {
                 resumed = a;
+                secureIfProtected(a);
                 if (!guardStarted) {
                     guardStarted = true;
                     GuardService.ensure(a);
@@ -146,5 +148,40 @@ public class App extends Application {
                 }
             }
         });
+    }
+
+    static boolean showsProtected(Activity a) {
+        if (VaultKey.isUnlocked()) return true;
+        try {
+            android.content.Intent in = a.getIntent();
+            if (in == null) return false;
+            if (in.getDataString() != null && in.getDataString().contains("/zipview/vault-")) return true;
+            android.os.Bundle ex = in.getExtras();
+            if (ex != null) {
+                for (String k : ex.keySet()) {
+                    Object v = ex.get(k);
+                    if (v != null && v.toString().contains("/zipview/vault-")) return true;
+                }
+            }
+            if (in.getClipData() != null) {
+                for (int i = 0; i < in.getClipData().getItemCount(); i++) {
+                    android.net.Uri u = in.getClipData().getItemAt(i).getUri();
+                    if (u != null && u.toString().contains("/zipview/vault-")) return true;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
+    static void secureIfProtected(Activity a) {
+        try {
+            if (showsProtected(a)) {
+                a.getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE,
+                        android.view.WindowManager.LayoutParams.FLAG_SECURE);
+                if (Build.VERSION.SDK_INT >= 33) a.setRecentsScreenshotEnabled(false);
+            }
+        } catch (Throwable ignored) {
+        }
     }
 }

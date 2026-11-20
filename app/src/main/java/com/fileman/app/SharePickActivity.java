@@ -486,7 +486,7 @@ public class SharePickActivity extends BaseActivity {
         fill.setBackground(oval(Ui.color(this, R.color.accent), Ui.dp(this, 2), 0xFFFFFFFF));
         ImageView check = new ImageView(this);
         check.setImageResource(R.drawable.ic_check);
-        check.setImageTintList(ColorStateList.valueOf(0xFFFFFFFF));
+        check.setImageTintList(ColorStateList.valueOf(Ui.color(this, R.color.on_accent)));
         int p = Ui.dp(this, 4);
         check.setPadding(p, p, p, p);
         fill.addView(check, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));

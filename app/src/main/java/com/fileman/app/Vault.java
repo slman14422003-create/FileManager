@@ -311,7 +311,9 @@ final class Vault {
             all.add(it);
             writeIndex(c, all);
             shred(src);
+            if (src.exists()) src.delete();
             scrub(c, src);
+            forget(c, src);
             return it;
         } catch (Throwable t) {
             if (tmp != null) shred(tmp);
@@ -391,15 +393,45 @@ final class Vault {
     // ------------------------------------------------------------------ temporary plaintext copies
 
     /** Removes the traces a deleted original leaves in the media database and the media scanner. */
-    private static void scrub(Context c, File f) {
+    static void scrub(Context c, File f) {
         String p = f.getAbsolutePath();
         try {
             c.getContentResolver().delete(android.provider.MediaStore.Files.getContentUri("external"),
                     android.provider.MediaStore.MediaColumns.DATA + "=?", new String[]{p});
         } catch (Throwable ignored) {
         }
+        if (Build.VERSION.SDK_INT >= 29) {
+            try {
+                for (String vol : android.provider.MediaStore.getExternalVolumeNames(c)) {
+                    try {
+                        c.getContentResolver().delete(android.provider.MediaStore.Files.getContentUri(vol),
+                                android.provider.MediaStore.MediaColumns.DATA + "=?", new String[]{p});
+                    } catch (Throwable ignored) {
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+        }
         try {
             android.media.MediaScannerConnection.scanFile(c.getApplicationContext(), new String[]{p}, null, null);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** Drops every app-side trace of a protected original: search index (names and text), favorites, pins, resume spot. */
+    private static void forget(Context c, File f) {
+        Context app = c.getApplicationContext();
+        String p = f.getAbsolutePath();
+        try {
+            SmartIndex.forget(app, p);
+        } catch (Throwable ignored) {
+        }
+        try {
+            java.util.Set<String> fav = Store.favorites(app);
+            if (fav.remove(p)) Store.setFavorites(app, fav);
+            java.util.Set<String> pin = Store.pins(app);
+            if (pin.remove(p)) Store.setPins(app, pin);
+            Store.setResume(app, p, 0);
         } catch (Throwable ignored) {
         }
     }
@@ -417,6 +449,7 @@ final class Vault {
                     File[] fs = d.listFiles();
                     if (fs != null) for (File f : fs) shred(f);
                     d.delete();
+                    ConvertCache.clear(c);
                 }
             } finally {
                 end();
@@ -457,6 +490,7 @@ final class Vault {
                     File[] fs = d.listFiles();
                     if (fs != null) for (File f : fs) shred(f);
                     d.delete();
+                    ConvertCache.clear(c);
                 }
             } finally {
                 end();
@@ -506,12 +540,17 @@ final class Vault {
 
     /** Overwrites a file with random data and zeros, flushes it to storage, truncates and deletes it. */
     static void shred(File f) {
+        shred(f, false);
+    }
+
+    /** With {@code full} every file gets three passes whatever its size. */
+    static void shred(File f, boolean full) {
         try {
             if (f == null || !f.exists()) return;
             if (f.isFile() && !Wipe.isLink(f)) {
                 long len = f.length();
                 try (RandomAccessFile raf = new RandomAccessFile(f, "rw")) {
-                    int passes = len > 256L * 1024 * 1024 ? 1 : 3;
+                    int passes = !full && len > 256L * 1024 * 1024 ? 1 : 3;
                     byte[] buf = new byte[256 * 1024];
                     for (int p = 0; p < passes; p++) {
                         raf.seek(0);

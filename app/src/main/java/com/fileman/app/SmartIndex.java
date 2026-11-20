@@ -278,6 +278,48 @@ final class SmartIndex {
         cache = next;
     }
 
+    /** Removes one path from the index (memory and disk), including its stored text. */
+    static void forget(Context c, String path) {
+        forgetAll(c, java.util.Collections.singleton(path));
+    }
+
+    /** Removes many paths at once with a single rewrite of the index file. */
+    static synchronized void forgetAll(Context c, Set<String> paths) {
+        List<Entry> cur = load(c);
+        List<Entry> next = new ArrayList<>(cur.size());
+        boolean hit = false;
+        for (Entry e : cur) {
+            if (paths.contains(e.path)) {
+                hit = true;
+                continue;
+            }
+            next.add(e);
+        }
+        if (!hit) return;
+        cache = next;
+        File f = indexFile(c);
+        File tmp = new File(f.getParentFile(), FILE + ".tmp");
+        try (BufferedWriter w = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(tmp), StandardCharsets.UTF_8))) {
+            for (Entry e : next) {
+                w.write(e.path);
+                w.write('\t');
+                w.write(Long.toString(e.mod));
+                w.write('\t');
+                w.write(Long.toString(e.size));
+                w.write('\t');
+                w.write(e.name);
+                w.write('\t');
+                w.write(e.text);
+                w.write('\n');
+            }
+        } catch (Exception ex) {
+            tmp.delete();
+            return;
+        }
+        if (f.exists()) f.delete();
+        tmp.renameTo(f);
+    }
+
     static int size(Context c) {
         return load(c).size();
     }

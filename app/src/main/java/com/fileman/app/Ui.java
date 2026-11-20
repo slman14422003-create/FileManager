@@ -515,7 +515,7 @@ public final class Ui {
         View card = v.findViewById(R.id.card);
         if (card == null) return;
         // recycled rows usually keep the same shape: skip rebuilding three drawables on every bind
-        final Integer shapeKey = fillRes * 4 + (first ? 1 : 0) + (last ? 2 : 0);
+        final Long shapeKey = ((long) color(c, fillRes) << 32) ^ ((long) color(c, R.color.stroke) * 31L) ^ (long) (fillRes * 4 + (first ? 1 : 0) + (last ? 2 : 0));
         if (shapeKey.equals(card.getTag(R.id.tag_shape))) return;
         card.setTag(R.id.tag_shape, shapeKey);
         float big = dp(c, 12);   // inset-grouped list: rounded outer corners, square inside

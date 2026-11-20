@@ -49,6 +49,15 @@ final class ConvertCache {
         return d;
     }
 
+    /** Removes every cached page. */
+    static void clear(Context c) {
+        try {
+            File[] all = dir(c).listFiles();
+            if (all != null) for (File f : all) f.delete();
+        } catch (Throwable ignored) {
+        }
+    }
+
     /** The cached page, or null. Blocking: call off the main thread. */
     static String get(Context c, String key) {
         File f = new File(dir(c), key + ".html");

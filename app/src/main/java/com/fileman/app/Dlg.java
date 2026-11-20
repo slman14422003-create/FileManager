@@ -823,7 +823,7 @@ public class Dlg extends AlertDialog.Builder {
             int accent = Ui.color(c, red ? R.color.bad : R.color.accent);
             if (main) {
                 b.setBackground(pill(accent));
-                b.setTextColor(0xFFFFFFFF);
+                b.setTextColor(red ? 0xFFFFFFFF : Ui.color(c, R.color.on_accent));
             } else {
                 b.setBackground(pill(red ? ((accent & 0x00FFFFFF) | 0x26000000) : Ui.color(c, R.color.accent_soft)));
                 b.setTextColor(Ui.color(c, red ? R.color.bad : R.color.accent_text));

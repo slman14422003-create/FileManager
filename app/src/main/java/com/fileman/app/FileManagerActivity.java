@@ -2315,6 +2315,7 @@ public class FileManagerActivity extends BaseActivity {
         }
         add(labels, ids, getString(R.string.fm_compress), 4);
         if (anyFile) add(labels, ids, getString(R.string.v_menu_protect), 12);
+        add(labels, ids, getString(R.string.sd_menu), 13);
         if (isZip) {
             add(labels, ids, getString(R.string.fm_extract_here), 5);
             add(labels, ids, getString(R.string.fm_extract_folder), 6);
@@ -2371,6 +2372,9 @@ public class FileManagerActivity extends BaseActivity {
                                 refresh();
                             });
                             break;
+                        case 13:
+                            secureDeleteSelected();
+                            break;
                         default:
                             copyText(one.getAbsolutePath());
                             break;
@@ -2403,6 +2407,8 @@ public class FileManagerActivity extends BaseActivity {
                 return R.drawable.ic_file_text;
             case 12:
                 return R.drawable.ic_lock;
+            case 13:
+                return R.drawable.ic_delete;
             default:
                 return R.drawable.ic_copy;
         }
@@ -2826,6 +2832,40 @@ public class FileManagerActivity extends BaseActivity {
                     updateEmptyView();
                     updateChrome();
                     deleteFast(files);
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    /** Optional: overwrites the selected files with random data before deleting them, so they cannot be recovered. */
+    private void secureDeleteSelected() {
+        final List<File> files = selectedFiles();
+        if (files.isEmpty()) return;
+        new Dlg(this).setTitle(R.string.sd_title).setMessage(getString(R.string.sd_msg, files.size()))
+                .setPositiveButton(R.string.sd_go, (d, w) -> {
+                    selected.clear();
+                    Assistant.log(this, "secure_delete", files.size(), "");
+                    final Set<String> gone = new java.util.HashSet<>(paths(files));
+                    flip.capture();
+                    for (java.util.Iterator<Entry> it = shown.iterator(); it.hasNext(); ) {
+                        if (gone.contains(it.next().f.getAbsolutePath())) it.remove();
+                    }
+                    adapter.notifyDataSetChanged();
+                    flip.play();
+                    updateEmptyView();
+                    updateChrome();
+                    Toast.makeText(this, R.string.sd_busy, Toast.LENGTH_SHORT).show();
+                    io.execute(() -> {
+                        final int[] r = SecureWipe.run(this, files);
+                        favCache = null;
+                        pinCache = null;
+                        rescan(gone.toArray(new String[0]));
+                        post(() -> {
+                            Toast.makeText(this, r[1] == 0 ? getString(R.string.sd_done_n, r[0])
+                                    : getString(R.string.sd_failed_n, r[1]), Toast.LENGTH_LONG).show();
+                            refresh(true);
+                        });
+                    });
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .show();
