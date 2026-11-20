@@ -25,7 +25,12 @@ final class VaultGate {
             return;
         }
         if (!VaultKey.isSetup(a)) setup(a, ok, cancel);
-        else unlock(a, ok, cancel);
+        else if (VaultKey.bioReady(a)) {
+            VaultKey.bioUnlock(a, () -> {
+                Vault.resetFailures(a);
+                ok.run();
+            }, () -> unlock(a, ok, cancel));
+        } else unlock(a, ok, cancel);
     }
 
     private static void setup(final Activity a, final Runnable ok, final Runnable cancel) {
