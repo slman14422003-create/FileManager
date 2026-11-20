@@ -24,6 +24,10 @@ public class App extends Application {
     private static Activity resumed;
     private static boolean guardStarted;
     private final Handler main = new Handler(Looper.getMainLooper());
+    private int started;
+    private final Runnable closeVault = () -> {
+        if (started == 0) VaultGate.close(App.this);
+    };
 
     /** Screens currently alive (used to recreate them when the colour theme changes). */
     static List<Activity> openActivities() {
@@ -54,6 +58,13 @@ public class App extends Application {
             @Override
             public void onActivityCreated(Activity a, Bundle b) {
                 Motion.install(a);
+                if (AppLock.enabled(App.this)) {
+                    try {
+                        a.getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE,
+                                android.view.WindowManager.LayoutParams.FLAG_SECURE);
+                    } catch (Throwable ignored) {
+                    }
+                }
                 synchronized (OPEN) {
                     OPEN.add(a);
                 }
@@ -61,6 +72,8 @@ public class App extends Application {
 
             @Override
             public void onActivityStarted(Activity a) {
+                main.removeCallbacks(closeVault);
+                if (started++ == 0) AppLock.returned(App.this);
                 if (Build.VERSION.SDK_INT < 35) return;
                 View content = a.findViewById(android.R.id.content);
                 if (content == null || content.getTag(R.id.tag_insets) != null) return;
@@ -91,7 +104,16 @@ public class App extends Application {
                 if (resumed == a) resumed = null;
             }
 
-            @Override public void onActivityStopped(Activity a) { }
+            @Override
+            public void onActivityStopped(Activity a) {
+                if (--started <= 0) {
+                    started = 0;
+                    AppLock.left();
+                    main.removeCallbacks(closeVault);
+                    main.postDelayed(closeVault, 2500);
+                }
+            }
+
             @Override public void onActivitySaveInstanceState(Activity a, Bundle b) { }
             @Override
             public void onActivityDestroyed(Activity a) {

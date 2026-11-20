@@ -87,6 +87,10 @@ public abstract class BaseActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (!(this instanceof LockActivity) && AppLock.locked(this)) {
+            LockActivity.show(this);
+            return;
+        }
         syncBack();
     }
 

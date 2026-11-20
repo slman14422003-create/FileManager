@@ -11,6 +11,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -26,27 +27,21 @@ import java.util.concurrent.Executors;
  * fingerprint; too many wrong attempts, or any other process touching the vault files, wipes everything for good.
  */
 public class VaultActivity extends BaseActivity {
-    private static final int REQ_CRED = 77;
 
     private final ExecutorService io = Bg.single("fm-bg");
     private final Handler ui = new Handler(Looper.getMainLooper());
     private LinearLayout content;
-    private Runnable pendingOk;
 
     // ------------------------------------------------------------------ adding files (called from the file manager)
 
     static void protect(final Activity a, final List<File> files, final Runnable done) {
-        if (!AuthGate.isSecure(a)) {
-            Toast.makeText(a, R.string.v_no_lock, Toast.LENGTH_LONG).show();
-            return;
-        }
         final List<File> only = new ArrayList<>();
         for (File f : files) if (f.isFile()) only.add(f);
         if (only.isEmpty()) {
             Toast.makeText(a, R.string.v_only_files, Toast.LENGTH_SHORT).show();
             return;
         }
-        new Dlg(a).setTitle(R.string.v_add_title).setMessage(R.string.v_add_msg)
+        VaultGate.ask(a, () -> new Dlg(a).setTitle(R.string.v_add_title).setMessage(R.string.v_add_msg)
                 .setPositiveButton(R.string.v_add_go, (d, w) -> {
                     Toast.makeText(a, R.string.v_busy, Toast.LENGTH_SHORT).show();
                     new Thread(() -> {
@@ -54,13 +49,14 @@ public class VaultActivity extends BaseActivity {
                         for (File f : only) if (Vault.protect(a, f) != null) ok++;
                         final int n = ok;
                         a.runOnUiThread(() -> {
+                            if (!(a instanceof VaultActivity)) VaultGate.close(a);
                             Toast.makeText(a, a.getString(R.string.v_added_n, n), Toast.LENGTH_SHORT).show();
                             if (done != null) done.run();
                         });
                     }, "vault-add").start();
                 })
                 .setNegativeButton(R.string.cancel, null)
-                .show();
+                .show(), null);
     }
 
     // ------------------------------------------------------------------ screen
@@ -86,19 +82,71 @@ public class VaultActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        io.execute(() -> Vault.clearTemps(getApplicationContext()));
-        render();
+        if (VaultKey.isUnlocked()) {
+            render();
+        } else {
+            renderLocked();
+            if (!asking) {
+                asking = true;
+                VaultGate.ask(this, () -> {
+                    asking = false;
+                    render();
+                }, () -> {
+                    asking = false;
+                    renderLocked();
+                });
+            }
+        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (isFinishing()) VaultGate.close(this);
         io.shutdown();
+    }
+
+    private boolean asking;
+
+    private void renderLocked() {
+        content.removeAllViews();
+        content.addView(Ui.hero(this, getString(R.string.v_title), getString(R.string.v_hero)));
+        content.addView(Ui.footer(this, getString(R.string.vk_locked)));
+        Button open = Ui.block(this, Ui.button(this, R.string.vk_open, true));
+        open.setOnClickListener(v -> {
+            if (asking) return;
+            asking = true;
+            VaultGate.ask(this, () -> {
+                asking = false;
+                render();
+            }, () -> asking = false);
+        });
+        content.addView(open);
     }
 
     private void render() {
         content.removeAllViews();
         content.addView(Ui.hero(this, getString(R.string.v_title), getString(R.string.v_hero)));
+        Button lockNow = Ui.block(this, Ui.button(this, R.string.vk_lock_now, false));
+        lockNow.setOnClickListener(v -> {
+            VaultGate.close(this);
+            renderLocked();
+        });
+        content.addView(lockNow);
+        if (Bio.cryptoSupported() && Bio.available(this)) {
+            final boolean on = VaultKey.bioReady(this);
+            Button fp = Ui.block(this, Ui.button(this, on ? R.string.vk_bio_off : R.string.vk_bio_on, false));
+            fp.setOnClickListener(v -> {
+                if (on) {
+                    VaultKey.bioDisable(this);
+                    render();
+                } else {
+                    VaultKey.bioEnable(this, this::render,
+                            () -> Toast.makeText(this, R.string.vk_bio_fail, Toast.LENGTH_SHORT).show());
+                }
+            });
+            content.addView(fp);
+        }
         List<Vault.Item> items = Vault.list(this);
         if (items.isEmpty()) {
             content.addView(Ui.footer(this, getString(R.string.v_empty)));
@@ -115,8 +163,8 @@ public class VaultActivity extends BaseActivity {
         final String[] labels = {getString(R.string.v_open), getString(R.string.v_restore), getString(R.string.v_destroy)};
         final int[] icons = {R.drawable.ic_open, R.drawable.ic_download, R.drawable.ic_delete};
         new Dlg(this).setTitle(it.name).setItems(labels, icons, (d, which) -> {
-            if (which == 0) unlock(() -> openItem(it));
-            else if (which == 1) unlock(() -> restoreItem(it));
+            if (which == 0) openItem(it);
+            else if (which == 1) restoreItem(it);
             else confirmDestroy(it);
         }).show();
     }
@@ -173,83 +221,5 @@ public class VaultActivity extends BaseActivity {
                 }))
                 .setNegativeButton(R.string.cancel, null)
                 .show();
-    }
-
-    // ------------------------------------------------------------------ unlock
-
-    private void unlock(final Runnable ok) {
-        if (!AuthGate.isSecure(this)) {
-            Toast.makeText(this, R.string.v_no_lock, Toast.LENGTH_LONG).show();
-            return;
-        }
-        if (Build.VERSION.SDK_INT >= 29) {
-            try {
-                android.hardware.biometrics.BiometricPrompt.Builder b =
-                        new android.hardware.biometrics.BiometricPrompt.Builder(this)
-                                .setTitle(getString(R.string.v_unlock_title))
-                                .setSubtitle(getString(R.string.v_unlock_sub));
-                if (Build.VERSION.SDK_INT >= 30) {
-                    b.setAllowedAuthenticators(
-                            android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG
-                                    | android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL);
-                } else {
-                    b.setDeviceCredentialAllowed(true);
-                }
-                final Context app = getApplicationContext();
-                b.build().authenticate(new CancellationSignal(), getMainExecutor(),
-                        new android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
-                            @Override
-                            public void onAuthenticationSucceeded(
-                                    android.hardware.biometrics.BiometricPrompt.AuthenticationResult r) {
-                                Vault.resetFailures(app);
-                                ok.run();
-                            }
-
-                            @Override
-                            public void onAuthenticationFailed() {
-                                failed();
-                            }
-
-                            @Override
-                            public void onAuthenticationError(int code, CharSequence msg) {
-                                if (code == 7 || code == 9) failed();   // too many tries: counts as an attempt too
-                            }
-                        });
-                return;
-            } catch (Throwable ignored) {
-            }
-        }
-        try {
-            KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
-            Intent i = km.createConfirmDeviceCredentialIntent(getString(R.string.v_unlock_title),
-                    getString(R.string.v_unlock_sub));
-            if (i == null) return;
-            pendingOk = ok;
-            startActivityForResult(i, REQ_CRED);
-        } catch (Throwable t) {
-            Toast.makeText(this, R.string.v_open_failed, Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private void failed() {
-        int left = Vault.recordFailure(getApplicationContext());
-        if (left <= 0) {
-            Toast.makeText(this, R.string.v_wiped_toast, Toast.LENGTH_LONG).show();
-            render();
-        } else {
-            Toast.makeText(this, getString(R.string.v_attempts_left, left), Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    @Override
-    protected void onActivityResult(int req, int res, Intent data) {
-        super.onActivityResult(req, res, data);
-        if (req != REQ_CRED) return;
-        Runnable r = pendingOk;
-        pendingOk = null;
-        if (res == RESULT_OK && r != null) {
-            Vault.resetFailures(getApplicationContext());
-            r.run();
-        }
     }
 }

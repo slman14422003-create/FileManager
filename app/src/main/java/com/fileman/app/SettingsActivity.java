@@ -100,6 +100,14 @@ public class SettingsActivity extends BaseActivity {
                 getString(R.string.ic_title), getString(R.string.ic_sub), false, true),
                 v -> startActivity(new Intent(this, IconActivity.class))));
 
+        content.addView(Ui.sectionTitle(this, getString(R.string.lk_row)));
+        content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_lock, true,
+                getString(R.string.lk_row), AppLockUi.status(this), false, true),
+                v -> AppLockUi.open(this, this::recreate)));
+        content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_lock_fill, true,
+                getString(R.string.v_title), getString(R.string.v_sub), false, true),
+                v -> startActivity(new Intent(this, VaultActivity.class))));
+
         content.addView(Ui.sectionTitle(this, getString(R.string.g_title)));
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_lock_fill, true,
                 getString(R.string.g_title), getString(R.string.g_row_sub), false, true),

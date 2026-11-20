@@ -63,6 +63,7 @@ final class Vault {
     private static final String ALIAS = "fmvault_";
     private static final String KS = "AndroidKeyStore";
     private static final byte[] MAGIC = {'F', 'V', '1', 0};
+    private static final byte[] MAGIC2 = {'F', 'V', '2', 0};
     private static final int CHUNK = 64 * 1024;
     private static final int TAG_BITS = 128;
     private static final long MAX_FILE = 1536L * 1024 * 1024;
@@ -202,6 +203,24 @@ final class Vault {
         active.decrementAndGet();
     }
 
+    /** Second wrapping layer: the vault master key (known only while the vault is open) around the chip-wrapped data key. */
+    private static byte[] outer(byte[] vk, byte[] data, boolean enc) throws Exception {
+        Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
+        SecretKeySpec k = new SecretKeySpec(vk, "AES");
+        if (enc) {
+            byte[] iv = new byte[12];
+            RNG.nextBytes(iv);
+            c.init(Cipher.ENCRYPT_MODE, k, new GCMParameterSpec(TAG_BITS, iv));
+            byte[] ct = c.doFinal(data);
+            byte[] r = new byte[12 + ct.length];
+            System.arraycopy(iv, 0, r, 0, 12);
+            System.arraycopy(ct, 0, r, 12, ct.length);
+            return r;
+        }
+        c.init(Cipher.DECRYPT_MODE, k, new GCMParameterSpec(TAG_BITS, data, 0, 12));
+        return c.doFinal(data, 12, data.length - 12);
+    }
+
     private static byte[] nonce(byte[] base, int counter) {
         ByteBuffer bb = ByteBuffer.allocate(12);
         bb.put(base, 0, 8);
@@ -230,6 +249,7 @@ final class Vault {
         String id = null;
         File tmp = null;
         try {
+            final byte[] vk = VaultKey.current();
             dir(c);
             byte[] rid = new byte[12];
             RNG.nextBytes(rid);
@@ -244,7 +264,7 @@ final class Vault {
             Cipher wc = Cipher.getInstance("AES/GCM/NoPadding");
             wc.init(Cipher.ENCRYPT_MODE, wrap);
             byte[] wiv = wc.getIV();
-            byte[] wrapped = wc.doFinal(dataKey);
+            byte[] wrapped = outer(vk, wc.doFinal(dataKey), true);
 
             tmp = new File(dir(c), id + ".v.tmp");
             SecretKeySpec dk = new SecretKeySpec(dataKey, "AES");
@@ -252,7 +272,7 @@ final class Vault {
             try (InputStream in = new FileInputStream(src);
                  FileOutputStream fos = new FileOutputStream(tmp);
                  DataOutputStream out = new DataOutputStream(new java.io.BufferedOutputStream(fos, CHUNK))) {
-                out.write(MAGIC);
+                out.write(MAGIC2);
                 out.writeByte(wiv.length);
                 out.write(wiv);
                 out.writeShort(wrapped.length);
@@ -303,19 +323,22 @@ final class Vault {
 
     /** Decrypts an item into dest (which must not exist). Fails with an exception when the key is gone or data was altered. */
     static void decryptTo(Context c, String id, File dest) throws Exception {
+        final byte[] vk = VaultKey.current();
         begin();
         try {
             File f = new File(dir(c), id + ".v");
             try (DataInputStream in = new DataInputStream(new java.io.BufferedInputStream(new FileInputStream(f), CHUNK))) {
                 byte[] m = new byte[4];
                 in.readFully(m);
-                if (!java.util.Arrays.equals(m, MAGIC)) throw new java.io.IOException("format");
+                boolean v2 = java.util.Arrays.equals(m, MAGIC2);
+                if (!v2 && !java.util.Arrays.equals(m, MAGIC)) throw new java.io.IOException("format");
                 byte[] wiv = new byte[in.readUnsignedByte()];
                 in.readFully(wiv);
                 byte[] wrapped = new byte[in.readUnsignedShort()];
                 in.readFully(wrapped);
                 byte[] base = new byte[8];
                 in.readFully(base);
+                if (v2) wrapped = outer(vk, wrapped, false);
                 SecretKey wrap = loadKey(ALIAS + id);
                 if (wrap == null) throw new java.io.IOException("key");
                 Cipher wc = Cipher.getInstance("AES/GCM/NoPadding");
@@ -431,6 +454,7 @@ final class Vault {
             end();
         }
         clearTemps(app);
+        VaultKey.reset(app);
         sp(app).edit().putString(K_ITEMS, "[]").putInt(K_FAILS, 0).commit();
         if (!all.isEmpty()) {
             GuardCore.log(app, "vault wiped (" + why + "): " + all.size());
