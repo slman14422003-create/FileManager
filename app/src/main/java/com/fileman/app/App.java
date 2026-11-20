@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.ViewGroup;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -91,7 +92,20 @@ public class App extends Application {
                 ViewCompat.setOnApplyWindowInsetsListener(content, (v, insets) -> {
                     Insets b = insets.getInsets(WindowInsetsCompat.Type.systemBars()
                             | WindowInsetsCompat.Type.displayCutout() | WindowInsetsCompat.Type.ime());
-                    v.setPadding(b.left, b.top, b.right, b.bottom);
+                    View bar = v.findViewWithTag("fm_nav");
+                    View hold = bar != null && bar.getParent() instanceof View ? (View) bar.getParent() : null;
+                    View root = v instanceof ViewGroup && ((ViewGroup) v).getChildCount() > 0
+                            ? ((ViewGroup) v).getChildAt(0) : null;
+                    if (v.getBackground() == null && root != null
+                            && root.getBackground() instanceof android.graphics.drawable.ColorDrawable) {
+                        v.setBackgroundColor(((android.graphics.drawable.ColorDrawable) root.getBackground()).getColor());
+                    }
+                    if (hold != null) {
+                        v.setPadding(b.left, b.top, b.right, 0);
+                        hold.setPadding(hold.getPaddingLeft(), hold.getPaddingTop(), hold.getPaddingRight(), b.bottom);
+                    } else {
+                        v.setPadding(b.left, b.top, b.right, b.bottom);
+                    }
                     return WindowInsetsCompat.CONSUMED;
                 });
                 ViewCompat.requestApplyInsets(content);

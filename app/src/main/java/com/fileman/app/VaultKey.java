@@ -204,8 +204,6 @@ final class VaultKey {
             android.security.keystore.KeyInfo info = (android.security.keystore.KeyInfo) f.getKeySpec(k,
                     android.security.keystore.KeyInfo.class);
             if (!info.isInsideSecureHardware()) {
-                KeyStore ks = KeyStore.getInstance(KS);
-                ks.load(null);
                 ks.deleteEntry(BIO_ALIAS);
                 throw new java.security.GeneralSecurityException("software key");
             }
