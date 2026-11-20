@@ -72,4 +72,11 @@
     <string name="v_wiped_text">بسبب محاولة كسر، مُسح %1$d مستند نهائيًا دون أثر</string>
     <string name="v_limit">المحاولات الخاطئة قبل الإتلاف</string>
     <string name="v_limit_n">%1$d محاولات</string>
+    <string name="sd_menu">حذف نهائي (مسح بالكتابة فوقه)</string>
+    <string name="sd_title">حذف نهائي</string>
+    <string name="sd_msg">سيُكتب فوق %d عنصر بيانات عشوائية عدة مرات ثم يُحذف، ولا يمكن استرجاعه بأي أداة ولا يوجد تراجع. الملفات الكبيرة قد تأخذ وقتًا</string>
+    <string name="sd_go">مسح نهائي</string>
+    <string name="sd_busy">جارٍ المسح النهائي…</string>
+    <string name="sd_done_n">تم المسح النهائي لـ %d ملف</string>
+    <string name="sd_failed_n">تعذّر مسح %d عنصر</string>
 </resources>
