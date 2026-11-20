@@ -43,4 +43,11 @@
     <string name="lk_finger_msg">You can open the app with your fingerprint instead of the password.</string>
     <string name="lk_yes">Yes</string>
     <string name="lk_no">No</string>
+    <string name="vk_status">Vault open · %1$d protected files</string>
+    <string name="vk_lock_now_sub">The key is wiped from memory and temporary copies are deleted</string>
+    <string name="vk_bio_row">Fingerprint unlock</string>
+    <string name="vk_bio_row_on">The vault opens with your fingerprint instead of the password</string>
+    <string name="vk_bio_row_off">Bind your fingerprint to a key kept in the device secure chip</string>
+    <string name="vk_badge">Encrypted</string>
+    <string name="vk_hint">To add a file: long-press it in the manager, then choose “Lock in vault”</string>
 </resources>

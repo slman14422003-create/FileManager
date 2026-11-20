@@ -70,6 +70,15 @@
             </LinearLayout>
 
             <ImageButton
+        android:id="@+id/btnVault"
+        style="@style/IconButton"
+        android:layout_marginEnd="6dp"
+        android:contentDescription="@string/v_title"
+        android:src="@drawable/ic_lock"
+        android:tint="?attr/cAccent"
+        android:visibility="gone" />
+
+<ImageButton
                 android:id="@+id/btnAi"
                 style="@style/IconButton"
                 android:tint="?attr/cAccent"

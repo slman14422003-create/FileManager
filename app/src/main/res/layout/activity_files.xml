@@ -83,6 +83,15 @@
                 android:visibility="gone" />
 
             <ImageButton
+        android:id="@+id/btnVault"
+        style="@style/IconButton"
+        android:layout_marginStart="6dp"
+        android:contentDescription="@string/v_title"
+        android:src="@drawable/ic_lock"
+        android:tint="?attr/cAccent"
+        android:visibility="gone" />
+
+<ImageButton
                 android:id="@+id/btnAi"
                 style="@style/IconButton"
                 android:layout_marginStart="6dp"

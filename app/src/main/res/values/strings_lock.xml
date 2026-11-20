@@ -43,4 +43,11 @@
     <string name="lk_finger_msg">يمكنك فتح التطبيق بالبصمة بدل كلمة السر.</string>
     <string name="lk_yes">نعم</string>
     <string name="lk_no">لا</string>
+    <string name="vk_status">الخزنة مفتوحة · %1$d ملف محمي</string>
+    <string name="vk_lock_now_sub">يُمسح المفتاح من الذاكرة وتُحذف النسخ المؤقتة</string>
+    <string name="vk_bio_row">الفتح بالبصمة</string>
+    <string name="vk_bio_row_on">تفتح الخزنة بالبصمة بدل كلمة السر</string>
+    <string name="vk_bio_row_off">اربط بصمتك بمفتاح محمي في شريحة الجهاز</string>
+    <string name="vk_badge">مشفّر</string>
+    <string name="vk_hint">لإضافة ملف: اضغط مطولاً عليه في المدير ثم «قفل في الخزنة»</string>
 </resources>
