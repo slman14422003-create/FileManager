@@ -49,7 +49,7 @@
     <string name="v_hero">Encrypted with a key that never leaves the secure hardware. Everything is wiped without a trace on any break-in attempt</string>
     <string name="v_empty">No protected documents. Select a file in the file manager, then More, then Protect in vault</string>
     <string name="v_docs_n">%1$d documents</string>
-    <string name="v_menu_protect">Protect in vault</string>
+    <string name="v_menu_protect">Lock in vault</string>
     <string name="v_add_title">Protect in vault</string>
     <string name="v_add_msg">Files are encrypted and moved into the vault, and the original is permanently erased. A document opens only with your fingerprint or screen lock</string>
     <string name="v_add_go">Protect</string>

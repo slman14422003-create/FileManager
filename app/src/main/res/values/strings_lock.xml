@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vk_new">كلمة سر جديدة</string>
+    <string name="vk_repeat">أعد كتابة كلمة السر</string>
+    <string name="vk_password">كلمة السر</string>
+    <string name="vk_current">كلمة السر الحالية</string>
+    <string name="vk_setup_title">إنشاء كلمة سر للخزنة</string>
+    <string name="vk_setup_note">تُطلب كلمة السر عند كل دخول للخزنة، وتُقفل تلقائياً عند الخروج منها أو من التطبيق. لا يمكن استعادتها إن نسيتها.</string>
+    <string name="vk_create">إنشاء</string>
+    <string name="vk_short">كلمة السر قصيرة (4 أحرف على الأقل)</string>
+    <string name="vk_mismatch">كلمتا السر غير متطابقتين</string>
+    <string name="vk_wrong">كلمة السر غير صحيحة</string>
+    <string name="vk_open">فتح</string>
+    <string name="vk_finger">بصمة</string>
+    <string name="vk_forgot">نسيت كلمة السر؟</string>
+    <string name="vk_forgot_msg">لا يمكن استعادتها. المتابعة تمسح كل ما في الخزنة نهائياً.</string>
+    <string name="vk_locked">الخزنة مقفلة. أدخل كلمة السر أو البصمة لعرض ملفاتك.</string>
+    <string name="vk_lock_now">قفل الخزنة الآن</string>
+    <string name="vk_bio_on">تفعيل فتح الخزنة بالبصمة</string>
+    <string name="vk_bio_off">إيقاف فتح الخزنة بالبصمة</string>
+    <string name="vk_bio_title">افتح الخزنة</string>
+    <string name="vk_bio_fail">تعذّر تفعيل البصمة</string>
+    <string name="lk_row">قفل التطبيق</string>
+    <string name="lk_on">مفعّل</string>
+    <string name="lk_off">معطّل</string>
+    <string name="lk_title">التطبيق مقفل</string>
+    <string name="lk_sub">أدخل كلمة السر أو استخدم البصمة</string>
+    <string name="lk_unlock">فتح</string>
+    <string name="lk_finger">استخدم البصمة</string>
+    <string name="lk_wrong">كلمة السر غير صحيحة</string>
+    <string name="lk_wait">محاولات كثيرة، انتظر قليلاً</string>
+    <string name="lk_set">كلمة سر التطبيق</string>
+    <string name="lk_change">تغيير كلمة السر</string>
+    <string name="lk_disable">إيقاف القفل</string>
+    <string name="lk_bio_on">تفعيل البصمة</string>
+    <string name="lk_bio_off">إيقاف البصمة</string>
+    <string name="lk_delay">مدة السماح</string>
+    <string name="lk_d0">فوراً عند الخروج</string>
+    <string name="lk_d30">بعد 30 ثانية</string>
+    <string name="lk_d60">بعد دقيقة</string>
+    <string name="lk_d300">بعد 5 دقائق</string>
+    <string name="lk_finger_q">استخدام البصمة؟</string>
+    <string name="lk_finger_msg">يمكنك فتح التطبيق بالبصمة بدل كلمة السر.</string>
+    <string name="lk_yes">نعم</string>
+    <string name="lk_no">لا</string>
+</resources>

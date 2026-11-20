@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vk_new">New password</string>
+    <string name="vk_repeat">Repeat password</string>
+    <string name="vk_password">Password</string>
+    <string name="vk_current">Current password</string>
+    <string name="vk_setup_title">Create a vault password</string>
+    <string name="vk_setup_note">The password is asked every time you enter the vault, and the vault locks itself when you leave it or the app. It cannot be recovered if you forget it.</string>
+    <string name="vk_create">Create</string>
+    <string name="vk_short">Password too short (at least 4 characters)</string>
+    <string name="vk_mismatch">Passwords do not match</string>
+    <string name="vk_wrong">Wrong password</string>
+    <string name="vk_open">Open</string>
+    <string name="vk_finger">Fingerprint</string>
+    <string name="vk_forgot">Forgot the password?</string>
+    <string name="vk_forgot_msg">It cannot be recovered. Continuing permanently erases everything in the vault.</string>
+    <string name="vk_locked">The vault is locked. Enter the password or your fingerprint to see your files.</string>
+    <string name="vk_lock_now">Lock the vault now</string>
+    <string name="vk_bio_on">Open the vault with fingerprint</string>
+    <string name="vk_bio_off">Stop opening the vault with fingerprint</string>
+    <string name="vk_bio_title">Open the vault</string>
+    <string name="vk_bio_fail">Could not turn on the fingerprint</string>
+    <string name="lk_row">App lock</string>
+    <string name="lk_on">On</string>
+    <string name="lk_off">Off</string>
+    <string name="lk_title">App locked</string>
+    <string name="lk_sub">Enter the password or use your fingerprint</string>
+    <string name="lk_unlock">Unlock</string>
+    <string name="lk_finger">Use fingerprint</string>
+    <string name="lk_wrong">Wrong password</string>
+    <string name="lk_wait">Too many tries, wait a moment</string>
+    <string name="lk_set">App password</string>
+    <string name="lk_change">Change password</string>
+    <string name="lk_disable">Turn lock off</string>
+    <string name="lk_bio_on">Turn on fingerprint</string>
+    <string name="lk_bio_off">Turn off fingerprint</string>
+    <string name="lk_delay">Grace period</string>
+    <string name="lk_d0">Right after leaving</string>
+    <string name="lk_d30">After 30 seconds</string>
+    <string name="lk_d60">After 1 minute</string>
+    <string name="lk_d300">After 5 minutes</string>
+    <string name="lk_finger_q">Use fingerprint?</string>
+    <string name="lk_finger_msg">You can open the app with your fingerprint instead of the password.</string>
+    <string name="lk_yes">Yes</string>
+    <string name="lk_no">No</string>
+</resources>
