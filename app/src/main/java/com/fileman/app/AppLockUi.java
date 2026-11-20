@@ -67,7 +67,7 @@ final class AppLockUi {
 
     private static void verifyThen(final Activity a, final Runnable ok) {
         LinearLayout box = Ui.box(a);
-        final EditText p = VaultGate.passwordField(a, R.string.lk_current);
+        final EditText p = VaultGate.passwordField(a, R.string.vk_current);
         box.addView(p);
         new Dlg(a).setTitle(R.string.lk_row).setView(box)
                 .setPositiveButton(R.string.vk_open, (d, w) -> {
