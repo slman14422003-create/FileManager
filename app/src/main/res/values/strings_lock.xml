@@ -7,7 +7,7 @@
     <string name="vk_setup_title">إنشاء كلمة سر للخزنة</string>
     <string name="vk_setup_note">تُطلب كلمة السر عند كل دخول للخزنة، وتُقفل تلقائياً عند الخروج منها أو من التطبيق. لا يمكن استعادتها إن نسيتها.</string>
     <string name="vk_create">إنشاء</string>
-    <string name="vk_short">كلمة السر قصيرة (4 أحرف على الأقل)</string>
+    <string name="vk_short">كلمة السر قصيرة (8 أحرف على الأقل)</string>
     <string name="vk_mismatch">كلمتا السر غير متطابقتين</string>
     <string name="vk_wrong">كلمة السر غير صحيحة</string>
     <string name="vk_open">فتح</string>
@@ -50,4 +50,31 @@
     <string name="vk_bio_row_off">اربط بصمتك بمفتاح محمي في شريحة الجهاز</string>
     <string name="vk_badge">مشفّر</string>
     <string name="vk_hint">لإضافة ملف: اضغط مطولاً عليه في المدير ثم «قفل في الخزنة»</string>
+    <string name="vk_common">كلمة السر شائعة وسهلة التخمين، اختر غيرها</string>
+    <string name="vk_hooked">تم رصد أداة اختراق، أُغلقت الخزنة</string>
+    <string name="vk_idle">أُغلقت الخزنة لعدم النشاط</string>
+    <string name="vk_root_title">الجهاز مكسور الحماية</string>
+    <string name="vk_root_msg">تم رصد صلاحيات root على الجهاز. لا يمكن ضمان حماية الخزنة عليه. هل تريد المتابعة؟</string>
+    <string name="vk_continue">متابعة</string>
+    <string name="vk_rules">8 أحرف على الأقل ولا تستخدم كلمة شائعة</string>
+    <string name="lk_wait_s">انتظر %1$d ثانية</string>
+    <string name="vk_adv">حماية متقدمة</string>
+    <string name="vk_panic">كلمة سر الإكراه</string>
+    <string name="vk_panic_sub">كلمة تمسح الخزنة وتفتح خزنة فارغة</string>
+    <string name="vk_panic_same">يجب أن تختلف عن كلمة سر الخزنة</string>
+    <string name="vk_sms">المسح عبر رسالة سرية</string>
+    <string name="vk_sms_sub">امسح الخزنة برسالة نصية من رقم آخر</string>
+    <string name="vk_sms_title">أمر المسح السري</string>
+    <string name="vk_sms_cmd">أرسل هذا النص كرسالة SMS إلى هذا الجهاز لمسح الخزنة فوراً:
+
+%1$s
+
+احفظه في مكان آمن خارج الجهاز. كل من يعرفه يستطيع المسح.</string>
+    <string name="vk_sms_off_msg">المسح عبر الرسالة مفعّل.</string>
+    <string name="vk_sms_new">أمر جديد</string>
+    <string name="vk_sms_stop">إيقاف</string>
+    <string name="vk_dead">مؤقت الغياب</string>
+    <string name="vk_dead_sub">مسح الخزنة إذا لم تفتح التطبيق لفترة</string>
+    <string name="vk_dead_msg">تُمسح الخزنة تلقائياً إذا لم تفتح التطبيق خلال المدة المحددة.</string>
+    <string name="vk_days">%1$d يوم</string>
 </resources>

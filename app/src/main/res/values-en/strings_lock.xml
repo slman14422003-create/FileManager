@@ -7,7 +7,7 @@
     <string name="vk_setup_title">Create a vault password</string>
     <string name="vk_setup_note">The password is asked every time you enter the vault, and the vault locks itself when you leave it or the app. It cannot be recovered if you forget it.</string>
     <string name="vk_create">Create</string>
-    <string name="vk_short">Password too short (at least 4 characters)</string>
+    <string name="vk_short">Password too short (at least 8 characters)</string>
     <string name="vk_mismatch">Passwords do not match</string>
     <string name="vk_wrong">Wrong password</string>
     <string name="vk_open">Open</string>
@@ -50,4 +50,31 @@
     <string name="vk_bio_row_off">Bind your fingerprint to a key kept in the device secure chip</string>
     <string name="vk_badge">Encrypted</string>
     <string name="vk_hint">To add a file: long-press it in the manager, then choose “Lock in vault”</string>
+    <string name="vk_common">That password is too common, pick another</string>
+    <string name="vk_hooked">Hooking tool detected, vault closed</string>
+    <string name="vk_idle">Vault closed due to inactivity</string>
+    <string name="vk_root_title">Rooted device</string>
+    <string name="vk_root_msg">Root access was detected. The vault cannot be fully protected on this device. Continue?</string>
+    <string name="vk_continue">Continue</string>
+    <string name="vk_rules">At least 8 characters, no common passwords</string>
+    <string name="lk_wait_s">Wait %1$d seconds</string>
+    <string name="vk_adv">Advanced protection</string>
+    <string name="vk_panic">Duress password</string>
+    <string name="vk_panic_sub">Wipes the vault and opens an empty one</string>
+    <string name="vk_panic_same">Must differ from the vault password</string>
+    <string name="vk_sms">Secret SMS wipe</string>
+    <string name="vk_sms_sub">Wipe the vault by text from another phone</string>
+    <string name="vk_sms_title">Secret wipe command</string>
+    <string name="vk_sms_cmd">Send this text as an SMS to this device to wipe the vault instantly:
+
+%1$s
+
+Keep it somewhere safe off this device. Anyone who knows it can wipe.</string>
+    <string name="vk_sms_off_msg">SMS wipe is enabled.</string>
+    <string name="vk_sms_new">New command</string>
+    <string name="vk_sms_stop">Turn off</string>
+    <string name="vk_dead">Dead-man timer</string>
+    <string name="vk_dead_sub">Wipe the vault if the app is not opened for a while</string>
+    <string name="vk_dead_msg">The vault is wiped automatically if you do not open the app within the chosen period.</string>
+    <string name="vk_days">%1$d days</string>
 </resources>
