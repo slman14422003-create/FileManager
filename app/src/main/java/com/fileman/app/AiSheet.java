@@ -25,6 +25,11 @@ final class AiSheet {
 
     /** Shows the sparkle button of the screen's header (when it has one) and wires it. */
     static void install(final Activity a) {
+        View vault = a.findViewById(R.id.btnVault);
+        if (vault != null && !(a instanceof VaultActivity)) {
+            vault.setVisibility(View.VISIBLE);
+            vault.setOnClickListener(v -> a.startActivity(new Intent(a, VaultActivity.class)));
+        }
         View b = a.findViewById(R.id.btnAi);
         if (b == null) return;
         b.setVisibility(View.VISIBLE);

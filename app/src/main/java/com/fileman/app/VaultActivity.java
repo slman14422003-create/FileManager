@@ -127,16 +127,22 @@ public class VaultActivity extends BaseActivity {
     private void render() {
         content.removeAllViews();
         content.addView(Ui.hero(this, getString(R.string.v_title), getString(R.string.v_hero)));
-        Button lockNow = Ui.block(this, Ui.button(this, R.string.vk_lock_now, false));
-        lockNow.setOnClickListener(v -> {
+        List<Vault.Item> items = Vault.list(this);
+        content.addView(Ui.noteCard(this, getString(R.string.vk_status, items.size()), R.color.accent_text));
+
+        LinearLayout tools = new LinearLayout(this);
+        tools.setOrientation(LinearLayout.VERTICAL);
+        tools.addView(Ui.rowView(this, tools, new Row(R.drawable.ic_lock_fill, true, getString(R.string.vk_lock_now),
+                getString(R.string.vk_lock_now_sub), false, true), v -> {
             VaultGate.close(this);
             renderLocked();
-        });
-        content.addView(lockNow);
+        }));
         if (Bio.cryptoSupported() && Bio.available(this)) {
             final boolean on = VaultKey.bioReady(this);
-            Button fp = Ui.block(this, Ui.button(this, on ? R.string.vk_bio_off : R.string.vk_bio_on, false));
-            fp.setOnClickListener(v -> {
+            Row r = new Row(R.drawable.ic_shield, true, getString(R.string.vk_bio_row),
+                    getString(on ? R.string.vk_bio_row_on : R.string.vk_bio_row_off), false, true);
+            r.badge(getString(on ? R.string.lk_on : R.string.lk_off), Ui.color(this, on ? R.color.ok : R.color.text_hint));
+            tools.addView(Ui.rowView(this, tools, r, v -> {
                 if (on) {
                     VaultKey.bioDisable(this);
                     render();
@@ -144,19 +150,28 @@ public class VaultActivity extends BaseActivity {
                     VaultKey.bioEnable(this, this::render,
                             () -> Toast.makeText(this, R.string.vk_bio_fail, Toast.LENGTH_SHORT).show());
                 }
-            });
-            content.addView(fp);
+            }));
         }
-        List<Vault.Item> items = Vault.list(this);
+        Ui.group(this, tools);
+        content.addView(tools);
+
         if (items.isEmpty()) {
             content.addView(Ui.footer(this, getString(R.string.v_empty)));
             return;
         }
         content.addView(Ui.sectionTitle(this, getString(R.string.v_docs_n, items.size())));
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
         for (final Vault.Item it : items) {
-            content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_lock, true, it.name,
-                    Fmt.size(it.size) + "  ·  " + Fmt.date(it.added), false, true), v -> itemMenu(it)));
+            String ext = Cats.extOf(it.name);
+            Row r = new Row(Cats.iconForExt(ext, Cats.typeOfExt(ext)), false, it.name,
+                    Fmt.size(it.size) + "  \u00b7  " + Fmt.date(it.added), false, true);
+            r.badge(getString(R.string.vk_badge), Ui.color(this, R.color.accent_text));
+            list.addView(Ui.rowView(this, list, r, v -> itemMenu(it)));
         }
+        Ui.group(this, list);
+        content.addView(list);
+        content.addView(Ui.footer(this, getString(R.string.vk_hint)));
     }
 
     private void itemMenu(final Vault.Item it) {
