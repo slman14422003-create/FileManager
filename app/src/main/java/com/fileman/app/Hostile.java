@@ -7,8 +7,6 @@ import android.os.Debug;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 
 /** Looks for signs that the phone is rooted or that something is hooking into the app while the vault is open. */
 final class Hostile {
@@ -34,11 +32,16 @@ final class Hostile {
                     }
                 }
             }
-            try (Socket s = new Socket()) {
-                s.connect(new InetSocketAddress("127.0.0.1", 27042), 60);
-                return true;
-            } catch (Exception closed) {
-                // nothing listening: good
+            for (String t : new String[]{"/proc/net/tcp", "/proc/net/tcp6"}) {
+                File f = new File(t);
+                if (!f.canRead()) continue;
+                try (BufferedReader r = new BufferedReader(new FileReader(f))) {
+                    String l;
+                    while ((l = r.readLine()) != null) {
+                        String[] p = l.trim().split("\\s+");
+                        if (p.length > 3 && "0A".equals(p[3]) && p[1].endsWith(":6992")) return true;
+                    }
+                }
             }
         } catch (Throwable ignored) {
         }
