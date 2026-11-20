@@ -311,6 +311,7 @@ final class Vault {
             all.add(it);
             writeIndex(c, all);
             shred(src);
+            scrub(c, src);
             return it;
         } catch (Throwable t) {
             if (tmp != null) shred(tmp);
@@ -389,6 +390,41 @@ final class Vault {
 
     // ------------------------------------------------------------------ temporary plaintext copies
 
+    /** Removes the traces a deleted original leaves in the media database and the media scanner. */
+    private static void scrub(Context c, File f) {
+        String p = f.getAbsolutePath();
+        try {
+            c.getContentResolver().delete(android.provider.MediaStore.Files.getContentUri("external"),
+                    android.provider.MediaStore.MediaColumns.DATA + "=?", new String[]{p});
+        } catch (Throwable ignored) {
+        }
+        try {
+            android.media.MediaScannerConnection.scanFile(c.getApplicationContext(), new String[]{p}, null, null);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** Deletes decrypted copies that were left open longer than the given time. */
+    static void clearOldTemps(Context c, long olderThanMs) {
+        try {
+            File[] ds = tempRoot(c).listFiles();
+            if (ds == null) return;
+            long now = System.currentTimeMillis();
+            begin();
+            try {
+                for (File d : ds) {
+                    if (!d.getName().startsWith("vault-") || now - d.lastModified() < olderThanMs) continue;
+                    File[] fs = d.listFiles();
+                    if (fs != null) for (File f : fs) shred(f);
+                    d.delete();
+                }
+            } finally {
+                end();
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static File tempRoot(Context c) {
         return new File(c.getApplicationContext().getCacheDir(), "zipview");
     }
@@ -401,6 +437,12 @@ final class Vault {
         if (!d.mkdirs()) throw new java.io.IOException("tmp");
         File out = new File(d, safeName(it.name));
         decryptTo(c, it.id, out);
+        out.setReadable(false, false);
+        out.setReadable(true, true);   // only this app can read the decrypted copy
+        d.setReadable(false, false);
+        d.setReadable(true, true);
+        d.setExecutable(false, false);
+        d.setExecutable(true, true);
         return out;
     }
 

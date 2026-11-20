@@ -79,28 +79,85 @@ final class VaultKey {
         try {
             byte[] m = new byte[32];
             RNG.nextBytes(m);
-            byte[] salt = Pass.salt();
-            byte[] k = Pass.derive(pw, salt);
-            sp(c).edit().putString("salt", Pass.b64(salt)).putString("wrapped", Pass.b64(seal(k, m))).apply();
-            Arrays.fill(k, (byte) 0);
+            store(c, pw, m);
             master = m;
+            Remote.checkin(c);
             return true;
         } catch (Exception e) {
             return false;
         }
     }
 
-    static boolean unlock(Context c, char[] pw) {
+    private static void store(Context c, char[] pw, byte[] m) throws Exception {
+        byte[] salt = Pass.salt();
+        byte[] k = Pass.derive2(pw, salt);
+        try {
+            sp(c).edit().putString("salt", Pass.b64(salt)).putString("wrapped", Pass.b64(seal(k, m)))
+                    .putInt("ver", 2).apply();
+        } finally {
+            Arrays.fill(k, (byte) 0);
+        }
+    }
+
+    /** Opens the master key with the password without leaving the vault open (null when the password is wrong). */
+    private static byte[] tryOpen(Context c, char[] pw) {
         try {
             SharedPreferences p = sp(c);
             byte[] salt = Pass.unb64(p.getString("salt", null));
             byte[] wrapped = Pass.unb64(p.getString("wrapped", null));
-            if (salt == null || wrapped == null) return false;
-            byte[] k = Pass.derive(pw, salt);
-            byte[] m = open(k, wrapped);
-            Arrays.fill(k, (byte) 0);
-            master = m;
-            return true;
+            if (salt == null || wrapped == null) return null;
+            byte[] k = Pass.derive(p.getInt("ver", 1), pw, salt);
+            try {
+                return open(k, wrapped);
+            } finally {
+                Arrays.fill(k, (byte) 0);
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    static boolean unlock(Context c, char[] pw) {
+        byte[] m = tryOpen(c, pw);
+        if (m == null) return false;
+        master = m;
+        try {
+            if (sp(c).getInt("ver", 1) < 2) store(c, pw, m);   // older install: upgrade to the device-bound version
+        } catch (Exception ignored) {
+        }
+        Remote.checkin(c);
+        return true;
+    }
+
+    /** True when the given password is the real vault password (used to refuse a duress password that equals it). */
+    static boolean isReal(Context c, char[] pw) {
+        byte[] m = tryOpen(c, pw);
+        if (m == null) return false;
+        Arrays.fill(m, (byte) 0);
+        return true;
+    }
+
+    // ------------------------------------------------------------------ duress password
+
+    static boolean panicSet(Context c) {
+        return sp(c).getString("phash", null) != null;
+    }
+
+    static void setPanic(Context c, char[] pw) {
+        byte[] salt = Pass.salt();
+        sp(c).edit().putString("psalt", Pass.b64(salt)).putString("phash", Pass.b64(Pass.derive2(pw, salt))).apply();
+    }
+
+    static void clearPanic(Context c) {
+        sp(c).edit().remove("psalt").remove("phash").apply();
+    }
+
+    static boolean isPanic(Context c, char[] pw) {
+        try {
+            SharedPreferences p = sp(c);
+            byte[] salt = Pass.unb64(p.getString("psalt", null));
+            byte[] hash = Pass.unb64(p.getString("phash", null));
+            return salt != null && hash != null && Pass.same(hash, Pass.derive2(pw, salt));
         } catch (Exception e) {
             return false;
         }
@@ -136,8 +193,24 @@ final class VaultKey {
                 .setKeySize(256)
                 .setUserAuthenticationRequired(true)
                 .setInvalidatedByBiometricEnrollment(true);
+        if (Build.VERSION.SDK_INT >= 30) {
+            b.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG);
+        }
         g.init(b.build());
-        return g.generateKey();
+        SecretKey k = g.generateKey();
+        if (Build.VERSION.SDK_INT >= 23) {
+            // refuse a key that is not kept inside secure hardware
+            javax.crypto.SecretKeyFactory f = javax.crypto.SecretKeyFactory.getInstance(k.getAlgorithm(), KS);
+            android.security.keystore.KeyInfo info = (android.security.keystore.KeyInfo) f.getKeySpec(k,
+                    android.security.keystore.KeyInfo.class);
+            if (!info.isInsideSecureHardware()) {
+                KeyStore ks = KeyStore.getInstance(KS);
+                ks.load(null);
+                ks.deleteEntry(BIO_ALIAS);
+                throw new java.security.GeneralSecurityException("software key");
+            }
+        }
+        return k;
     }
 
     /** Lets a fingerprint open the vault from now on. The vault must be open; the finger is asked once to bind the key. */
@@ -205,6 +278,7 @@ final class VaultKey {
                 public void ok(Cipher cipher) {
                     try {
                         master = cipher.doFinal(ct);
+                        Remote.checkin(a);
                         ok2(ok);
                     } catch (Throwable t) {
                         failed.run();

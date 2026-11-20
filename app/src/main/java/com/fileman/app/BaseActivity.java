@@ -52,6 +52,10 @@ public abstract class BaseActivity extends AppCompatActivity {
             Blur.install(this, glassScreen());
         } catch (Throwable ignored) {
         }
+        if (!(this instanceof LockActivity) && AppLock.locked(this)) {
+            android.view.View shell = findViewById(android.R.id.content);
+            if (shell != null) shell.setVisibility(android.view.View.INVISIBLE);
+        }
         Layout.constrain(this, constrainContent());
         try {
             AiSheet.install(this);
@@ -87,10 +91,13 @@ public abstract class BaseActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        android.view.View shell = findViewById(android.R.id.content);
         if (!(this instanceof LockActivity) && AppLock.locked(this)) {
+            if (shell != null) shell.setVisibility(android.view.View.INVISIBLE);   // nothing shows before the lock does
             LockActivity.show(this);
             return;
         }
+        if (shell != null && shell.getVisibility() != android.view.View.VISIBLE) shell.setVisibility(android.view.View.VISIBLE);
         syncBack();
     }
 

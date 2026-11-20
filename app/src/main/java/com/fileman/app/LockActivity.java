@@ -97,26 +97,31 @@ public class LockActivity extends BaseActivity {
     }
 
     private void check() {
-        String s = pass.getText().toString();
-        if (!s.isEmpty() && AppLock.verify(this, s.toCharArray())) {
+        long wait = AppLock.waitMs(this);
+        if (wait > 0) {
+            error.setText(getString(R.string.lk_wait_s, (wait + 999) / 1000));
+            pass.getText().clear();
+            return;
+        }
+        char[] s = Pass.take(pass);
+        boolean good = s.length > 0 && AppLock.verify(this, s);
+        Pass.wipe(s);
+        if (good) {
             done();
             return;
         }
         wrong++;
-        pass.setText("");
+        AppLock.failed(this);
         error.setText(R.string.lk_wrong);
         Fx.tick(pass);
         pass.animate().translationX(Ui.dp(this, 10)).setDuration(60).withEndAction(
                 () -> pass.animate().translationX(0).setDuration(120).start()).start();
-        if (wrong >= 5) {
-            pass.setEnabled(false);
-            pass.postDelayed(() -> pass.setEnabled(true), 15000);
-            error.setText(R.string.lk_wait);
-        }
+        long w2 = AppLock.waitMs(this);
+        if (w2 > 0) error.setText(getString(R.string.lk_wait_s, (w2 + 999) / 1000));
     }
 
     private void done() {
-        AppLock.markUnlocked();
+        AppLock.markUnlocked(this);
         finish();
         overridePendingTransition(0, 0);
     }

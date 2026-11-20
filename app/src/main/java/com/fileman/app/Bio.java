@@ -45,10 +45,15 @@ final class Bio {
                              final Result r) {
         if (Build.VERSION.SDK_INT >= 28) {
             try {
-                android.hardware.biometrics.BiometricPrompt p = new android.hardware.biometrics.BiometricPrompt.Builder(a)
-                        .setTitle(title)
-                        .setNegativeButton(cancel, a.getMainExecutor(), (d, w) -> r.fail())
-                        .build();
+                android.hardware.biometrics.BiometricPrompt.Builder pb =
+                        new android.hardware.biometrics.BiometricPrompt.Builder(a)
+                                .setTitle(title)
+                                .setNegativeButton(cancel, a.getMainExecutor(), (d, w) -> r.fail());
+                if (Build.VERSION.SDK_INT >= 29) pb.setConfirmationRequired(true);
+                if (Build.VERSION.SDK_INT >= 30) {
+                    pb.setAllowedAuthenticators(android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG);
+                }
+                android.hardware.biometrics.BiometricPrompt p = pb.build();
                 android.hardware.biometrics.BiometricPrompt.AuthenticationCallback cb =
                         new android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
                             @Override

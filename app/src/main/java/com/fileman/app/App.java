@@ -48,6 +48,16 @@ public class App extends Application {
         Appearance.applyMode(this);
         Wipe.resume(this);
         Vault.watch(this);
+        Remote.schedule(this);
+        android.content.BroadcastReceiver screenOff = new android.content.BroadcastReceiver() {
+            @Override
+            public void onReceive(android.content.Context c, android.content.Intent i) {
+                VaultGate.close(c);   // the screen went off: the vault closes at once
+            }
+        };
+        android.content.IntentFilter off = new android.content.IntentFilter(android.content.Intent.ACTION_SCREEN_OFF);
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(screenOff, off, android.content.Context.RECEIVER_NOT_EXPORTED);
+        else registerReceiver(screenOff, off);
         new Thread(() -> Vault.clearTemps(getApplicationContext()), "vault-clean").start();
         // a drive plugged in while one of the main screens is open: ask what to do with it
         Volumes.watch(this, () -> main.postDelayed(() -> {

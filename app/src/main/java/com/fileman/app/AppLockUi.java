@@ -71,33 +71,21 @@ final class AppLockUi {
         box.addView(p);
         new Dlg(a).setTitle(R.string.lk_row).setView(box)
                 .setPositiveButton(R.string.vk_open, (d, w) -> {
-                    if (AppLock.verify(a, p.getText().toString().toCharArray())) ok.run();
+                    char[] pw = Pass.take(p);
+                    boolean good = AppLock.verify(a, pw);
+                    Pass.wipe(pw);
+                    if (good) ok.run();
                     else Toast.makeText(a, R.string.lk_wrong, Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton(R.string.cancel, null).show();
     }
 
     private static void setPassword(final Activity a, final Runnable done) {
-        LinearLayout box = Ui.box(a);
-        final EditText p1 = VaultGate.passwordField(a, R.string.vk_new);
-        final EditText p2 = VaultGate.passwordField(a, R.string.vk_repeat);
-        box.addView(p1);
-        box.addView(p2);
-        new Dlg(a).setTitle(R.string.lk_set).setView(box)
-                .setPositiveButton(R.string.vk_create, (d, w) -> {
-                    String x = p1.getText().toString();
-                    if (x.length() < 4) {
-                        Toast.makeText(a, R.string.vk_short, Toast.LENGTH_SHORT).show();
-                        setPassword(a, done);
-                    } else if (!x.equals(p2.getText().toString())) {
-                        Toast.makeText(a, R.string.vk_mismatch, Toast.LENGTH_SHORT).show();
-                        setPassword(a, done);
-                    } else {
-                        AppLock.setPassword(a, x.toCharArray());
-                        done.run();
-                    }
-                })
-                .setNegativeButton(R.string.cancel, null).show();
+        VaultGate.newPassword(a, R.string.lk_set, pw -> {
+            AppLock.setPassword(a, pw);
+            Pass.wipe(pw);
+            done.run();
+        }, null, false);
     }
 
     private static void delay(final Activity a, final Runnable changed) {

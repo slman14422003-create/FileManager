@@ -23,7 +23,8 @@ final class AppLock {
 
     static void setPassword(Context c, char[] pw) {
         byte[] salt = Pass.salt();
-        sp(c).edit().putString("salt", Pass.b64(salt)).putString("hash", Pass.b64(Pass.derive(pw, salt))).apply();
+        sp(c).edit().putString("salt", Pass.b64(salt)).putString("hash", Pass.b64(Pass.derive2(pw, salt)))
+                .putInt("ver", 2).putInt("fails", 0).putLong("until", 0).apply();
         unlocked = true;
     }
 
@@ -32,7 +33,10 @@ final class AppLock {
         byte[] salt = Pass.unb64(p.getString("salt", null));
         byte[] hash = Pass.unb64(p.getString("hash", null));
         if (salt == null || hash == null) return false;
-        return Pass.same(hash, Pass.derive(pw, salt));
+        int ver = p.getInt("ver", 1);
+        boolean ok = Pass.same(hash, Pass.derive(ver, pw, salt));
+        if (ok && ver < 2) setPassword(c, pw);   // upgrade an older hash to the device-bound one
+        return ok;
     }
 
     static void disable(Context c) {
@@ -60,8 +64,29 @@ final class AppLock {
         return enabled(c) && !unlocked;
     }
 
-    static void markUnlocked() {
+    static void markUnlocked(Context c) {
         unlocked = true;
+        sp(c).edit().putInt("fails", 0).putLong("until", 0).apply();
+        Remote.checkin(c);
+    }
+
+    // ------------------------------------------------------------------ wrong-password delay (kept on disk, so restarting does not reset it)
+
+    /** Milliseconds still to wait before another try is allowed (0 = free to try). */
+    static long waitMs(Context c) {
+        long left = sp(c).getLong("until", 0) - System.currentTimeMillis();
+        return Math.max(0, left);
+    }
+
+    static void failed(Context c) {
+        SharedPreferences p = sp(c);
+        int n = p.getInt("fails", 0) + 1;
+        long until = 0;
+        if (n >= 5) {
+            long sec = Math.min(3600, 15L << Math.min(n - 5, 8));   // 15 s, 30 s, 1 min ... up to an hour
+            until = System.currentTimeMillis() + sec * 1000L;
+        }
+        p.edit().putInt("fails", n).putLong("until", until).apply();
     }
 
     static void left() {

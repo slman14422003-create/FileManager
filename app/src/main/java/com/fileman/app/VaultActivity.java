@@ -82,6 +82,14 @@ public class VaultActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        lastTouch = System.currentTimeMillis();
+        watch.removeCallbacks(watchTick);
+        watch.postDelayed(watchTick, 15_000L);
+        try {
+            getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE,
+                    android.view.WindowManager.LayoutParams.FLAG_SECURE);
+        } catch (Throwable ignored) {
+        }
         if (VaultKey.isUnlocked()) {
             render();
         } else {
@@ -107,6 +115,37 @@ public class VaultActivity extends BaseActivity {
     }
 
     private boolean asking;
+    private long lastTouch = System.currentTimeMillis();
+    private final android.os.Handler watch = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable watchTick = new Runnable() {
+        @Override
+        public void run() {
+            if (VaultKey.isUnlocked()) {
+                boolean idle = System.currentTimeMillis() - lastTouch > 3 * 60_000L;
+                if (idle || Hostile.hooking()) {
+                    VaultGate.close(VaultActivity.this);
+                    renderLocked();
+                    Toast.makeText(VaultActivity.this, idle ? R.string.vk_idle : R.string.vk_hooked,
+                            Toast.LENGTH_LONG).show();
+                } else {
+                    io.execute(() -> Vault.clearOldTemps(getApplicationContext(), 10 * 60_000L));
+                }
+            }
+            watch.postDelayed(this, 15_000L);
+        }
+    };
+
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent ev) {
+        lastTouch = System.currentTimeMillis();
+        return super.dispatchTouchEvent(ev);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        watch.removeCallbacks(watchTick);
+    }
 
     private void renderLocked() {
         content.removeAllViews();
@@ -154,6 +193,7 @@ public class VaultActivity extends BaseActivity {
         }
         Ui.group(this, tools);
         content.addView(tools);
+        security(items);
 
         if (items.isEmpty()) {
             content.addView(Ui.footer(this, getString(R.string.v_empty)));
@@ -172,6 +212,94 @@ public class VaultActivity extends BaseActivity {
         Ui.group(this, list);
         content.addView(list);
         content.addView(Ui.footer(this, getString(R.string.vk_hint)));
+    }
+
+    private void security(List<Vault.Item> items) {
+        content.addView(Ui.sectionTitle(this, getString(R.string.vk_adv)));
+        LinearLayout adv = new LinearLayout(this);
+        adv.setOrientation(LinearLayout.VERTICAL);
+
+        final boolean duress = VaultKey.panicSet(this);
+        Row r1 = new Row(R.drawable.ic_shield, true, getString(R.string.vk_panic), getString(R.string.vk_panic_sub),
+                false, true);
+        r1.badge(getString(duress ? R.string.lk_on : R.string.lk_off),
+                Ui.color(this, duress ? R.color.ok : R.color.text_hint));
+        adv.addView(Ui.rowView(this, adv, r1, v -> {
+            if (duress) {
+                VaultKey.clearPanic(this);
+                render();
+            } else {
+                VaultGate.newPassword(this, R.string.vk_panic, pw -> {
+                    if (VaultKey.isReal(this, pw)) {
+                        Toast.makeText(this, R.string.vk_panic_same, Toast.LENGTH_LONG).show();
+                    } else {
+                        VaultKey.setPanic(this, pw);
+                    }
+                    Pass.wipe(pw);
+                    render();
+                }, null, false);
+            }
+        }));
+
+        final boolean sms = Remote.smsOn(this);
+        Row r2 = new Row(R.drawable.ic_delete, true, getString(R.string.vk_sms), getString(R.string.vk_sms_sub),
+                false, true);
+        r2.badge(getString(sms ? R.string.lk_on : R.string.lk_off), Ui.color(this, sms ? R.color.ok : R.color.text_hint));
+        adv.addView(Ui.rowView(this, adv, r2, v -> {
+            if (sms) {
+                new Dlg(this).setTitle(R.string.vk_sms).setMessage(R.string.vk_sms_off_msg)
+                        .setPositiveButton(R.string.vk_sms_new, (d, w) -> showSmsCommand())
+                        .setNeutralButton(R.string.vk_sms_stop, (d, w) -> {
+                            Remote.smsDisable(this);
+                            render();
+                        })
+                        .setNegativeButton(R.string.cancel, null).show();
+            } else if (checkSelfPermission(android.Manifest.permission.RECEIVE_SMS)
+                    == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                showSmsCommand();
+            } else {
+                requestPermissions(new String[]{android.Manifest.permission.RECEIVE_SMS}, REQ_SMS);
+            }
+        }));
+
+        final int days = Remote.deadDays(this);
+        Row r3 = new Row(R.drawable.ic_timer, true, getString(R.string.vk_dead), getString(R.string.vk_dead_sub),
+                false, true);
+        r3.badge(days == 0 ? getString(R.string.lk_off) : getString(R.string.vk_days, days),
+                Ui.color(this, days == 0 ? R.color.text_hint : R.color.ok));
+        adv.addView(Ui.rowView(this, adv, r3, v -> {
+            final int[] opts = {0, 7, 14, 30, 60};
+            CharSequence[] names = {getString(R.string.lk_off), getString(R.string.vk_days, 7),
+                    getString(R.string.vk_days, 14), getString(R.string.vk_days, 30), getString(R.string.vk_days, 60)};
+            new Dlg(this).setTitle(R.string.vk_dead).setMessage(R.string.vk_dead_msg).setItems(names, (d, which) -> {
+                Remote.setDeadDays(this, opts[which]);
+                render();
+            }).show();
+        }));
+        Ui.group(this, adv);
+        content.addView(adv);
+    }
+
+    private static final int REQ_SMS = 91;
+
+    @Override
+    public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
+        super.onRequestPermissionsResult(code, perms, res);
+        if (code == REQ_SMS && res.length > 0 && res[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            showSmsCommand();
+        }
+    }
+
+    private void showSmsCommand() {
+        final String cmd = Remote.smsEnable(this);
+        new Dlg(this).setTitle(R.string.vk_sms_title).setMessage(getString(R.string.vk_sms_cmd, cmd))
+                .setPositiveButton(R.string.ai_copy, (d, w) -> {
+                    android.content.ClipboardManager cm =
+                            (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                    if (cm != null) cm.setPrimaryClip(android.content.ClipData.newPlainText("wipe", cmd));
+                    render();
+                })
+                .setNegativeButton(R.string.cancel, (d, w) -> render()).show();
     }
 
     private void itemMenu(final Vault.Item it) {
