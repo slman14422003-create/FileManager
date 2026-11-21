@@ -1505,7 +1505,7 @@ public class ShareSendActivity extends BaseActivity {
 
         /** The list must not push its own "selected" row state down onto the mark: only setOn decides it. */
         @Override
-        protected void dispatchSetSelected(boolean selected) {
+        public void setSelected(boolean selected) {
         }
     }
 }
