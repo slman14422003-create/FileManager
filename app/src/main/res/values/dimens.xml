@@ -24,6 +24,7 @@
     <dimen name="share_pulse_margin">70dp</dimen>
     <dimen name="share_dl_pulse">96dp</dimen>
     <dimen name="share_dl_icon">28dp</dimen>
+    <dimen name="share_dl_air">200dp</dimen>
 
     <!-- dialog width as a share of the window -->
     <fraction name="dlg_min_minor">88%</fraction>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sh_more_ways">More ways</string>
+    <string name="sh_quick_row_sub">Pick files, then send them through Google Quick Share</string>
+    <string name="sx_m_quick">Quick Share</string>
+    <string name="sx_m_quick_sub">Fast sharing with nearby devices through Google</string>
+    <string name="sx_quick_missing">Quick Share is not available on this device, opening the share menu instead</string>
+    <string name="tap_title">Tap to share</string>
+    <string name="tap_sub">Hold two NFC-enabled devices together with the app open to start sharing automatically</string>
+    <string name="tap_detected">Nearby device detected. Choose Send or Receive.</string>
+    <string name="tap_unsupported">This device does not support NFC or card emulation</string>
+    <string name="tap_nfc_off_title">NFC is off</string>
+    <string name="tap_nfc_off">Turn on NFC in settings so Tap to share can work.</string>
+    <string name="tap_open_nfc">Open NFC settings</string>
+    <string name="tap_peer_idle">The other device is not sending right now. Start sending on it, then hold the devices together.</string>
+    <string name="tap_service_desc">Tap to share</string>
+    <string name="sh_force">Try connecting now</string>
+    <string name="sh_conn_try">Connecting… attempt %1$d of %2$d</string>
+    <string name="sh_net_lost">The network connection was lost. Make sure the sending device is still running.</string>
+    <string name="sh_stalled">No data moving… retrying</string>
+</resources>

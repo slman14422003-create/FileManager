@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sh_more_ways">طرق أخرى</string>
+    <string name="sh_quick_row_sub">اختر الملفات ثم أرسلها عبر Quick Share من Google</string>
+    <string name="sx_m_quick">Quick Share</string>
+    <string name="sx_m_quick_sub">مشاركة سريعة مع الأجهزة القريبة عبر Google</string>
+    <string name="sx_quick_missing">Quick Share غير متوفر على هذا الجهاز، سيتم فتح قائمة المشاركة</string>
+    <string name="tap_title">Tap to share</string>
+    <string name="tap_sub">قرّب جهازين مفعّل فيهما NFC وهما يفتحان التطبيق لتبدأ المشاركة تلقائيًا</string>
+    <string name="tap_detected">تم اكتشاف جهاز قريب. اختر إرسال أو استلام.</string>
+    <string name="tap_unsupported">هذا الجهاز لا يدعم NFC أو محاكاة البطاقة</string>
+    <string name="tap_nfc_off_title">NFC متوقف</string>
+    <string name="tap_nfc_off">فعّل NFC من الإعدادات حتى تعمل ميزة Tap to share.</string>
+    <string name="tap_open_nfc">فتح إعدادات NFC</string>
+    <string name="tap_peer_idle">الجهاز الآخر لا يرسل الآن. ابدأ الإرسال عليه ثم قرّب الجهازين.</string>
+    <string name="tap_service_desc">Tap to share</string>
+    <string name="sh_force">جرّب الاتصال الآن</string>
+    <string name="sh_conn_try">جارٍ الاتصال… محاولة %1$d من %2$d</string>
+    <string name="sh_net_lost">انقطع الاتصال بالشبكة. تأكد أن الجهاز المرسل ما زال يعمل.</string>
+    <string name="sh_stalled">لا توجد حركة بيانات… جارٍ إعادة المحاولة</string>
+</resources>
