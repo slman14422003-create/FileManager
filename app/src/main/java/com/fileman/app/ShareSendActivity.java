@@ -3,6 +3,7 @@ package com.fileman.app;
 import android.Manifest;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
@@ -24,7 +25,6 @@ import android.webkit.MimeTypeMap;
 import android.widget.AbsListView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -557,25 +557,20 @@ public class ShareSendActivity extends BaseActivity {
             @Override
             public View getView(int i, View v, ViewGroup parent) {
                 final ShareContacts.Person ps = shown.get(i);
-                CheckBox cb;
-                if (v instanceof CheckBox) {
-                    cb = (CheckBox) v;
-                } else {
-                    cb = Ui.check(ShareSendActivity.this, R.string.cv_select_all, false);
-                    cb.setLayoutParams(new AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-                }
-                cb.setOnCheckedChangeListener(null);
-                cb.setText(ps.name);
-                cb.setChecked(chosen.contains(ps.key));
-                cb.setOnCheckedChangeListener((b, on) -> {
-                    if (on) chosen.add(ps.key);
-                    else chosen.remove(ps.key);
-                    count.setText(getString(R.string.sx_c_count, chosen.size()));
-                });
-                return cb;
+                PickRow row = v instanceof PickRow ? (PickRow) v : new PickRow(ShareSendActivity.this, false);
+                row.bind(ps.name, null, chosen.contains(ps.key));
+                return row;
             }
         };
         lv.setAdapter(ad);
+        lv.setOnItemClickListener((p, view, pos, id) -> {
+            if (pos < 0 || pos >= shown.size()) return;
+            String k = shown.get(pos).key;
+            boolean on = chosen.add(k);
+            if (!on) chosen.remove(k);
+            if (view instanceof PickRow) ((PickRow) view).setOn(on);
+            count.setText(getString(R.string.sx_c_count, chosen.size()));
+        });
         search.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence cs, int a, int b, int c) {
@@ -728,7 +723,7 @@ public class ShareSendActivity extends BaseActivity {
         final List<String[]> shown = new ArrayList<>(apps);
         final PackageManager pm = getPackageManager();
         final java.util.Map<String, android.graphics.drawable.Drawable> icons = new java.util.HashMap<>();
-        final TextView count = Ui.body(this, getString(R.string.sx_c_count, 0), 14, R.color.text_secondary);
+        final TextView count = Ui.body(this, getString(R.string.sx_a_count, 0), 14, R.color.text_secondary);
         final EditText search = Ui.edit(this, getString(R.string.sx_c_search), "");
         final ListView lv = new ListView(this);
         lv.setDivider(null);
@@ -752,40 +747,30 @@ public class ShareSendActivity extends BaseActivity {
             @Override
             public View getView(int i, View v, ViewGroup parent) {
                 final String[] a = shown.get(i);
-                CheckBox cb;
-                if (v instanceof CheckBox) {
-                    cb = (CheckBox) v;
-                } else {
-                    cb = Ui.check(ShareSendActivity.this, R.string.cv_select_all, false);
-                    cb.setLayoutParams(new AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(ShareSendActivity.this, 58)));
-                    cb.setCompoundDrawablePadding(Ui.dp(ShareSendActivity.this, 12));
-                }
-                cb.setOnCheckedChangeListener(null);
-                cb.setText(a[0]);
+                PickRow row = v instanceof PickRow ? (PickRow) v : new PickRow(ShareSendActivity.this, true);
                 android.graphics.drawable.Drawable d = icons.get(a[1]);
                 if (d == null) {
                     try {
                         d = pm.getApplicationIcon(a[1]);
-                        d = d.getConstantState() != null ? d.getConstantState().newDrawable().mutate() : d;
                         icons.put(a[1], d);
                     } catch (Throwable ignored) {
                     }
                 }
-                if (d != null) {
-                    android.graphics.drawable.Drawable dd = d.getConstantState() != null ? d.getConstantState().newDrawable().mutate() : d;
-                    dd.setBounds(0, 0, isz, isz);
-                    cb.setCompoundDrawablesRelative(dd, null, null, null);
-                }
-                cb.setChecked(chosen.contains(a[1]));
-                cb.setOnCheckedChangeListener((b, on) -> {
-                    if (on) chosen.add(a[1]);
-                    else chosen.remove(a[1]);
-                    count.setText(getString(R.string.sx_c_count, chosen.size()));
-                });
-                return cb;
+                android.graphics.drawable.Drawable dd = d;
+                if (d != null && d.getConstantState() != null) dd = d.getConstantState().newDrawable().mutate();
+                row.bind(a[0], dd, chosen.contains(a[1]));
+                return row;
             }
         };
         lv.setAdapter(ad);
+        lv.setOnItemClickListener((p, view, pos, id) -> {
+            if (pos < 0 || pos >= shown.size()) return;
+            String k = shown.get(pos)[1];
+            boolean on = chosen.add(k);
+            if (!on) chosen.remove(k);
+            if (view instanceof PickRow) ((PickRow) view).setOn(on);
+            count.setText(getString(R.string.sx_a_count, chosen.size()));
+        });
         search.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence cs, int a, int b, int c) {
@@ -808,13 +793,13 @@ public class ShareSendActivity extends BaseActivity {
         TextView allChip = Ui.chip(this, getString(R.string.sx_c_all), false);
         allChip.setOnClickListener(v -> {
             for (String[] a : shown) chosen.add(a[1]);
-            count.setText(getString(R.string.sx_c_count, chosen.size()));
+            count.setText(getString(R.string.sx_a_count, chosen.size()));
             ad.notifyDataSetChanged();
         });
         TextView noneChip = Ui.chip(this, getString(R.string.sx_c_none), false);
         noneChip.setOnClickListener(v -> {
             chosen.clear();
-            count.setText(getString(R.string.sx_c_count, 0));
+            count.setText(getString(R.string.sx_a_count, 0));
             ad.notifyDataSetChanged();
         });
         bar.addView(allChip);
@@ -1466,5 +1451,61 @@ public class ShareSendActivity extends BaseActivity {
                 .setPositiveButton(R.string.sh_stop, (d, w) -> finish())
                 .setNegativeButton(R.string.cancel, null)
                 .show();
+    }
+    /**
+     * One row of the contact / app pick lists: a fixed-size round mark (ring when off, blue tick when on), an
+     * optional app icon and the label. The mark is a plain ImageView toggled with setSelected, so it always has a
+     * size and always shows, however the ListView recycles the row.
+     */
+    private static final class PickRow extends LinearLayout {
+        private final android.widget.ImageView mark;
+        private final android.widget.ImageView icon;
+        private final TextView label;
+
+        PickRow(Context c, boolean withIcon) {
+            super(c);
+            setOrientation(HORIZONTAL);
+            setGravity(android.view.Gravity.CENTER_VERTICAL);
+            setPaddingRelative(Ui.dp(c, 4), 0, Ui.dp(c, 8), 0);
+            android.util.TypedValue tv = new android.util.TypedValue();
+            if (c.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, tv, true) && tv.resourceId != 0) {
+                setBackgroundResource(tv.resourceId);
+            }
+            setLayoutParams(new AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(c, withIcon ? 58 : 52)));
+            mark = new android.widget.ImageView(c);
+            mark.setImageResource(R.drawable.bg_check);
+            mark.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+            LayoutParams mp = new LayoutParams(Ui.dp(c, 24), Ui.dp(c, 24));
+            mp.setMarginEnd(Ui.dp(c, 14));
+            addView(mark, mp);
+            icon = new android.widget.ImageView(c);
+            if (withIcon) {
+                LayoutParams ip = new LayoutParams(Ui.dp(c, 40), Ui.dp(c, 40));
+                ip.setMarginEnd(Ui.dp(c, 12));
+                addView(icon, ip);
+            }
+            label = new TextView(c);
+            label.setTextColor(Ui.color(c, R.color.text_primary));
+            label.setTextSize(15);
+            label.setSingleLine(true);
+            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            label.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+            addView(label, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        }
+
+        void bind(CharSequence text, android.graphics.drawable.Drawable ic, boolean on) {
+            label.setText(text);
+            if (icon.getParent() != null) icon.setImageDrawable(ic);
+            setOn(on);
+        }
+
+        void setOn(boolean on) {
+            mark.setSelected(on);
+        }
+
+        /** The list must not push its own "selected" row state down onto the mark: only setOn decides it. */
+        @Override
+        protected void dispatchSetSelected(boolean selected) {
+        }
     }
 }

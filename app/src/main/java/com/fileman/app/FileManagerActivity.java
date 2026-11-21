@@ -2844,38 +2844,32 @@ public class FileManagerActivity extends BaseActivity {
                 .show();
     }
 
-    /** Optional: overwrites the selected files with random data before deleting them, so they cannot be recovered. */
+    /**
+     * Optional permanent delete in three stages (corrupt, overwrite, delete), with an options dialog first and a
+     * progress screen while it runs. Nothing goes to the trash, so there is no undo.
+     */
     private void secureDeleteSelected() {
         final List<File> files = selectedFiles();
         if (files.isEmpty()) return;
-        new Dlg(this).setTitle(R.string.sd_title).setMessage(getString(R.string.sd_msg, files.size()))
-                .setPositiveButton(R.string.sd_go, (d, w) -> {
-                    selected.clear();
-                    Assistant.log(this, "secure_delete", files.size(), "");
-                    final Set<String> gone = new java.util.HashSet<>(paths(files));
-                    flip.capture();
-                    for (java.util.Iterator<Entry> it = shown.iterator(); it.hasNext(); ) {
-                        if (gone.contains(it.next().f.getAbsolutePath())) it.remove();
-                    }
-                    adapter.notifyDataSetChanged();
-                    flip.play();
-                    updateEmptyView();
-                    updateChrome();
-                    Toast.makeText(this, R.string.sd_busy, Toast.LENGTH_SHORT).show();
-                    io.execute(() -> {
-                        final int[] r = SecureWipe.run(this, files);
-                        favCache = null;
-                        pinCache = null;
-                        rescan(gone.toArray(new String[0]));
-                        post(() -> {
-                            Toast.makeText(this, r[1] == 0 ? getString(R.string.sd_done_n, r[0])
-                                    : getString(R.string.sd_failed_n, r[1]), Toast.LENGTH_LONG).show();
-                            refresh(true);
-                        });
-                    });
-                })
-                .setNegativeButton(R.string.cancel, null)
-                .show();
+        final Set<String> gone = new java.util.HashSet<>(paths(files));
+        SecureDeleteSheet.show(this, files, io, r -> {
+            if (isFinishing() || isDestroyed()) return;
+            selected.clear();
+            Assistant.log(this, "secure_delete", files.size(), "");
+            flip.capture();
+            for (java.util.Iterator<Entry> it = shown.iterator(); it.hasNext(); ) {
+                Entry e = it.next();
+                if (gone.contains(e.f.getAbsolutePath()) && !Wipe.exists(e.f)) it.remove();
+            }
+            adapter.notifyDataSetChanged();
+            flip.play();
+            updateEmptyView();
+            updateChrome();
+            favCache = null;
+            pinCache = null;
+            io.execute(() -> rescan(gone.toArray(new String[0])));
+            refresh(true);
+        });
     }
 
     /** Deleting moves the items into the in-app trash at once; the data is freed after the 5 second undo window. */

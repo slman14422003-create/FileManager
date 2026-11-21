@@ -4,6 +4,7 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.animation.LinearInterpolator;
@@ -46,12 +47,13 @@ public final class PulseView extends View {
 
     public void start() {
         if (animator != null) return;
+        phase = (SystemClock.uptimeMillis() % PERIOD) / (float) PERIOD;
         animator = ValueAnimator.ofFloat(0f, 1f);
         animator.setDuration(PERIOD);
         animator.setRepeatCount(ValueAnimator.INFINITE);
         animator.setInterpolator(new LinearInterpolator());
         animator.addUpdateListener(a -> {
-            phase = (float) a.getAnimatedValue();
+            phase = (SystemClock.uptimeMillis() % PERIOD) / (float) PERIOD;   // clock based: never restarts from 0
             invalidate();
         });
         animator.start();

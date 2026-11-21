@@ -23,6 +23,8 @@ public class ShareActivity extends BaseActivity {
     private LinearLayout content;
     private boolean tapBanner;
     private boolean built;
+    /** The Send / Receive cards. Built once and kept, so their animation is never cut and restarted. */
+    private LinearLayout big;
 
     static String deviceName(Context c) {
         String d = Store.strPref(c, "share_name", "");
@@ -136,31 +138,36 @@ public class ShareActivity extends BaseActivity {
 
     private void build(boolean animate) {
         built = true;
-        content.removeAllViews();
+        // Everything except the cards is rebuilt; the cards stay attached, so their animation keeps running.
+        for (int i = content.getChildCount() - 1; i >= 0; i--) {
+            if (content.getChildAt(i) != big) content.removeViewAt(i);
+        }
         if (tapBanner) {
             TextView banner = Ui.noteCard(this, getString(R.string.tap_detected), R.color.ok);
-            content.addView(banner);
+            content.addView(banner, 0);
             Ui.successPop(banner);
         }
 
-        LinearLayout big = new LinearLayout(this);
-        big.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-1, Ui.dp(this, 244));
-        bl.setMargins(side(), Ui.dp(this, 8), side(), Ui.dp(this, 8));
-        View send = bigCard(AirView.SEND, R.drawable.ic_send_up, R.string.sh_send_title, R.string.sh_send_row_sub,
-                0xFF0A84FF, 0xFF5E5CE6, v -> go(new Intent(this, ShareSendActivity.class)));
-        View recv = bigCard(AirView.RECEIVE, R.drawable.ic_receive_down, R.string.sh_recv_title, R.string.sh_recv_row_sub,
-                0xFF30D158, 0xFF00A5A8, v -> go(new Intent(this, ShareReceiveActivity.class)));
-        LinearLayout.LayoutParams l1 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        l1.setMarginEnd(Ui.dp(this, 6));
-        LinearLayout.LayoutParams l2 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        l2.setMarginStart(Ui.dp(this, 6));
-        big.addView(send, l1);
-        big.addView(recv, l2);
-        content.addView(big, bl);
-        if (animate) {
-            Ui.enter(send, 0);
-            Ui.enter(recv, 1);
+        if (big == null) {
+            big = new LinearLayout(this);
+            big.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-1, Ui.dp(this, 244));
+            bl.setMargins(side(), Ui.dp(this, 8), side(), Ui.dp(this, 8));
+            View send = bigCard(AirView.SEND, R.drawable.ic_send_up, R.string.sh_send_title, R.string.sh_send_row_sub,
+                    0xFF0A84FF, 0xFF5E5CE6, v -> go(new Intent(this, ShareSendActivity.class)));
+            View recv = bigCard(AirView.RECEIVE, R.drawable.ic_receive_down, R.string.sh_recv_title, R.string.sh_recv_row_sub,
+                    0xFF30D158, 0xFF00A5A8, v -> go(new Intent(this, ShareReceiveActivity.class)));
+            LinearLayout.LayoutParams l1 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+            l1.setMarginEnd(Ui.dp(this, 6));
+            LinearLayout.LayoutParams l2 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+            l2.setMarginStart(Ui.dp(this, 6));
+            big.addView(send, l1);
+            big.addView(recv, l2);
+            content.addView(big, bl);
+            if (animate) {
+                Ui.enter(send, 0);
+                Ui.enter(recv, 1);
+            }
         }
 
         content.addView(Ui.footer(this, getString(R.string.sh_hub_note)));
@@ -193,6 +200,14 @@ public class ShareActivity extends BaseActivity {
 
         if (animate) {
             for (int i = 2; i < Math.min(content.getChildCount(), 9); i++) Ui.enter(content.getChildAt(i), i);
+        } else {
+            // A refresh (coming back to this screen, changing a setting) must not replay the entrance motion.
+            for (int i = content.indexOfChild(big) + 1; i < content.getChildCount(); i++) {
+                View row = content.getChildAt(i);
+                row.animate().cancel();
+                row.setAlpha(1f);
+                row.setTranslationY(0f);
+            }
         }
         tapRefresh();
     }

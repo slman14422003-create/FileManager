@@ -8,6 +8,7 @@ import android.graphics.Path;
 import android.graphics.PathMeasure;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
+import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.animation.LinearInterpolator;
@@ -21,6 +22,11 @@ public final class AirView extends View {
 
     private static final int RINGS = 3;
     private static final int PACKETS = 6;
+    private static final long LOOP_MS = 2400L;
+
+    private static float clockPhase() {
+        return (SystemClock.uptimeMillis() % LOOP_MS) / (float) LOOP_MS;
+    }
 
     private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint disc = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -160,12 +166,15 @@ public final class AirView extends View {
             invalidate();
             return;
         }
+        // The phase is derived from the clock, not from this animator's own start, so the motion never
+        // restarts from zero when the view is rebuilt, re-attached or the screen is resumed.
+        phase = clockPhase();
         loop = ValueAnimator.ofFloat(0f, 1f);
-        loop.setDuration(2400L);
+        loop.setDuration(LOOP_MS);
         loop.setRepeatCount(ValueAnimator.INFINITE);
         loop.setInterpolator(new LinearInterpolator());
         loop.addUpdateListener(a -> {
-            phase = (float) a.getAnimatedValue();
+            phase = clockPhase();
             invalidate();
         });
         loop.start();
