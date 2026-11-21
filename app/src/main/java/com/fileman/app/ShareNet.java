@@ -55,10 +55,27 @@ final class ShareNet {
                 cb.failed(-1);
                 return;
             }
+            final Handler h = new Handler(Looper.getMainLooper());
+            final java.util.concurrent.atomic.AtomicBoolean answered = new java.util.concurrent.atomic.AtomicBoolean();
+            final Runnable timeout = () -> {
+                if (answered.compareAndSet(false, true)) {
+                    active = false;
+                    cb.failed(-1);
+                }
+            };
+            h.postDelayed(timeout, 15000);
             try {
                 wm.startLocalOnlyHotspot(new WifiManager.LocalOnlyHotspotCallback() {
                     @Override
                     public void onStarted(WifiManager.LocalOnlyHotspotReservation r) {
+                        if (!answered.compareAndSet(false, true)) {
+                            try {
+                                r.close();
+                            } catch (Throwable ignored) {
+                            }
+                            return;
+                        }
+                        h.removeCallbacks(timeout);
                         res = r;
                         read(r);
                         active = true;
@@ -72,12 +89,17 @@ final class ShareNet {
 
                     @Override
                     public void onFailed(int reason) {
+                        if (!answered.compareAndSet(false, true)) return;
+                        h.removeCallbacks(timeout);
                         active = false;
                         cb.failed(reason);
                     }
-                }, new Handler(Looper.getMainLooper()));
+                }, h);
             } catch (Throwable t) {
-                cb.failed(-1);
+                if (answered.compareAndSet(false, true)) {
+                    h.removeCallbacks(timeout);
+                    cb.failed(-1);
+                }
             }
         }
 
@@ -363,27 +385,231 @@ final class ShareNet {
         return out;
     }
 
+    static boolean sameSubnet(LinkProperties lp, List<String> ips) {
+        if (lp == null || ips == null || ips.isEmpty()) return false;
+        try {
+            for (android.net.LinkAddress la : lp.getLinkAddresses()) {
+                InetAddress a = la.getAddress();
+                if (!(a instanceof Inet4Address)) continue;
+                byte[] mine = a.getAddress();
+                int pl = Math.max(8, Math.min(30, la.getPrefixLength()));
+                for (String ip : ips) {
+                    byte[] o = rawV4(ip);
+                    if (o != null && prefixEq(mine, o, pl)) return true;
+                }
+            }
+            for (RouteInfo r : lp.getRoutes()) {
+                InetAddress g = r.getGateway();
+                if (g instanceof Inet4Address && ips.contains(g.getHostAddress())) return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
+    private static byte[] rawV4(String ip) {
+        try {
+            String[] p = ip.split("\\.");
+            if (p.length != 4) return null;
+            byte[] b = new byte[4];
+            for (int i = 0; i < 4; i++) b[i] = (byte) Integer.parseInt(p[i]);
+            return b;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private static boolean prefixEq(byte[] a, byte[] b, int bits) {
+        for (int i = 0; i < 4 && bits > 0; i++) {
+            int m = bits >= 8 ? 0xFF : (0xFF << (8 - bits)) & 0xFF;
+            if ((a[i] & m) != (b[i] & m)) return false;
+            bits -= 8;
+        }
+        return true;
+    }
+
+    static boolean hasV4(ConnectivityManager cm, Network n) {
+        try {
+            LinkProperties lp = cm.getLinkProperties(n);
+            if (lp == null) return false;
+            for (android.net.LinkAddress la : lp.getLinkAddresses()) {
+                if (la.getAddress() instanceof Inet4Address) return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
+    static List<String> subnetGuesses(ConnectivityManager cm, Network n) {
+        List<String> out = new ArrayList<>();
+        if (n == null) return out;
+        try {
+            LinkProperties lp = cm.getLinkProperties(n);
+            if (lp == null) return out;
+            for (android.net.LinkAddress la : lp.getLinkAddresses()) {
+                InetAddress a = la.getAddress();
+                if (!(a instanceof Inet4Address)) continue;
+                byte[] b = a.getAddress();
+                String base = (b[0] & 255) + "." + (b[1] & 255) + "." + (b[2] & 255) + ".";
+                String own = a.getHostAddress();
+                for (String last : new String[]{"1", "254"}) {
+                    String g = base + last;
+                    if (!g.equals(own) && !out.contains(g)) out.add(g);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return out;
+    }
+
     static final class Joiner {
         interface Cb {
             void ok(SocketFactory f, List<String> extraIps);
 
             void fail();
+
+            void lost();
         }
 
+        private static final long LIMIT = 60000L;
+
         private final Handler main = new Handler(Looper.getMainLooper());
+        private final java.util.concurrent.atomic.AtomicBoolean finished = new java.util.concurrent.atomic.AtomicBoolean();
         private ConnectivityManager cm;
         private ConnectivityManager.NetworkCallback netCb;
         private volatile boolean stopped;
+        private volatile Network bound;
+        private Context app;
+        private ShareLink link;
+        private Cb cb;
+        private long startedAt;
+        private Runnable watcher;
+
+        SocketFactory factory() {
+            Network n = bound;
+            if (n == null && cm != null) n = wifiNetwork(cm);
+            return n != null ? n.getSocketFactory() : SocketFactory.getDefault();
+        }
+
+        Network network() {
+            Network n = bound;
+            if (n == null && cm != null) n = wifiNetwork(cm);
+            return n;
+        }
+
+        List<String> gateways() {
+            List<String> out = new ArrayList<>();
+            if (cm == null) return out;
+            Network n = network();
+            out.addAll(ShareNet.gateways(cm, n));
+            for (String g : subnetGuesses(cm, n)) if (!out.contains(g)) out.add(g);
+            return out;
+        }
+
+        private String ssidNow() {
+            try {
+                WifiManager wm = (WifiManager) app.getSystemService(Context.WIFI_SERVICE);
+                android.net.wifi.WifiInfo wi = wm == null ? null : wm.getConnectionInfo();
+                return wi == null ? "" : strip(wi.getSSID());
+            } catch (Throwable t) {
+                return "";
+            }
+        }
+
+        @SuppressWarnings("deprecation")
+        private Network findOnAp() {
+            try {
+                for (Network n : cm.getAllNetworks()) {
+                    NetworkCapabilities nc = cm.getNetworkCapabilities(n);
+                    if (nc == null || !nc.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) continue;
+                    if (sameSubnet(cm.getLinkProperties(n), link.ips)) return n;
+                }
+                if (!link.ssid.isEmpty() && link.ssid.equals(ssidNow())) return wifiNetwork(cm);
+            } catch (Throwable ignored) {
+            }
+            return null;
+        }
+
+        private void settle(final Network n, final int tries) {
+            if (stopped) return;
+            if (n != null && !hasV4(cm, n) && tries < 14) {
+                main.postDelayed(() -> settle(n, tries + 1), 500);
+                return;
+            }
+            bound = n;
+            List<String> extra = gateways();
+            cb.ok(factory(), extra);
+        }
+
+        private void arrive(Network n) {
+            if (stopped || !finished.compareAndSet(false, true)) return;
+            stopWatcher();
+            settle(n, 0);
+        }
+
+        private void giveUp() {
+            if (stopped || !finished.compareAndSet(false, true)) return;
+            stopWatcher();
+            cb.fail();
+        }
+
+        private void stopWatcher() {
+            if (watcher != null) main.removeCallbacks(watcher);
+            watcher = null;
+        }
+
+        private void startWatcher() {
+            stopWatcher();
+            watcher = new Runnable() {
+                @Override
+                public void run() {
+                    if (stopped || finished.get()) return;
+                    Network n = findOnAp();
+                    if (n != null) {
+                        arrive(n);
+                        return;
+                    }
+                    if (System.currentTimeMillis() - startedAt > LIMIT) {
+                        giveUp();
+                        return;
+                    }
+                    main.postDelayed(this, 600);
+                }
+            };
+            main.postDelayed(watcher, 600);
+        }
+
+        boolean force() {
+            if (stopped || cm == null) return false;
+            Network n = findOnAp();
+            if (n == null) n = wifiNetwork(cm);
+            if (!finished.compareAndSet(false, true)) return false;
+            stopWatcher();
+            settle(n, 0);
+            return true;
+        }
 
         @SuppressWarnings("deprecation")
         void join(Context c, final ShareLink l, final Cb done) {
-            final Context app = c.getApplicationContext();
+            release();
+            stopped = false;
+            finished.set(false);
+            bound = null;
+            app = c.getApplicationContext();
             cm = (ConnectivityManager) app.getSystemService(Context.CONNECTIVITY_SERVICE);
+            link = l;
+            cb = done;
+            startedAt = System.currentTimeMillis();
             if (l.ssid.isEmpty()) {
-                Network w = wifiNetwork(cm);
-                done.ok(w != null ? w.getSocketFactory() : SocketFactory.getDefault(), gateways(cm, w));
+                arrive(wifiNetwork(cm));
                 return;
             }
+            Network now = findOnAp();
+            if (now != null) {
+                arrive(now);
+                return;
+            }
+            startWatcher();
             if (Build.VERSION.SDK_INT >= 29) {
                 WifiNetworkSpecifier.Builder sb = new WifiNetworkSpecifier.Builder().setSsid(l.ssid);
                 if (!l.pass.isEmpty()) {
@@ -398,22 +624,30 @@ final class ShareNet {
                 netCb = new ConnectivityManager.NetworkCallback() {
                     @Override
                     public void onAvailable(final Network n) {
-                        main.post(() -> {
-                            if (!stopped) done.ok(n.getSocketFactory(), gateways(cm, n));
-                        });
+                        main.post(() -> arrive(n));
                     }
 
                     @Override
                     public void onUnavailable() {
                         main.post(() -> {
-                            if (!stopped) done.fail();
+                            if (stopped || finished.get()) return;
+                            Network n = findOnAp();
+                            if (n != null) arrive(n);
+                            else giveUp();
+                        });
+                    }
+
+                    @Override
+                    public void onLost(final Network n) {
+                        main.post(() -> {
+                            if (!stopped && finished.get() && n.equals(bound)) cb.lost();
                         });
                     }
                 };
                 try {
-                    cm.requestNetwork(req, netCb, 45000);
+                    cm.requestNetwork(req, netCb, (int) LIMIT);
                 } catch (Throwable t) {
-                    done.fail();
+                    if (findOnAp() == null) giveUp();
                 }
                 return;
             }
@@ -435,7 +669,7 @@ final class ShareNet {
                         wm.disconnect();
                         wm.enableNetwork(id, true);
                         wm.reconnect();
-                        for (int i = 0; i < 50 && !stopped && !ok; i++) {
+                        for (int i = 0; i < 100 && !stopped && !finished.get() && !ok; i++) {
                             Thread.sleep(500);
                             android.net.wifi.WifiInfo wi = wm.getConnectionInfo();
                             if (wi != null && wc.SSID.equals(wi.getSSID()) && wifiNetwork(cm) != null) ok = true;
@@ -445,19 +679,15 @@ final class ShareNet {
                 }
                 final boolean fok = ok;
                 main.post(() -> {
-                    if (stopped) return;
-                    if (fok) {
-                        Network w = wifiNetwork(cm);
-                        done.ok(w != null ? w.getSocketFactory() : SocketFactory.getDefault(), gateways(cm, w));
-                    } else {
-                        done.fail();
-                    }
+                    if (stopped || finished.get()) return;
+                    if (fok) arrive(wifiNetwork(cm));
                 });
             }).start();
         }
 
         void release() {
             stopped = true;
+            stopWatcher();
             try {
                 if (cm != null && netCb != null) cm.unregisterNetworkCallback(netCb);
             } catch (Throwable ignored) {

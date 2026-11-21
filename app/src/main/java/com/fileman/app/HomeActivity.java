@@ -189,6 +189,11 @@ public class HomeActivity extends BaseActivity {
         ui.removeCallbacks(rescan);
     }
 
+    @Override
+    protected int tapMode() {
+        return TapShare.AUTO;
+    }
+
     private void liveRescan() {
         long wait = Math.max(0, lastScanStart + 3000 - SystemClock.uptimeMillis());
         ui.removeCallbacks(rescan);

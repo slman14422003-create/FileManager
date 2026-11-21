@@ -616,6 +616,13 @@ public class FileManagerActivity extends BaseActivity {
         if (undoBar != null) undoBar.finish(true);   // the undo window ends when the screen goes away
     }
 
+    @Override
+    protected int tapMode() {
+        Intent in = getIntent();
+        boolean picking = in != null && (in.getBooleanExtra("pick", false) || in.getBooleanExtra("pick_dir", false));
+        return picking ? TapShare.OFF : TapShare.AUTO;
+    }
+
     /** One folder reported a few changed names: patch the shown list in place instead of listing it again. */
     private void liveDelta(final String dirPath, final Set<String> names) {
         if (isFinishing() || isDestroyed()) return;

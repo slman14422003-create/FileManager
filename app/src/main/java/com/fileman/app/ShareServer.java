@@ -40,6 +40,8 @@ final class ShareServer {
     private final Map<String, String> peerNames = new HashMap<>();
     private final Map<String, Integer> peerConns = new HashMap<>();
     private final ExecutorService pool = Executors.newCachedThreadPool();
+    private final Map<SocketChannel, Long> pumping = new ConcurrentHashMap<>();
+    private java.util.concurrent.ScheduledExecutorService watchdog;
     private ServerSocketChannel server;
     private volatile boolean running;
     private volatile int version = 1;
@@ -61,6 +63,23 @@ final class ShareServer {
         server.socket().setReuseAddress(true);
         server.bind(new InetSocketAddress(0));
         running = true;
+        watchdog = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "share-watch");
+            t.setDaemon(true);
+            return t;
+        });
+        watchdog.scheduleAtFixedRate(() -> {
+            long now = System.currentTimeMillis();
+            for (Map.Entry<SocketChannel, Long> e : pumping.entrySet()) {
+                if (now - e.getValue() > 30000L) {
+                    try {
+                        e.getKey().close();
+                    } catch (IOException ignored) {
+                    }
+                    pumping.remove(e.getKey());
+                }
+            }
+        }, 5, 5, java.util.concurrent.TimeUnit.SECONDS);
         pool.execute(this::acceptLoop);
         return server.socket().getLocalPort();
     }
@@ -106,6 +125,8 @@ final class ShareServer {
             }
         }
         conns.clear();
+        pumping.clear();
+        if (watchdog != null) watchdog.shutdownNow();
         pool.shutdownNow();
     }
 
@@ -167,6 +188,7 @@ final class ShareServer {
         boolean counted = false;
         try {
             s.setTcpNoDelay(true);
+            s.setKeepAlive(true);
             try {
                 s.setSendBufferSize(ShareProto.BUF * 2);
                 s.setReceiveBufferSize(ShareProto.BUF * 2);
@@ -192,7 +214,7 @@ final class ShareServer {
                 out.flush();
                 return;
             }
-            s.setSoTimeout(300000);
+            s.setSoTimeout(45000);
             out.writeByte(ShareProto.OK);
             out.writeUTF(deviceName);
             out.flush();
@@ -312,12 +334,17 @@ final class ShareServer {
     private void pump(ShareItem.Src src, long off, long len, SocketChannel ch) throws IOException {
         long pos = off;
         long left = len;
-        while (left > 0) {
-            long n = src.ch.transferTo(pos, Math.min(left, 8L << 20), ch);
-            if (n <= 0) throw new IOException("short read");
-            pos += n;
-            left -= n;
-            sent.addAndGet(n);
+        try {
+            while (left > 0) {
+                pumping.put(ch, System.currentTimeMillis());
+                long n = src.ch.transferTo(pos, Math.min(left, 1L << 20), ch);
+                if (n <= 0) throw new IOException("short read");
+                pos += n;
+                left -= n;
+                sent.addAndGet(n);
+            }
+        } finally {
+            pumping.remove(ch);
         }
     }
 

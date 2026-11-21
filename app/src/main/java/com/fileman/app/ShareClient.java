@@ -65,8 +65,9 @@ final class ShareClient {
                 s.setSendBufferSize(ShareProto.BUF * 2);
             } catch (Exception ignored) {
             }
-            s.connect(new InetSocketAddress(ip, port), 4000);
-            s.setSoTimeout(30000);
+            s.setKeepAlive(true);
+            s.connect(new InetSocketAddress(ip, port), 3000);
+            s.setSoTimeout(6000);
             c.in = new DataInputStream(new BufferedInputStream(s.getInputStream(), 8192));
             c.out = new DataOutputStream(new BufferedOutputStream(s.getOutputStream(), 65536));
             c.out.writeInt(ShareProto.MAGIC);
@@ -76,6 +77,7 @@ final class ShareClient {
             c.out.flush();
             if (c.in.readUnsignedByte() != ShareProto.OK) throw new IOException("denied");
             c.peer = c.in.readUTF();
+            s.setSoTimeout(25000);
             return c;
         } catch (IOException | RuntimeException e) {
             c.close();
@@ -88,8 +90,10 @@ final class ShareClient {
     }
 
     Conn connectAny(List<String> ips) throws IOException {
+        ips = new ArrayList<>(new java.util.LinkedHashSet<>(ips));
         if (ips.isEmpty()) throw new IOException("no address");
-        final ExecutorService ex = Executors.newFixedThreadPool(Math.min(ips.size(), 8));
+        if (ips.size() > 12) ips = new ArrayList<>(ips.subList(0, 12));
+        final ExecutorService ex = Executors.newFixedThreadPool(Math.min(ips.size(), 12));
         final CompletionService<Conn> cs = new ExecutorCompletionService<>(ex);
         final int n = ips.size();
         for (final String ip : ips) {

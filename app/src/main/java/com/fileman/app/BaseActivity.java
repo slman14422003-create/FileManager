@@ -88,6 +88,33 @@ public abstract class BaseActivity extends AppCompatActivity {
         return r;
     }
 
+    private TapShare.Session tapSession;
+    private boolean tapResumed;
+
+    protected int tapMode() {
+        return TapShare.OFF;
+    }
+
+    protected void onTapPeer() {
+        TapShare.openHub(this);
+    }
+
+    protected void onTapLink(String code) {
+        TapShare.openReceive(this, code);
+    }
+
+    protected void tapRefresh() {
+        if (!tapResumed || tapSession == null) return;
+        tapSession.start(tapMode());
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        tapResumed = false;
+        if (tapSession != null) tapSession.stop();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -99,6 +126,21 @@ public abstract class BaseActivity extends AppCompatActivity {
         }
         if (shell != null && shell.getVisibility() != android.view.View.VISIBLE) shell.setVisibility(android.view.View.VISIBLE);
         syncBack();
+        if (tapSession == null && tapMode() != TapShare.OFF) {
+            tapSession = new TapShare.Session(this, new TapShare.Listener() {
+                @Override
+                public void onPeer() {
+                    BaseActivity.this.onTapPeer();
+                }
+
+                @Override
+                public void onLink(String code) {
+                    BaseActivity.this.onTapLink(code);
+                }
+            });
+        }
+        tapResumed = true;
+        tapRefresh();
     }
 
     /** Screens whose header and bars should blur what scrolls under them. Viewers and capture screens return false. */

@@ -183,6 +183,23 @@ public class ShareScanActivity extends BaseActivity {
         }
     }
 
+    @Override
+    protected int tapMode() {
+        return TapShare.READ;
+    }
+
+    @Override
+    protected void onTapLink(String code) {
+        if (found) return;
+        found = true;
+        deliver(code);
+    }
+
+    @Override
+    protected void onTapPeer() {
+        android.widget.Toast.makeText(this, R.string.tap_peer_idle, android.widget.Toast.LENGTH_LONG).show();
+    }
+
     private void deliver(String text) {
         setResult(RESULT_OK, new Intent().putExtra("code", text));
         finish();

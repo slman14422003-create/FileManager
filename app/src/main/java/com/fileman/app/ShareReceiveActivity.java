@@ -67,7 +67,12 @@ public class ShareReceiveActivity extends BaseActivity {
     private TextView dlLine, dlSpeed, dlFiles, upLine;
     private ProgressBar dlBar;
     private Button pauseBtn;
-    private PulseView dlPulse;
+    private AirView dlAir;
+    private TextView connStatus;
+    private View forceBtn;
+    private volatile int reachGen;
+    private long lastDoneSeen;
+    private long lastMove;
 
     private ActivityResultLauncher<Intent> scanLauncher;
     private ActivityResultLauncher<Intent> pickLauncher;
@@ -144,7 +149,8 @@ public class ShareReceiveActivity extends BaseActivity {
         super.onDestroy();
         destroyed = true;
         ui.removeCallbacksAndMessages(null);
-        if (dlPulse != null) dlPulse.stop();
+        if (dlAir != null) dlAir.stop();
+        reachGen++;
         joiner.release();
         if (dl != null) dl.cancel();
         if (up != null) up.cancel();
@@ -172,7 +178,26 @@ public class ShareReceiveActivity extends BaseActivity {
         finish();
     }
 
+    @Override
+    protected int tapMode() {
+        return stage == 0 ? TapShare.READ : TapShare.OFF;
+    }
+
+    @Override
+    protected void onTapPeer() {
+        Toast.makeText(this, R.string.tap_peer_idle, Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    protected void onTapLink(String code) {
+        ShareLink l = ShareLink.parse(code);
+        if (l == null) return;
+        Fx.done(content);
+        connect(l);
+    }
+
     private void header(CharSequence sub) {
+        tapRefresh();
         titleView.setText(R.string.sh_recv_title);
         subtitleView.setText(sub);
         subtitleView.setVisibility(sub == null || sub.length() == 0 ? View.GONE : View.VISIBLE);
@@ -271,14 +296,36 @@ public class ShareReceiveActivity extends BaseActivity {
     private void go(final ShareLink l) {
         stage = 1;
         header(l.name);
-        loading.setVisibility(View.VISIBLE);
+        loading.setVisibility(View.INVISIBLE);
         content.removeAllViews();
-        final TextView status = Ui.body(this, getString(l.ssid.isEmpty() ? R.string.sh_conn_link : R.string.sh_conn_wifi, l.ssid), 15, R.color.text_primary);
-        content.addView(status);
+        AirView air = new AirView(this);
+        air.icon(R.drawable.ic_wifi);
+        air.setMode(AirView.RECEIVE);
+        int side = Ui.dp(this, 190);
+        LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(side, side);
+        alp.gravity = Gravity.CENTER_HORIZONTAL;
+        alp.topMargin = Ui.dp(this, 14);
+        content.addView(air, alp);
+        air.popIn();
+        air.start();
+        connStatus = Ui.body(this, getString(l.ssid.isEmpty() ? R.string.sh_conn_link : R.string.sh_conn_wifi, l.ssid), 15, R.color.text_primary);
+        connStatus.setGravity(Gravity.CENTER_HORIZONTAL);
+        content.addView(connStatus);
+        final View force = button(R.string.sh_force, false, v -> forceTry());
+        force.setVisibility(View.GONE);
+        forceBtn = force;
+        content.addView(force);
         content.addView(button(R.string.cancel, false, v -> {
+            reachGen++;
             joiner.release();
             showStart();
         }));
+        ui.postDelayed(() -> {
+            if (!destroyed && stage == 1 && forceBtn == force) {
+                force.setVisibility(View.VISIBLE);
+                Ui.successPop(force);
+            }
+        }, 9000);
         locks.acquire(this);
         joiner.join(this, l, new ShareNet.Joiner.Cb() {
             @Override
@@ -286,7 +333,7 @@ public class ShareReceiveActivity extends BaseActivity {
                 if (destroyed) return;
                 factory = f;
                 extraIps = extra;
-                status.setText(R.string.sh_conn_link);
+                if (connStatus != null) connStatus.setText(R.string.sh_conn_link);
                 reach();
             }
 
@@ -296,42 +343,68 @@ public class ShareReceiveActivity extends BaseActivity {
                 locks.release();
                 failScreen(getString(R.string.sh_wifi_failed));
             }
+
+            @Override
+            public void lost() {
+                if (destroyed) return;
+                Toast.makeText(ShareReceiveActivity.this, R.string.sh_net_lost, Toast.LENGTH_LONG).show();
+            }
         });
+    }
+
+    private void forceTry() {
+        if (link == null || destroyed) return;
+        if (forceBtn != null) forceBtn.setVisibility(View.GONE);
+        if (connStatus != null) connStatus.setText(R.string.sh_conn_link);
+        if (!joiner.force()) reach();
     }
 
     private void reach() {
         final ShareLink l = link;
+        final int gen = ++reachGen;
+        final android.net.ConnectivityManager cmgr = (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         io.execute(() -> {
-            List<String> ips = new ArrayList<>(l.ips);
-            for (String g : extraIps) if (!ips.contains(g)) ips.add(g);
             final String me = ShareActivity.deviceName(this);
-            final ShareClient primary = new ShareClient(factory, l.port, l.token, me);
-            final ShareClient fallback = new ShareClient(SocketFactory.getDefault(), l.port, l.token, me);
-            ShareClient used = primary;
-            String err = null;
+            ShareClient used = null;
             List<ShareItem> list = null;
-            for (int attempt = 0; attempt < 5 && list == null && !destroyed; attempt++) {
-                ShareClient cur = attempt % 2 == 1 ? fallback : primary;
+            for (int attempt = 0; attempt < 8 && list == null && !destroyed && gen == reachGen; attempt++) {
+                final int shown = attempt + 1;
+                ui.post(() -> {
+                    if (!destroyed && stage == 1 && connStatus != null) connStatus.setText(getString(R.string.sh_conn_try, shown, 8));
+                });
+                List<String> ips = new ArrayList<>(l.ips);
+                for (String g : joiner.gateways()) if (!ips.contains(g)) ips.add(g);
+                for (String g : extraIps) if (!ips.contains(g)) ips.add(g);
+                SocketFactory f;
+                int pick = attempt % 3;
+                if (pick == 0) {
+                    f = joiner.factory();
+                } else if (pick == 1) {
+                    f = SocketFactory.getDefault();
+                } else {
+                    android.net.Network w = cmgr == null ? null : ShareNet.wifiNetwork(cmgr);
+                    f = w != null ? w.getSocketFactory() : SocketFactory.getDefault();
+                }
+                ShareClient cur = new ShareClient(f, l.port, l.token, me);
                 ShareClient.Conn conn = null;
                 try {
                     conn = cur.connectAny(ips);
                     list = cur.list(conn);
                     used = cur;
                 } catch (Throwable t) {
-                    err = String.valueOf(t.getMessage());
                     try {
-                        Thread.sleep(900);
+                        Thread.sleep(Math.min(2500, 600 + attempt * 300));
                     } catch (InterruptedException ignored) {
                     }
                 } finally {
                     if (conn != null) conn.close();
                 }
             }
+            if (gen != reachGen) return;
             final ShareClient c = used;
             final List<ShareItem> fl = list;
-            final String fe = err;
             ui.post(() -> {
-                if (destroyed) return;
+                if (destroyed || gen != reachGen) return;
                 if (fl == null) {
                     locks.release();
                     failScreen(getString(R.string.sh_unreachable));
@@ -349,6 +422,7 @@ public class ShareReceiveActivity extends BaseActivity {
 
     private void failScreen(String msg) {
         stage = 0;
+        tapRefresh();
         loading.setVisibility(View.INVISIBLE);
         content.removeAllViews();
         content.addView(Ui.noteCard(this, msg, R.color.bad));
@@ -528,6 +602,8 @@ public class ShareReceiveActivity extends BaseActivity {
         stage = 3;
         showProgress();
         dlStart = System.currentTimeMillis();
+        lastMove = dlStart;
+        lastDoneSeen = 0;
         lastTick = dlStart;
         lastBytes = 0;
         speed = 0;
@@ -542,21 +618,18 @@ public class ShareReceiveActivity extends BaseActivity {
         header(getString(R.string.sh_from, link.name));
         content.removeAllViews();
 
-        android.widget.FrameLayout pulseWrap = new android.widget.FrameLayout(this);
-        int pside = getResources().getDimensionPixelSize(R.dimen.share_dl_pulse);
-        LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(pside, pside);
-        plp.gravity = Gravity.CENTER_HORIZONTAL;
-        plp.bottomMargin = Ui.dp(this, 6);
-        dlPulse = new PulseView(this);
-        dlPulse.useAccent(this);
-        pulseWrap.addView(dlPulse, new android.widget.FrameLayout.LayoutParams(pside, pside));
-        ImageView dlIcon = new ImageView(this);
-        dlIcon.setImageResource(R.drawable.ic_download);
-        dlIcon.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.color(this, R.color.accent)));
-        int isz = getResources().getDimensionPixelSize(R.dimen.share_dl_icon);
-        pulseWrap.addView(dlIcon, new android.widget.FrameLayout.LayoutParams(isz, isz, Gravity.CENTER));
-        content.addView(pulseWrap, plp);
-        dlPulse.start();
+        dlAir = new AirView(this);
+        dlAir.icon(R.drawable.ic_download);
+        dlAir.setMode(AirView.RECEIVE);
+        dlAir.setProgress(0f);
+        int aside = getResources().getDimensionPixelSize(R.dimen.share_dl_air);
+        LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(aside, aside);
+        alp.gravity = Gravity.CENTER_HORIZONTAL;
+        alp.topMargin = Ui.dp(this, 8);
+        alp.bottomMargin = Ui.dp(this, 6);
+        content.addView(dlAir, alp);
+        dlAir.popIn();
+        dlAir.start();
 
         dlLine = Ui.body(this, "", 16, R.color.text_primary);
         content.addView(dlLine);
@@ -572,9 +645,9 @@ public class ShareReceiveActivity extends BaseActivity {
         pauseBtn.setOnClickListener(v -> {
             dl.pause(!dl.paused);
             pauseBtn.setText(dl.paused ? R.string.sh_resume : R.string.sh_pause);
-            if (dlPulse != null) {
-                if (dl.paused) dlPulse.stop();
-                else dlPulse.start();
+            if (dlAir != null) {
+                if (dl.paused) dlAir.stop();
+                else dlAir.start();
             }
         });
         content.addView(Ui.block(this, pauseBtn));
@@ -594,13 +667,19 @@ public class ShareReceiveActivity extends BaseActivity {
             lastBytes = done;
             long total = Math.max(1, dl.total);
             Ui.animateProgress(dlBar, (int) Math.min(1000, done * 1000 / total));
+            if (dlAir != null) dlAir.setProgress(Math.min(1f, done / (float) total));
+            if (done != lastDoneSeen) {
+                lastDoneSeen = done;
+                lastMove = now;
+            }
+            boolean stalled = !dl.paused && now - lastMove > 15000;
             dlLine.setText(getString(R.string.sh_dl_line, Fmt.size(done), Fmt.size(dl.total), (int) Math.min(100, done * 100 / total)));
             String eta = "";
             if (speed > 1024 && !dl.paused) {
                 long sec = (long) ((dl.total - done) / speed);
                 eta = "  ·  " + clock(sec);
             }
-            dlSpeed.setText(dl.paused ? getString(R.string.sh_paused) : Fmt.size((long) speed) + "/s" + eta);
+            dlSpeed.setText(dl.paused ? getString(R.string.sh_paused) : stalled ? getString(R.string.sh_stalled) : Fmt.size((long) speed) + "/s" + eta);
             StringBuilder sb = new StringBuilder(getString(R.string.sh_files_line, dl.filesDone.get() + dl.filesSkipped.get(), dl.totalFiles));
             if (dl.filesFailed.get() > 0) sb.append("  ·  ").append(getString(R.string.sh_failed_n, dl.filesFailed.get()));
             int n = 0;
@@ -626,7 +705,8 @@ public class ShareReceiveActivity extends BaseActivity {
         locks.release();
         getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         loading.setVisibility(View.INVISIBLE);
-        if (dlPulse != null) dlPulse.stop();
+        if (dlAir != null) dlAir.stop();
+        dlAir = null;
         header(getString(R.string.sh_from, link.name));
         content.removeAllViews();
         boolean bad = dl.filesFailed.get() > 0 || dl.cancelled;
@@ -634,6 +714,18 @@ public class ShareReceiveActivity extends BaseActivity {
         TextView doneCard = Ui.noteCard(this, getString(dl.cancelled ? R.string.sh_dl_cancelled : R.string.sh_dl_done,
                 dl.filesDone.get() + dl.filesSkipped.get(), dl.totalFiles, Fmt.size(dl.done.get()), clock(secs),
                 Fmt.size(dl.done.get() / secs) + "/s"), bad ? R.color.warn : R.color.ok);
+        if (!bad) {
+            AirView okAir = new AirView(this);
+            okAir.palette(Ui.color(this, R.color.ok), Ui.color(this, R.color.ok), 0xFFFFFFFF);
+            okAir.setMode(AirView.DONE);
+            int dside = getResources().getDimensionPixelSize(R.dimen.share_dl_air);
+            LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(dside, dside);
+            dlp.gravity = Gravity.CENTER_HORIZONTAL;
+            dlp.topMargin = Ui.dp(this, 8);
+            content.addView(okAir, dlp);
+            okAir.popIn();
+            Fx.done(content);
+        }
         content.addView(doneCard);
         Ui.successPop(doneCard);
         if (dl.filesFailed.get() > 0) content.addView(Ui.footer(this, getString(R.string.sh_failed_n, dl.filesFailed.get())));

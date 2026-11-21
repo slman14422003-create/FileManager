@@ -149,6 +149,11 @@ public class SettingsActivity extends BaseActivity {
         smart.onChange((b, on) -> Assistant.setEnabled(this, on));
         content.addView(smart.view);
 
+        final Ui.Toggle tap = Ui.toggle(this, content, R.string.tap_title, R.string.tap_sub, TapShare.enabled(this));
+        tap.withIcon(R.drawable.ic_nfc);
+        tap.onChange((b, on) -> ShareActivity.tapToggled(tap, on));
+        content.addView(tap.view);
+
 
         content.addView(Ui.sectionTitle(this, getString(R.string.dl_section)));
         content.addView(Ui.rowView(this, content, new Row(R.drawable.ic_download, false,

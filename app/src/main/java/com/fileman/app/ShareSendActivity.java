@@ -101,6 +101,11 @@ public class ShareSendActivity extends BaseActivity {
     private ActivityResultLauncher<Intent> pickCat;
     private ActivityResultLauncher<String[]> permLauncher;
     private Runnable afterPerm;
+    private boolean quickFirst;
+    private boolean composeEntered;
+    private AirView liveAir;
+    private boolean airShown;
+    private long lastRecv;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -117,6 +122,7 @@ public class ShareSendActivity extends BaseActivity {
         Ui.autoGroup(this, content);
         deviceName = ShareActivity.deviceName(this);
         receiveDir = ShareActivity.receiveDir(this);
+        quickFirst = getIntent() != null && getIntent().getBooleanExtra("quick", false);
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -169,6 +175,7 @@ public class ShareSendActivity extends BaseActivity {
     }
 
     private void stopAll() {
+        TapShare.setLink(null);
         if (server != null) server.stop();
         server = null;
         hotspot.stop();
@@ -304,6 +311,7 @@ public class ShareSendActivity extends BaseActivity {
         loading.setVisibility(View.INVISIBLE);
         content.removeAllViews();
         content.addView(scanCardView());
+        tapRefresh();
 
         if (!groups.isEmpty()) {
             content.addView(Ui.sectionTitle(this, getString(R.string.sh_selected)));
@@ -358,6 +366,10 @@ public class ShareSendActivity extends BaseActivity {
         Ui.group(this, other);
         content.addView(other);
         if (!groups.isEmpty()) content.addView(button(R.string.sx_next, true, v -> askMethod()));
+        if (!composeEntered) {
+            composeEntered = true;
+            for (int k = 0; k < Math.min(content.getChildCount(), 8); k++) Ui.enter(content.getChildAt(k), k);
+        }
     }
 
     private boolean needFiles() {
@@ -689,10 +701,10 @@ public class ShareSendActivity extends BaseActivity {
             try {
                 for (PackageInfo pi : pm.getInstalledPackages(0)) {
                     ApplicationInfo ai = pi.applicationInfo;
-                    if (ai == null) continue;
-                    boolean sys = (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0
-                            && (ai.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
-                    if (sys) continue;
+                    if (ai == null || ai.sourceDir == null) continue;
+                    boolean sys = (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+                    if (sys && pm.getLaunchIntentForPackage(pi.packageName) == null) continue;
+                    if (pi.packageName.equals(getPackageName())) continue;
                     apps.add(new String[]{String.valueOf(ai.loadLabel(pm)), pi.packageName,
                             pi.versionName == null ? "" : pi.versionName});
                 }
@@ -708,23 +720,118 @@ public class ShareSendActivity extends BaseActivity {
     }
 
     private void showAppDialog(final List<String[]> apps) {
-        final List<CheckBox> boxes = new ArrayList<>();
+        if (apps.isEmpty()) {
+            Toast.makeText(this, R.string.sh_nothing_found, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final Set<String> chosen = new HashSet<>();
+        final List<String[]> shown = new ArrayList<>(apps);
+        final PackageManager pm = getPackageManager();
+        final java.util.Map<String, android.graphics.drawable.Drawable> icons = new java.util.HashMap<>();
+        final TextView count = Ui.body(this, getString(R.string.sx_c_count, 0), 14, R.color.text_secondary);
+        final EditText search = Ui.edit(this, getString(R.string.sx_c_search), "");
+        final ListView lv = new ListView(this);
+        lv.setDivider(null);
+        final int isz = Ui.dp(this, 40);
+        final BaseAdapter ad = new BaseAdapter() {
+            @Override
+            public int getCount() {
+                return shown.size();
+            }
+
+            @Override
+            public Object getItem(int i) {
+                return shown.get(i);
+            }
+
+            @Override
+            public long getItemId(int i) {
+                return i;
+            }
+
+            @Override
+            public View getView(int i, View v, ViewGroup parent) {
+                final String[] a = shown.get(i);
+                CheckBox cb;
+                if (v instanceof CheckBox) {
+                    cb = (CheckBox) v;
+                } else {
+                    cb = Ui.check(ShareSendActivity.this, R.string.cv_select_all, false);
+                    cb.setLayoutParams(new AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(ShareSendActivity.this, 58)));
+                    cb.setCompoundDrawablePadding(Ui.dp(ShareSendActivity.this, 12));
+                }
+                cb.setOnCheckedChangeListener(null);
+                cb.setText(a[0]);
+                android.graphics.drawable.Drawable d = icons.get(a[1]);
+                if (d == null) {
+                    try {
+                        d = pm.getApplicationIcon(a[1]);
+                        d = d.getConstantState() != null ? d.getConstantState().newDrawable().mutate() : d;
+                        icons.put(a[1], d);
+                    } catch (Throwable ignored) {
+                    }
+                }
+                if (d != null) {
+                    android.graphics.drawable.Drawable dd = d.getConstantState() != null ? d.getConstantState().newDrawable().mutate() : d;
+                    dd.setBounds(0, 0, isz, isz);
+                    cb.setCompoundDrawablesRelative(dd, null, null, null);
+                }
+                cb.setChecked(chosen.contains(a[1]));
+                cb.setOnCheckedChangeListener((b, on) -> {
+                    if (on) chosen.add(a[1]);
+                    else chosen.remove(a[1]);
+                    count.setText(getString(R.string.sx_c_count, chosen.size()));
+                });
+                return cb;
+            }
+        };
+        lv.setAdapter(ad);
+        search.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence cs, int a, int b, int c) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence cs, int a, int b, int c) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable e) {
+                String q = e.toString().trim().toLowerCase(Locale.ROOT);
+                shown.clear();
+                for (String[] a : apps) if (q.isEmpty() || a[0].toLowerCase(Locale.ROOT).contains(q) || a[1].toLowerCase(Locale.ROOT).contains(q)) shown.add(a);
+                ad.notifyDataSetChanged();
+            }
+        });
+        LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        TextView allChip = Ui.chip(this, getString(R.string.sx_c_all), false);
+        allChip.setOnClickListener(v -> {
+            for (String[] a : shown) chosen.add(a[1]);
+            count.setText(getString(R.string.sx_c_count, chosen.size()));
+            ad.notifyDataSetChanged();
+        });
+        TextView noneChip = Ui.chip(this, getString(R.string.sx_c_none), false);
+        noneChip.setOnClickListener(v -> {
+            chosen.clear();
+            count.setText(getString(R.string.sx_c_count, 0));
+            ad.notifyDataSetChanged();
+        });
+        bar.addView(allChip);
+        bar.addView(noneChip);
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(Ui.dp(this, 22), Ui.dp(this, 8), Ui.dp(this, 22), Ui.dp(this, 8));
-        for (String[] a : apps) {
-            CheckBox cb = Ui.check(this, R.string.cv_select_all, false);
-            cb.setText(a[0]);
-            boxes.add(cb);
-            box.addView(cb);
-        }
-        ScrollView sv = new ScrollView(this);
-        sv.addView(box);
-        new Dlg(this).setTitle(getString(R.string.sh_add_apps)).setView(sv)
+        box.setPadding(Ui.dp(this, 16), Ui.dp(this, 8), Ui.dp(this, 16), 0);
+        box.addView(search);
+        box.addView(bar);
+        box.addView(count);
+        box.addView(lv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                (int) (getResources().getDisplayMetrics().heightPixels * 0.45f)));
+        new Dlg(this).setTitle(getString(R.string.sh_add_apps)).setView(box)
                 .setPositiveButton(R.string.sh_add, (d, w) -> {
-                    List<String[]> chosen = new ArrayList<>();
-                    for (int i = 0; i < boxes.size(); i++) if (boxes.get(i).isChecked()) chosen.add(apps.get(i));
-                    if (!chosen.isEmpty()) buildApps(chosen);
+                    List<String[]> sel = new ArrayList<>();
+                    for (String[] a : apps) if (chosen.contains(a[1])) sel.add(a);
+                    if (!sel.isEmpty()) buildApps(sel);
                 })
                 .setNegativeButton(R.string.cancel, null)
                 .show();
@@ -779,6 +886,10 @@ public class ShareSendActivity extends BaseActivity {
             Toast.makeText(this, R.string.sh_need_items, Toast.LENGTH_SHORT).show();
             return;
         }
+        if (quickFirst) {
+            shareViaSystem(true);
+            return;
+        }
         chooseMethod(false);
     }
 
@@ -802,8 +913,10 @@ public class ShareSendActivity extends BaseActivity {
         list.addView(methodRow(R.drawable.ic_qr, R.string.sx_m_network, R.string.sx_m_network_sub, false, ref,
                 () -> pickMethod(M_NETWORK, switching)));
         if (!switching) {
+            list.addView(methodRow(R.drawable.ic_quick_share, R.string.sx_m_quick, R.string.sx_m_quick_sub, false, ref,
+                    () -> shareViaSystem(true)));
             list.addView(methodRow(R.drawable.ic_share, R.string.sx_m_system, R.string.sx_m_system_sub, false, ref,
-                    this::shareViaSystem));
+                    () -> shareViaSystem(false)));
         }
         Ui.group(this, list);
         ref[0] = new Dlg(this).setTitle(R.string.sx_m_title).setView(list)
@@ -987,7 +1100,7 @@ public class ShareSendActivity extends BaseActivity {
                 .show();
     }
 
-    private void shareViaSystem() {
+    private void shareViaSystem(final boolean quick) {
         if (totalCount() > 250) {
             Toast.makeText(this, R.string.sx_sys_many, Toast.LENGTH_LONG).show();
             return;
@@ -1027,6 +1140,10 @@ public class ShareSendActivity extends BaseActivity {
                 in.setClipData(cd);
             }
             in.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            if (quick) {
+                if (QuickShare.launch(this, in)) return;
+                Toast.makeText(this, R.string.sx_quick_missing, Toast.LENGTH_LONG).show();
+            }
             startActivity(Intent.createChooser(in, getString(R.string.share)));
         } catch (Exception e) {
             Toast.makeText(this, R.string.fm_no_app, Toast.LENGTH_SHORT).show();
@@ -1101,6 +1218,14 @@ public class ShareSendActivity extends BaseActivity {
         qrView.setVisibility(View.GONE);
         qrWrap.addView(qrView, new android.widget.FrameLayout.LayoutParams(side, side, Gravity.CENTER));
 
+        airShown = false;
+        lastRecv = 0;
+        liveAir = new AirView(this);
+        liveAir.icon(R.drawable.ic_wifi);
+        liveAir.setMode(AirView.IDLE);
+        liveAir.setVisibility(View.GONE);
+        qrWrap.addView(liveAir, new android.widget.FrameLayout.LayoutParams(pulseSide, pulseSide, Gravity.CENTER));
+
         credsView = Ui.body(this, "", 14, R.color.text_secondary);
         credsView.setGravity(Gravity.CENTER_HORIZONTAL);
         content.addView(credsView);
@@ -1129,6 +1254,55 @@ public class ShareSendActivity extends BaseActivity {
         lastBytes = 0;
         ui.removeCallbacks(ticker);
         ui.postDelayed(ticker, 500);
+        for (int k = 0; k < Math.min(content.getChildCount(), 9); k++) Ui.enter(content.getChildAt(k), k);
+        tapRefresh();
+    }
+
+    private void showAir(final boolean on) {
+        if (liveAir == null || qrView == null) return;
+        airShown = on;
+        if (on) {
+            if (livePulse != null) livePulse.stop();
+            qrView.animate().alpha(0f).scaleX(0.8f).scaleY(0.8f).setDuration(Fx.dur(this, 220)).withEndAction(() -> {
+                if (airShown) qrView.setVisibility(View.GONE);
+                qrView.setAlpha(1f);
+                qrView.setScaleX(1f);
+                qrView.setScaleY(1f);
+            }).start();
+            if (livePulse != null) livePulse.setVisibility(View.GONE);
+            liveAir.setVisibility(View.VISIBLE);
+            liveAir.clearProgress();
+            liveAir.setMode(AirView.IDLE);
+            liveAir.popIn();
+            liveAir.start();
+            Fx.done(liveAir);
+        } else {
+            liveAir.stop();
+            liveAir.setVisibility(View.GONE);
+            if (livePulse != null) {
+                livePulse.setVisibility(View.VISIBLE);
+                livePulse.start();
+            }
+            if (link != null && (!link.ips.isEmpty() || !link.ssid.isEmpty())) {
+                qrView.setVisibility(View.VISIBLE);
+                Ui.successPop(qrView);
+            }
+        }
+    }
+
+    @Override
+    protected int tapMode() {
+        return live && server != null ? TapShare.SERVE : TapShare.AUTO;
+    }
+
+    @Override
+    protected void onTapPeer() {
+        TapShare.ripple(this);
+        Fx.done(content);
+    }
+
+    @Override
+    protected void onTapLink(String code) {
     }
 
     private void addMoreLive() {
@@ -1184,10 +1358,10 @@ public class ShareSendActivity extends BaseActivity {
     private void publish() {
         if (destroyed || server == null) return;
         List<String> ips = ShareNet.localIps();
-        if (ips.isEmpty() && ipTries < 12 && method != M_NETWORK) {
+        if (ips.isEmpty() && ipTries < 24 && method != M_NETWORK) {
             ipTries++;
             liveStatus.setText(R.string.sh_live_wait_ip);
-            ui.postDelayed(this::publish, 700);
+            ui.postDelayed(this::publish, 600);
             return;
         }
         applyLink(ips);
@@ -1209,12 +1383,13 @@ public class ShareSendActivity extends BaseActivity {
             link.pass = "";
         }
         lastIps = joinIps(ips) + "|" + link.ssid;
+        TapShare.setLink(ips.isEmpty() && link.ssid.isEmpty() ? null : link.encode());
         boolean usable = !ips.isEmpty() || !link.ssid.isEmpty();
         if (usable) {
             try {
                 Bitmap bm = ShareQr.make(link.encode(), 720);
                 qrView.setImageBitmap(bm);
-                if (qrView.getVisibility() != View.VISIBLE) {
+                if (qrView.getVisibility() != View.VISIBLE && !airShown) {
                     qrView.setVisibility(View.VISIBLE);
                     Ui.successPop(qrView);
                 }
@@ -1256,12 +1431,25 @@ public class ShareSendActivity extends BaseActivity {
             List<String> peers = server.peers();
             if (peers.isEmpty()) {
                 livePeers.setText(R.string.sh_devices_none);
-                if (livePulse != null) livePulse.start();
+                if (airShown && liveAir != null && liveAir.mode() != AirView.DONE) showAir(false);
+                if (livePulse != null && !airShown) livePulse.start();
             } else {
                 StringBuilder sb = new StringBuilder(getString(R.string.sh_devices, peers.size()));
                 for (String p : peers) sb.append('\n').append(p);
                 livePeers.setText(sb.toString());
-                if (livePulse != null) livePulse.stop();
+                if (!airShown) showAir(true);
+            }
+            if (airShown && liveAir != null) {
+                long tot = Math.max(1, server.total());
+                long snt = server.sent.get();
+                long rcv = server.received.get();
+                boolean allSent = server.total() > 0 && snt >= server.total() && inst < 1024 && rcv == lastRecv;
+                if (allSent) liveAir.setMode(AirView.DONE);
+                else if (rcv > lastRecv && inst >= 1024) liveAir.setMode(AirView.RECEIVE);
+                else if (inst >= 1024 || snt < server.total()) liveAir.setMode(AirView.SEND);
+                else liveAir.setMode(AirView.IDLE);
+                lastRecv = rcv;
+                if (snt > 0 || allSent) liveAir.setProgress(Math.min(1f, snt / (float) tot));
             }
             long total = Math.max(1, server.total());
             liveSpeed.setText(getString(R.string.sh_live_stats, Fmt.size(server.sent.get()), Fmt.size(server.received.get()),
