@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sx_a_count">%1$d تطبيق محدد</string>
+
+    <string name="sd_summary">%1$d عنصر • %2$s</string>
+    <string name="sd_measuring">جارٍ حساب الحجم…</string>
+    <string name="sd_passes_title">عدد مرات الكتابة فوق الملف</string>
+    <string name="sd_passes_hint">كل مرة تكتب بيانات جديدة فوق كل بايت من الملف. كلما زاد العدد زاد الأمان وطال الوقت.</string>
+    <string name="sd_opt_title">خيارات إضافية</string>
+    <string name="sd_tg_zero">تمريرة بالأصفار</string>
+    <string name="sd_tg_zero_sub">في المرة الثانية تُكتب أصفار بين مرتين عشوائيتين</string>
+    <string name="sd_tg_rename">إخفاء اسم الملف</string>
+    <string name="sd_tg_rename_sub">يُغيَّر الاسم إلى اسم عشوائي قبل الحذف</string>
+    <string name="sd_tg_traces">مسح الآثار</string>
+    <string name="sd_tg_traces_sub">يُزال من الفهرس والمفضلة والمثبّتات والمعاينات</string>
+    <string name="sd_next">التالي</string>
+    <string name="sd_finish">تم</string>
+
+    <string name="sd_warn">لا يمكن التراجع عن هذه العملية، ولا استرجاع الملفات بأي أداة. لن يُنقل شيء إلى سلة المحذوفات.</string>
+    <string name="sd_st1">١. إتلاف الملف</string>
+    <string name="sd_st1_sub">كتابة بيانات عشوائية في بداية الملف ونهايته وفي أجزاء منه، فيصبح غير صالح فورًا</string>
+    <string name="sd_st2">٢. الكتابة فوق الملف</string>
+    <string name="sd_st2_sub">%1$d مرة كتابة كاملة فوق كل بايت</string>
+    <string name="sd_st3">٣. الحذف النهائي</string>
+    <string name="sd_st3_sub">تصغير الملف إلى صفر ثم حذفه ومسح آثاره</string>
+    <string name="sd_start">ابدأ الحذف النهائي</string>
+    <string name="sd_stop">إيقاف</string>
+    <string name="sd_stopping">سيتوقف بعد الملف الحالي…</string>
+    <string name="sd_stopped">تم الإيقاف. الملفات التي لم تُحذف أصبحت غير صالحة للاستخدام.</string>
+    <string name="sd_preparing">جارٍ التحضير…</string>
+</resources>

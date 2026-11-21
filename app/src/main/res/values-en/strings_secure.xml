@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sx_a_count">%1$d apps selected</string>
+
+    <string name="sd_summary">%1$d item(s) • %2$s</string>
+    <string name="sd_measuring">Measuring…</string>
+    <string name="sd_passes_title">Overwrite passes</string>
+    <string name="sd_passes_hint">Each pass writes new data over every byte of the file. More passes are safer but take longer.</string>
+    <string name="sd_opt_title">More options</string>
+    <string name="sd_tg_zero">Zero pass</string>
+    <string name="sd_tg_zero_sub">The second pass writes zeros between random passes</string>
+    <string name="sd_tg_rename">Scramble the file name</string>
+    <string name="sd_tg_rename_sub">Renamed to a random name right before deleting</string>
+    <string name="sd_tg_traces">Clear traces</string>
+    <string name="sd_tg_traces_sub">Removed from search, favorites, pins and previews</string>
+    <string name="sd_next">Next</string>
+    <string name="sd_finish">Done</string>
+
+    <string name="sd_warn">This cannot be undone and the files cannot be recovered with any tool. Nothing goes to the trash.</string>
+    <string name="sd_st1">1. Corrupt the file</string>
+    <string name="sd_st1_sub">Random data over the start, the end and samples of the file, so it is unusable at once</string>
+    <string name="sd_st2">2. Overwrite the file</string>
+    <string name="sd_st2_sub">%1$d full pass(es) over every byte</string>
+    <string name="sd_st3">3. Delete for good</string>
+    <string name="sd_st3_sub">Cut to zero, delete and clear traces</string>
+    <string name="sd_start">Start permanent delete</string>
+    <string name="sd_stop">Stop</string>
+    <string name="sd_stopping">Will stop after the current file…</string>
+    <string name="sd_stopped">Stopped. Files that were not deleted are already unusable.</string>
+    <string name="sd_preparing">Preparing…</string>
+</resources>
